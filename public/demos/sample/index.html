@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Demo mẫu</title>
+<style>
+  /* DEMO MẪU: trang giả để thử khung xem demo của CoreSpark.
+     Đọc thông số trên URL: ?t=Tiêu đề &c=màu (không có #) &m=light|dark &s=plain|glass|brutal */
+
+  /* Biến màu (đổi theo chế độ sáng/tối) */
+  :root { --c: #0a84ff; --bg: #fff; --fg: #1d1d1f; --card: #f5f5f7; }
+  body.dark { --bg: #0b0b0d; --fg: #f5f5f7; --card: #1c1c1e; }
+
+  /* Nền tảng */
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+
+  /* Thanh trên */
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 5vw; font-weight: 600; }
+  nav span { color: var(--c); }
+
+  /* Phần giới thiệu */
+  .hero { padding: 8vh 5vw 6vh; max-width: 900px; }
+  h1 { font-size: clamp(2.6rem, 9vw, 6rem); line-height: 1; letter-spacing: -.04em; }
+  .hero p { margin: 1.2rem 0 2rem; opacity: .65; font-size: 1.2rem; max-width: 34ch; }
+  .btn { display: inline-block; padding: .9rem 1.6rem; border-radius: 999px; background: var(--c); color: #fff; font-weight: 600; text-decoration: none; }
+
+  /* Lưới thẻ */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; padding: 0 5vw 8vh; }
+  .cards div { height: 180px; border-radius: 1.4rem; background: var(--card); padding: 1.4rem; display: flex; align-items: flex-end; font-weight: 600; }
+
+  /* Phong cách kính mờ */
+  body.glass .cards div { background: color-mix(in srgb, var(--c) 14%, transparent); backdrop-filter: blur(12px); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+
+  /* Phong cách brutalist */
+  body.brutal h1 { text-transform: uppercase; letter-spacing: -.02em; }
+  body.brutal .btn, body.brutal .cards div { border-radius: 0; border: 2px solid var(--fg); box-shadow: 5px 5px 0 var(--fg); }
+</style>
+</head>
+<body>
+  <nav><b id="logo">Demo</b><span>Menu</span></nav>
+  <section class="hero">
+    <h1 id="t">Demo mẫu</h1>
+    <p>Đây là trang mẫu để thử khung xem demo. Hãy thay bằng demo thật của bạn.</p>
+    <a class="btn" href="#">Bắt đầu</a>
+  </section>
+  <section class="cards"><div>Thẻ một</div><div>Thẻ hai</div><div>Thẻ ba</div></section>
+
+<script>
+  /* Đọc thông số từ URL rồi áp vào trang */
+  const q = new URLSearchParams(location.search);
+  const t = q.get('t') || 'Demo mẫu';
+  document.title = t;
+  document.getElementById('t').textContent = t;
+  document.getElementById('logo').textContent = t;
+  if (q.get('c')) document.documentElement.style.setProperty('--c', '#' + q.get('c'));
+  if (q.get('m') === 'dark') document.body.classList.add('dark');
+  if (q.get('s')) document.body.classList.add(q.get('s'));
+</script>
+</body>
+</html>

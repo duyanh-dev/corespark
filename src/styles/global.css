@@ -1,0 +1,118 @@
+/* =========================================================
+   GLOBAL.CSS - CSS dùng chung toàn site
+   Phong cách Apple: sáng, thoáng, bo tròn, chữ lớn, phẳng (KHÔNG gradient)
+   Mặc định là nền sáng. Thêm class "dark" vào 1 section để đổi sang nền đen
+   ========================================================= */
+
+/* ---------- 1. BIẾN MÀU / CỠ CHỮ / KHOẢNG CÁCH ---------- */
+:root {
+  /* Nền và bề mặt (chủ đề sáng) */
+  --bg: #fbfbfd;
+  --bg-soft: #f5f5f7;
+  --surface: #ffffff;
+
+  /* Chữ */
+  --text: #1d1d1f;
+  --text-dim: #6e6e73;
+
+  /* Đường kẻ mảnh */
+  --line: rgba(0, 0, 0, .1);
+
+  /* Màu hệ thống kiểu Apple (đều là màu phẳng) */
+  --blue: #0a84ff;
+  --purple: #bf5af2;
+  --pink: #ff375f;
+  --orange: #ff9f0a;
+  --green: #30d158;
+
+  /* Màu nhấn chính + màu chữ đặt trên nền nhấn */
+  --accent: #0071e3;
+  --on-accent: #ffffff;
+
+  /* Font: máy Apple dùng SF Pro, Windows/Android dùng Inter */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+
+  /* Cỡ chữ co giãn theo màn hình (nhỏ, lý tưởng, lớn) */
+  --fs-hero: clamp(2.6rem, 6vw, 6.6rem);
+  --fs-h2: clamp(2rem, 4.6vw, 3.8rem);
+  --fs-body: clamp(1.02rem, 1.25vw, 1.2rem);
+
+  /* Lề hai bên của trang */
+  --gutter: max(clamp(1.25rem, 5vw, 5rem), calc((100vw - 1440px) / 2));
+
+   --sb-thumb: rgba(110, 110, 115, .38);
+  --sb-thumb-hover: rgba(110, 110, 115, .72);
+}
+
+/* ---------- 2. CHỦ ĐỀ TỐI (gắn class "dark" vào section) ---------- */
+.dark {
+  --bg: #000000;
+  --bg-soft: #101012;
+  --surface: #1c1c1e;
+  --text: #f5f5f7;
+  --text-dim: #a1a1a6;
+  --line: rgba(255, 255, 255, .14);
+  --accent: #2997ff;           /* xanh sáng hơn cho nền tối */
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- 3. RESET ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { color-scheme: light; }
+html { -webkit-text-size-adjust: 100%; }                       /* iOS không tự phóng chữ khi xoay ngang */
+canvas, svg, img, video { display: block; max-width: 100%; }   /* hết khe hở dưới canvas / ảnh */
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  overflow-x: hidden;              /* chặn cuộn ngang ngoài ý muốn trên mobile */
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+h1, h2, h3 { letter-spacing: -.03em; font-weight: 700; }   /* chữ tiêu đề co chặt như Apple */
+::selection { background: var(--accent); color: #fff; }
+
+/* ---------- 4. CLASS DÙNG CHUNG ---------- */
+
+/* Chữ màu nhấn */
+.accent { color: var(--accent); }
+
+/* Nhãn nhỏ phía trên tiêu đề (eyebrow) */
+.label { font-size: clamp(.95rem, 1.3vw, 1.1rem); font-weight: 600; color: var(--text-dim); }
+
+/* Nút hình viên thuốc. Tên class "btn--fire" giữ nguyên cho khỏi phải sửa chỗ khác */
+.btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .85rem 1.6rem; border-radius: 999px;
+  font-weight: 500; font-size: 1.02rem;
+  transition: transform .25s, background .25s, color .25s;
+}
+.btn--fire { background: var(--accent); color: var(--on-accent); }
+.btn--fire:hover { transform: scale(1.04); }
+.btn--ghost { color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.btn--ghost:hover { background: var(--accent); color: var(--on-accent); }
+
+/* Người dùng bật "giảm chuyển động" trong hệ điều hành thì tắt animation */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--sb-thumb); border: 3px solid transparent;
+    background-clip: content-box; border-radius: 999px;   /* viên thuốc mảnh 6px */
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--sb-thumb-hover); }
+}
+/* Firefox */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+}

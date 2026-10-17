@@ -1,0 +1,399 @@
+---
+/* =========================================================
+   NAV.ASTRO - Thanh điều hướng "liquid glass" kiểu Apple
+   - Viên thuốc kính NỔI cách mép trên, rơi xuống mượt khi tải trang
+   - LIQUID GLASS thật: viền kính KHÚC XẠ, hình nền phía sau bị bẻ cong ở các cạnh khi header
+     chạy qua (SVG feDisplacementMap + backdrop-filter). Bản đồ khúc xạ được vẽ bằng canvas
+     theo đúng kích thước viên thuốc, tự vẽ lại khi đổi kích thước.
+     Chỉ Chromium (Chrome, Edge, Opera...) hỗ trợ; Safari/Firefox tự dùng kính mờ thường.
+   - Viền sáng (specular) xoay theo con trỏ, như ánh sáng đang soi vào mép kính
+   - "Thấu kính" trượt theo con trỏ và tự nằm dưới mục đang xem (scrollspy)
+   - Tự đổi sang tông tối khi đi ngang qua section có class "dark"
+   - Điện thoại/tablet (<=860px): hamburger + menu toàn màn hình, chữ hiện lần lượt
+   ========================================================= */
+const links = [
+  { href: '#spark',    t: 'Câu chuyện' },
+  { href: '#process',  t: 'Quy trình' },
+  { href: '#studio',   t: 'Studio' },
+  { href: '#showcase', t: 'Demo' },
+];
+---
+
+<!-- Bộ lọc khúc xạ (để ngoài luồng hiển thị). Kích thước + bản đồ do JS điền, xem HÀM 0 -->
+<svg class="nav__defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="nav-glass" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="100" height="48" color-interpolation-filters="sRGB">
+      <!-- 1) làm nhoè nhẹ hình nền phía sau (edgeMode duplicate để mép không bị trong suốt) -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" edgeMode="duplicate" result="soft" />
+      <!-- 2) bản đồ khúc xạ vẽ bằng canvas: giữa trung tính, mép đẩy hình vào trong -->
+      <feImage id="nav-map" x="0" y="0" width="100" height="48" preserveAspectRatio="none" result="map" />
+      <!-- 3) bẻ cong hình nền theo bản đồ -->
+      <feDisplacementMap in="soft" in2="map" scale="36" xChannelSelector="R" yChannelSelector="G" result="bent" />
+      <!-- 4) màu rực hơn một chút như kính thật -->
+      <feColorMatrix in="bent" type="saturate" values="1.7" />
+    </filter>
+  </defs>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="nav__bar">
+    <!-- Logo: tia lửa 4 cánh xoay nhẹ khi rê chuột -->
+    <a href="#hero" class="nav__logo" aria-label="CoreSpark, về đầu trang">
+      <svg class="nav__spark" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 1.5c.7 5.9 4.6 9.8 10.5 10.5-5.9.7-9.8 4.6-10.5 10.5C11.3 16.6 7.4 12.7 1.5 12 7.4 11.3 11.3 7.4 12 1.5z" />
+      </svg>
+      <b>Core<span>Spark</span></b>
+    </a>
+
+    <!-- Menu ngang (desktop) + thấu kính trượt -->
+    <nav class="nav__links" aria-label="Điều hướng chính">
+      <span class="nav__lens" aria-hidden="true"></span>
+      {links.map((l) => <a href={l.href}>{l.t}</a>)}
+    </nav>
+
+    <div class="nav__right">
+      <a href="#contact" class="nav__cta">Liên hệ</a>
+      <!-- Nút hamburger (chỉ hiện trên màn nhỏ) -->
+      <button class="nav__burger" type="button" aria-label="Mở menu" aria-expanded="false" aria-controls="nav-sheet"><span></span><span></span></button>
+    </div>
+  </div>
+</header>
+
+<!-- Menu toàn màn hình: để NGOÀI <header> vì backdrop-filter của header sẽ làm hỏng position: fixed của phần tử con -->
+<div class="nav__sheet" id="nav-sheet" aria-hidden="true" inert>
+  {links.map((l, i) => <a href={l.href} style={`--i:${i}`}>{l.t}</a>)}
+  <a href="#contact" class="nav__sheet-cta" style={`--i:${links.length}`}>Liên hệ</a>
+</div>
+
+<!-- ============ CSS riêng của Nav ============ -->
+<style>
+  /* Góc của viền sáng: đăng ký kiểu <angle> để CSS nội suy mượt khi JS đổi theo con trỏ */
+  @property --ang { syntax: '<angle>'; inherits: false; initial-value: 315deg; }
+
+  .nav__defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
+  /* Lớp ngoài chỉ để định vị, không chặn chuột ở vùng trống hai bên viên thuốc */
+  .nav {
+    position: fixed; inset: 0 0 auto 0; z-index: 60;
+    display: flex; justify-content: center; padding-top: .75rem;
+    pointer-events: none;
+
+    /* Bảng màu kính (tông sáng). --glass là bản dự phòng (blur thường), --glass-r dùng khi có khúc xạ */
+    --glass: rgba(251, 251, 253, .66);
+    --glass-r: rgba(251, 251, 253, .34);
+    --edge: rgba(0, 0, 0, .07);
+    --hi: rgba(255, 255, 255, .8);
+    --rim1: rgba(255, 255, 255, 1);
+    --rim2: rgba(255, 255, 255, .75);
+    --lens: rgba(0, 0, 0, .06);
+    --shadow: 0 8px 28px -14px rgba(0, 0, 0, .25);
+  }
+  .nav--dark {
+    --text: #f5f5f7; --text-dim: #a1a1a6; --accent: #2997ff;
+    --glass: rgba(29, 29, 31, .58);
+    --glass-r: rgba(29, 29, 31, .3);
+    --edge: rgba(255, 255, 255, .1);
+    --hi: rgba(255, 255, 255, .16);
+    --rim1: rgba(255, 255, 255, .85);
+    --rim2: rgba(255, 255, 255, .4);
+    --lens: rgba(255, 255, 255, .14);
+    --shadow: 0 10px 32px -14px rgba(0, 0, 0, .65);
+  }
+
+  /* Viên thuốc kính: 3 cột (logo | menu căn giữa | hành động) */
+  .nav__bar {
+    position: relative; pointer-events: auto;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    width: min(calc(100% - 2rem), 920px); height: 3rem; padding: 0 .5rem 0 1.15rem;
+    border-radius: 999px;
+    background: var(--glass);
+    -webkit-backdrop-filter: saturate(190%) blur(24px);
+    backdrop-filter: saturate(190%) blur(24px);
+    box-shadow: inset 0 0 0 1px var(--edge), inset 0 1px 0 var(--hi), inset 0 -1px 0 rgba(255, 255, 255, .25), var(--shadow);
+    color: var(--text);
+    transition: background .5s, box-shadow .5s, color .4s, --ang .35s ease-out;
+    animation: drop .9s cubic-bezier(.2, .9, .3, 1) both;
+  }
+  .is-scrolled .nav__bar {
+    box-shadow: inset 0 0 0 1px var(--edge), inset 0 1px 0 var(--hi), inset 0 -1px 0 rgba(255, 255, 255, .25), 0 16px 44px -16px rgba(0, 0, 0, .36);
+  }
+  @keyframes drop { from { opacity: 0; transform: translateY(-16px) scale(.96); } }
+
+  /* CÓ KHÚC XẠ (JS thêm class khi trình duyệt hỗ trợ): kính trong hơn, viền bẻ cong hình nền */
+  .has-refract .nav__bar {
+    background: var(--glass-r);
+    -webkit-backdrop-filter: url(#nav-glass);
+    backdrop-filter: url(#nav-glass);
+  }
+
+  /* Vòng sáng ở mép (specular): hai điểm sáng đối nhau, xoay theo --ang (JS gán theo con trỏ) */
+  .nav__bar::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.3px; pointer-events: none;
+    background: conic-gradient(from calc(var(--ang) - 45deg),
+      transparent 0deg, var(--rim1) 45deg, transparent 100deg,
+      transparent 180deg, var(--rim2) 225deg, transparent 280deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  }
+  /* Ánh sáng tràn nhẹ vào trong từ mép (cảm giác độ dày của kính) */
+  .nav__bar::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    box-shadow: inset 0 0 14px -2px var(--hi), inset 0 0 2px 0 rgba(255, 255, 255, .5);
+    opacity: .55;
+  }
+  .nav__bar > * { position: relative; z-index: 1; }
+
+  /* --- Logo --- */
+  .nav__logo { display: inline-flex; align-items: center; gap: .5rem; justify-self: start; font-size: .95rem; letter-spacing: -.015em; }
+  .nav__logo b { font-weight: 650; }
+  .nav__logo span { color: var(--accent); }
+  .nav__spark { width: 1.05rem; height: 1.05rem; fill: var(--accent); transition: transform .8s cubic-bezier(.2, .9, .3, 1.4); }
+  .nav__logo:hover .nav__spark { transform: rotate(90deg) scale(1.15); }
+
+  /* --- Menu ngang + thấu kính --- */
+  .nav__links { position: relative; display: flex; gap: .1rem; font-size: .82rem; }
+  .nav__links a {
+    position: relative; z-index: 1; padding: .5rem .95rem; border-radius: 999px;
+    color: var(--text-dim); font-weight: 500; letter-spacing: -.005em;
+    transition: color .3s;
+  }
+  .nav__links a:hover, .nav__links a[aria-current='true'] { color: var(--text); }
+  .nav__lens {
+    position: absolute !important; top: 0; bottom: 0; left: 0; z-index: 0 !important; border-radius: 999px;
+    width: var(--lw, 0); transform: translateX(var(--lx, 0)); opacity: 0;
+    background: var(--lens);
+    box-shadow: inset 0 0 0 .5px var(--edge);
+    transition: transform .55s cubic-bezier(.3, 1.35, .5, 1), width .55s cubic-bezier(.3, 1.35, .5, 1), opacity .3s, background .4s;
+  }
+  .nav__lens.is-on { opacity: 1; }
+
+  /* --- Bên phải: nút liên hệ + hamburger --- */
+  .nav__right { display: flex; align-items: center; gap: .3rem; justify-self: end; }
+  .nav__cta {
+    padding: .5rem 1.05rem; border-radius: 999px; font-size: .82rem; font-weight: 600;
+    background: var(--accent); color: var(--on-accent);
+    transition: transform .3s cubic-bezier(.2, .9, .3, 1.4), filter .25s;
+  }
+  .nav__cta:hover { filter: brightness(1.08); transform: scale(1.04); }
+  .nav__cta:active { transform: scale(.95); }
+
+  .nav__burger { display: none; position: relative; width: 2.4rem; height: 2.4rem; padding: 0; border: 0; background: none; cursor: pointer; }
+  .nav__burger span {
+    position: absolute; left: .62rem; right: .62rem; height: 1.5px; border-radius: 2px; background: var(--text);
+    transition: transform .4s cubic-bezier(.2, .9, .3, 1), top .4s cubic-bezier(.2, .9, .3, 1), background .4s;
+  }
+  .nav__burger span:nth-child(1) { top: .92rem; }
+  .nav__burger span:nth-child(2) { top: 1.4rem; }
+  .nav__burger.is-open span:nth-child(1) { top: 1.16rem; transform: rotate(45deg); }
+  .nav__burger.is-open span:nth-child(2) { top: 1.16rem; transform: rotate(-45deg); }
+
+  /* Vòng focus rõ ràng cho bàn phím */
+  .nav a:focus-visible, .nav button:focus-visible, .nav__sheet a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* --- Menu toàn màn hình: ẩn bằng visibility để không nhận focus khi đóng --- */
+  .nav__sheet {
+    position: fixed; inset: 0; z-index: 55;
+    display: none; flex-direction: column; justify-content: center; padding: 5rem var(--gutter) 2.5rem;
+    background: rgba(251, 251, 253, .86);
+    -webkit-backdrop-filter: saturate(180%) blur(30px); backdrop-filter: saturate(180%) blur(30px);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .4s, visibility 0s .4s;
+  }
+  .nav__sheet.is-open { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity .4s, visibility 0s; }
+
+  /* Mỗi mục hiện lần lượt (so le theo --i), lúc đóng thì mất ngay, không trễ */
+  .nav__sheet a {
+    padding: .9rem 0; font-size: clamp(1.9rem, 8.5vw, 2.7rem); font-weight: 650; letter-spacing: -.03em;
+    border-bottom: 1px solid var(--line);
+    opacity: 0; transform: translateY(16px); transition: opacity .3s, transform .3s;
+  }
+  .nav__sheet.is-open a {
+    opacity: 1; transform: none;
+    transition: opacity .6s, transform .7s cubic-bezier(.2, .9, .3, 1);
+    transition-delay: calc(var(--i) * .06s + .08s);
+  }
+  .nav__sheet .nav__sheet-cta {
+    margin-top: 1.8rem; border: 0; text-align: center; font-size: 1.1rem; font-weight: 600; letter-spacing: 0;
+    padding: 1rem; border-radius: 999px; background: var(--accent); color: var(--on-accent);
+  }
+
+  /* Tablet và điện thoại: ẩn menu ngang, hiện hamburger */
+  @media (max-width: 860px) {
+    .nav { padding-top: .6rem; }
+    .nav__bar { grid-template-columns: 1fr auto; width: calc(100% - 1.2rem); height: 2.9rem; padding-left: 1rem; }
+    .nav__links { display: none; }
+    .nav__burger { display: block; }
+    .nav__sheet { display: flex; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav__bar { animation: none; transition: none; }
+    .nav__lens, .nav__spark, .nav__cta, .nav__burger span, .nav__sheet, .nav__sheet a { transition-duration: .01s; transition-delay: 0s !important; }
+  }
+</style>
+
+<!-- ============ JS riêng của Nav ============ -->
+<script>
+  const root = document.querySelector('.nav');
+  const bar = root.querySelector('.nav__bar');
+  const burger = root.querySelector('.nav__burger');
+  const sheet = document.querySelector('.nav__sheet');
+  const linksWrap = root.querySelector('.nav__links');
+  const lens = root.querySelector('.nav__lens');
+  const items = Array.from(linksWrap.querySelectorAll('a'));
+  const targets = items.map((a) => document.querySelector(a.getAttribute('href')));
+
+  /* ----- HÀM 0: KHÚC XẠ LIQUID GLASS -----
+     Vẽ "bản đồ dịch chuyển" cho viên thuốc: mỗi điểm ảnh mã hoá hướng + độ lệch (R = ngang, G = dọc, 128 = đứng yên).
+     Càng gần mép, hình nền càng bị kéo từ phía trong ra (độ lệch giảm dần theo đường cong, ở giữa = 0 nên chữ không méo). */
+  const BEZEL = 16;       // độ dày vùng khúc xạ ở mép (px)
+  const MAXD = 18;        // độ lệch tối đa ở sát mép (px)
+  const filt = document.getElementById('nav-glass');
+  const fimg = document.getElementById('nav-map');
+  // Chỉ bật khi trình duyệt cho dùng url() trong backdrop-filter (Chromium). Safari/Firefox dùng kính mờ thường.
+  const canRefract = !!filt && !!window.chrome && typeof CSS !== 'undefined' && CSS.supports('backdrop-filter', 'url(#nav-glass)');
+
+  function buildMap() {
+    const w = Math.round(bar.offsetWidth), h = Math.round(bar.offsetHeight);
+    if (!w || !h) return;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d');
+    const img = cx.createImageData(w, h);
+    const d = img.data;
+    const r = h / 2, bz = Math.min(r, BEZEL);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        // điểm gần nhất trên "xương sống" của viên thuốc (đoạn thẳng ngang giữa), rồi tính pháp tuyến ra ngoài
+        const px = Math.min(Math.max(x + 0.5, r), w - r);
+        const dx = x + 0.5 - px, dy = y + 0.5 - h / 2;
+        const dist = Math.hypot(dx, dy);
+        const depth = r - dist;                       // khoảng cách từ mép vào trong
+        let vx = 0, vy = 0;
+        if (dist > 1e-4 && depth >= 0 && depth < bz) {
+          const m = Math.pow(1 - depth / bz, 2.2);    // mạnh nhất ở mép, tắt mượt vào trong
+          vx = -(dx / dist) * m; vy = -(dy / dist) * m; // lấy mẫu từ phía TRONG nên không bao giờ chạm ngoài khung
+        }
+        const i = (y * w + x) * 4;
+        d[i] = 128 + 127 * vx; d[i + 1] = 128 + 127 * vy; d[i + 2] = 128; d[i + 3] = 255;
+      }
+    }
+    cx.putImageData(img, 0, 0);
+
+    // Cập nhật vùng lọc + ảnh + độ mạnh theo kích thước thật
+    filt.setAttribute('width', w); filt.setAttribute('height', h);
+    fimg.setAttribute('width', w); fimg.setAttribute('height', h);
+    fimg.setAttribute('href', c.toDataURL('image/png'));
+    filt.querySelector('feDisplacementMap').setAttribute('scale', String(MAXD * 2));
+    root.classList.add('has-refract');
+  }
+  if (canRefract) {
+    let pending = 0;
+    // Vẽ lại bản đồ khi viên thuốc đổi kích thước (xoay màn hình, đổi cỡ cửa sổ), gộp theo khung hình
+    new ResizeObserver(() => { cancelAnimationFrame(pending); pending = requestAnimationFrame(buildMap); }).observe(bar);
+    buildMap();
+  }
+
+  /* ----- HÀM 1: viền sáng xoay theo con trỏ (ánh sáng "soi" từ phía con trỏ) ----- */
+  if (window.matchMedia('(pointer: fine)').matches) {
+    window.addEventListener('pointermove', (e) => {
+      const r = bar.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2);
+      const dy = e.clientY - (r.top + r.height / 2);
+      let a = (Math.atan2(dx, -dy) * 180) / Math.PI;   // 0deg = phía trên, quay theo chiều kim đồng hồ
+      if (a < 0) a += 360;
+      bar.style.setProperty('--ang', `${a.toFixed(1)}deg`);
+    }, { passive: true });
+    document.documentElement.addEventListener('pointerleave', () => bar.style.removeProperty('--ang'));
+  }
+
+  /* ----- HÀM 2: thấu kính trượt tới một mục (hoặc ẩn nếu không có) ----- */
+  let active = null;
+  function placeLens(el) {
+    if (!el) { lens.classList.remove('is-on'); return; }
+    lens.style.setProperty('--lx', `${el.offsetLeft}px`);
+    lens.style.setProperty('--lw', `${el.offsetWidth}px`);
+    lens.classList.add('is-on');
+  }
+  if (window.matchMedia('(pointer: fine)').matches) {
+    items.forEach((a) => a.addEventListener('pointerenter', () => placeLens(a)));
+    linksWrap.addEventListener('pointerleave', () => placeLens(active));   // rời menu thì thấu kính về mục đang xem
+  }
+  items.forEach((a) => a.addEventListener('focus', () => placeLens(a)));
+  linksWrap.addEventListener('focusout', () => placeLens(active));
+
+  /* ----- HÀM 3: mỗi khung hình cuộn: đổi tông, đổ bóng, mục đang xem ----- */
+  let ticking = false;
+  function update() {
+    ticking = false;
+    const y = window.scrollY;
+    const vh = window.innerHeight;
+
+    // 3a. Đã cuộn thì bóng đậm hơn
+    root.classList.toggle('is-scrolled', y > 24);
+
+    // 3b. Tông sáng/tối: lấy điểm giữa viên thuốc, nằm trong section ".dark" thì bật tông tối
+    const br = bar.getBoundingClientRect();
+    const py = br.top + br.height / 2;
+    const onDark = Array.from(document.querySelectorAll('.dark')).some((s) => {
+      const r = s.getBoundingClientRect();
+      return r.top <= py && r.bottom >= py;
+    });
+    root.classList.toggle('nav--dark', onDark);
+
+    // 3c. Scrollspy: mục nào đang chạm vạch 40% chiều cao màn hình thì là mục hiện tại
+    let next = null;
+    targets.forEach((t, i) => {
+      if (!t) return;
+      const r = t.getBoundingClientRect();
+      if (r.top <= vh * 0.4 && r.bottom > vh * 0.4) next = items[i];
+    });
+    if (next !== active) {
+      active = next;
+      items.forEach((a) => (a === active ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current')));
+      if (!linksWrap.matches(':hover')) placeLens(active);
+    }
+  }
+  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  window.addEventListener('resize', () => { update(); placeLens(active); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeLens(active));  // đo lại khi font tải xong
+  update();
+
+  /* ----- HÀM 4: mở / đóng menu điện thoại (khoá cuộn trang khi đang mở) ----- */
+  function setMenu(open) {
+    sheet.classList.toggle('is-open', open);
+    burger.classList.toggle('is-open', open);
+    burger.setAttribute('aria-expanded', String(open));
+    burger.setAttribute('aria-label', open ? 'Đóng menu' : 'Mở menu');
+    sheet.setAttribute('aria-hidden', String(!open));
+    sheet.inert = !open;
+    if (open) window.__lenis?.stop(); else window.__lenis?.start();
+    document.documentElement.style.overflow = open ? 'hidden' : '';
+  }
+  burger.addEventListener('click', () => setMenu(!sheet.classList.contains('is-open')));
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sheet.classList.contains('is-open')) { setMenu(false); burger.focus(); }
+  });
+  window.matchMedia('(min-width: 861px)').addEventListener('change', (e) => { if (e.matches) setMenu(false); }); // phóng to màn hình thì tự đóng
+
+  /* ----- HÀM 5: bấm link nội bộ thì cuộn mượt (dùng Lenis nếu có), chừa chỗ cho viên thuốc ----- */
+  function goTo(href) {
+    let t = document.querySelector(href);
+    if (!t && href === '#contact') t = document.getElementById('footer');   // chưa có section liên hệ thì xuống chân trang
+    if (href === '#hero' && !t) {
+      if (window.__lenis) window.__lenis.scrollTo(0, { duration: 1.2 }); else window.scrollTo({ top: 0, behavior: 'smooth' });
+      return true;
+    }
+    if (!t) return false;
+    if (window.__lenis) window.__lenis.scrollTo(t, { offset: -72, duration: 1.2 });
+    else t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  }
+  [...root.querySelectorAll('a[href^="#"]'), ...sheet.querySelectorAll('a[href^="#"]')].forEach((a) => {
+    a.addEventListener('click', (e) => {
+      if (sheet.contains(a)) setMenu(false);             // bấm link trong menu thì đóng menu trước
+      if (goTo(a.getAttribute('href'))) e.preventDefault();
+    });
+  });
+</script>

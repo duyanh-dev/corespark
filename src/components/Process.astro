@@ -1,0 +1,407 @@
+---
+/* =========================================================
+   PROCESS.ASTRO - "Cách mình làm việc" (nền sáng)
+   Cột trái: 4 bước, cuộn qua bước nào bước đó sáng lên
+   Cột phải: cửa sổ trình duyệt DÍNH (sticky), mỗi bước diễn 1 cảnh riêng
+
+   PHÂN CHIA GIAO DIỆN:
+   - PC (có chuột, hover:hover): luôn dùng layout "core" (cửa sổ dính, chữ cuộn bên cạnh/bên dưới)
+   - Cảm ứng (hover:none, <=1000px): mỗi bước là một thẻ riêng, chữ ở trên, cửa sổ minh hoạ ở dưới
+   NỘI DUNG LÀ MẪU: sửa lại cho đúng cách làm việc thật của bạn
+   ========================================================= */
+// c = màu nhấn của bước (dùng cho nhãn "Bước n")
+const steps = [
+  { c: '#0071e3', title: 'Cùng nói chuyện.',   desc: 'Bạn kể mục tiêu và gu thẩm mỹ. Mình gợi ý demo gần nhất để làm điểm xuất phát.' },
+  { c: '#af52de', title: 'Phác thành hình.',    desc: 'Chốt bố cục, màu sắc và chuyển động trước khi viết code, để hai bên cùng nhìn về một hướng.' },
+  { c: '#e08600', title: 'Dựng bản chạy thật.', desc: 'Bạn bấm thử được bản thật trên một đường link riêng và góp ý ngay trên sản phẩm.' },
+  { c: '#1fa84a', title: 'Lên sóng.',           desc: 'Website ra mắt, bàn giao mã nguồn và hướng dẫn chỉnh nội dung.' },
+];
+---
+
+<section class="process" id="process">
+  <!-- Tiêu đề section -->
+  <div class="process__head">
+    <p class="label process__eyebrow">Quy trình</p>
+    <h2 class="process__title">Cách mình làm việc.</h2>
+  </div>
+
+  <div class="process__grid">
+    <!-- ===== Cột chữ: 4 bước ===== -->
+    <div class="process__steps">
+      {steps.map((s, i) => (
+        <article class="pstep" data-i={i} style={`--c:${s.c}`}>
+          <span class="pstep__tag">Bước {i + 1}</span>
+          <h3 class="pstep__title">{s.title}</h3>
+          <p class="pstep__desc">{s.desc}</p>
+        </article>
+      ))}
+    </div>
+
+    <!-- ===== Cột thiết bị: dính khi cuộn ===== -->
+    <div class="process__device">
+      <div class="stage" data-step="0">
+        <div class="win">
+          <!-- Thanh trên của cửa sổ -->
+          <div class="win__bar"><i></i><i></i><i></i><span class="win__url">tenban.com</span></div>
+
+          <!-- Màn hình: 4 cảnh xếp chồng, cảnh nào có class is-on thì hiện + diễn lại -->
+          <div class="win__screen">
+
+            <!-- Cảnh 1: tin nhắn kiểu iMessage -->
+            <div class="screen screen--chat is-on">
+              <p class="msg msg--in"  style="--k:0">Mình cần một trang giới thiệu thật nổi bật ✨</p>
+              <p class="msg msg--out" style="--k:1">Chào bạn! Bạn thích phong cách nào?</p>
+              <p class="msg msg--in"  style="--k:2">Gọn gàng, sáng sủa, kiểu Apple.</p>
+              <p class="msg msg--out" style="--k:3">Mình làm demo cho bạn xem ngay.</p>
+              <p class="msg msg--in msg--typing" style="--k:4"><i></i><i></i><i></i></p>
+            </div>
+
+            <!-- Cảnh 2: khung dây hiện dần + bảng màu (rê chuột vào ô thì ô đặc lại) -->
+            <div class="screen screen--wire">
+              <span class="wb wb--nav"  style="--k:0"></span>
+              <span class="wb wb--hero" style="--k:1"></span>
+              <span class="wb" style="--k:2"></span>
+              <span class="wb" style="--k:3"></span>
+              <span class="wb" style="--k:4"></span>
+              <div class="swatches">
+                <i style="--c:#0a84ff;--k:5"></i><i style="--c:#bf5af2;--k:6"></i><i style="--c:#ff375f;--k:7"></i>
+                <i style="--c:#ff9f0a;--k:8"></i><i style="--c:#30d158;--k:9"></i>
+              </div>
+            </div>
+
+            <!-- Cảnh 3: code tự gõ bên trái, trang web tự dựng bên phải -->
+            <div class="screen screen--build">
+              <div class="code">
+                <span style="--w:72%;--c:#ff9f0a;--k:0"></span>
+                <span style="--w:48%;--c:#64d2ff;--k:1"></span>
+                <span style="--w:84%;--c:#30d158;--k:2"></span>
+                <span style="--w:60%;--c:#bf5af2;--k:3"></span>
+                <span style="--w:76%;--c:#ff375f;--k:4"></span>
+                <span style="--w:40%;--c:#64d2ff;--k:5"></span>
+              </div>
+              <div class="prev">
+                <b class="pv pv--nav"   style="--k:1"></b>
+                <b class="pv pv--title" style="--k:2"></b>
+                <b class="pv pv--sub"   style="--k:3"></b>
+                <b class="pv pv--btn"   style="--k:4"></b>
+                <b class="pv pv--card"  style="--k:5"></b>
+                <b class="pv pv--card"  style="--k:6"></b>
+              </div>
+            </div>
+
+            <!-- Cảnh 4: dấu tích "đã lên sóng" tự vẽ -->
+            <div class="screen screen--live">
+              <svg class="check" viewBox="0 0 52 52" aria-hidden="true">
+                <circle class="check__c" cx="26" cy="26" r="24" />
+                <path class="check__p" d="M14 27 l8 8 l16 -17" />
+              </svg>
+              <h4 class="live__title">Đã lên sóng</h4>
+              <p class="live__sub">Link riêng, sẵn sàng gửi cho khách.</p>
+              <span class="live__btn">Mở trang ↗</span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Chấm phân trang (bấm để nhảy tới bước) -->
+      <div class="process__dots">
+        {steps.map((_, i) => <button class="pdot" data-i={i} aria-label={`Bước ${i + 1}`}></button>)}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CSS riêng của Process ============ -->
+<style>
+  /* ===================== NỀN TẢNG = LAYOUT PC (core) ===================== */
+  .process { padding-bottom: 12svh; }
+  .process__head { padding: 7rem var(--gutter) 2rem; text-align: center; }
+  .process__eyebrow { color: var(--accent); margin-bottom: .6rem; }
+  .process__title { font-size: var(--fs-h2); line-height: 1.05; }
+
+  /* Lưới 2 cột: chữ cuộn bên trái, thiết bị dính bên phải */
+  .process__grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 4vw; padding: 0 var(--gutter); align-items: start; }
+
+  /* --- Cột chữ: mỗi bước cao ~70% màn hình, mờ đi khi chưa tới lượt --- */
+  .pstep {
+    min-height: 70svh; display: flex; flex-direction: column; justify-content: center; gap: .8rem;
+    opacity: .25; transform: translateX(-10px);
+    transition: opacity .5s, transform .5s;
+  }
+  .pstep.is-active { opacity: 1; transform: none; }
+  .pstep__tag {
+    align-self: flex-start; padding: .25rem .85rem; border-radius: 999px;
+    font-size: .85rem; font-weight: 600; color: var(--c);
+    background: color-mix(in srgb, var(--c) 12%, transparent);
+  }
+  .pstep__title { font-size: var(--fs-h2); line-height: 1.05; }
+  .pstep__desc { color: var(--text-dim); max-width: 32ch; font-size: clamp(1.05rem, 1.4vw, 1.25rem); line-height: 1.5; }
+
+  /* Ô minh hoạ trong thẻ bước: chỉ hiện ở giao diện cảm ứng */
+  :global(.pstep__mock) { display: none; }   /* :global vì phần tử này do JS tạo, không có thuộc tính scope của Astro */
+
+  /* --- Cột thiết bị: dính ở giữa màn hình --- */
+  .process__device { position: sticky; top: 15svh; height: 70svh; display: flex; flex-direction: column; gap: 1rem; }
+  .stage {
+    flex: 1; min-height: 0; display: grid; place-items: center;
+    padding: clamp(1rem, 3vw, 2.4rem); border-radius: 2rem;
+    background: #e5f0ff; transition: background .6s;         /* màu nền ô đổi theo bước */
+  }
+  .stage[data-step='1'] { background: #f3e8fd; }
+  .stage[data-step='2'] { background: #fff1dc; }
+  .stage[data-step='3'] { background: #e2f6e9; }
+
+  /* Cửa sổ trình duyệt: nghiêng 3D theo biến --rx, --ry (JS gán theo chuột) */
+  .win {
+    width: 100%; max-height: 100%; aspect-ratio: 1 / .82;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: #fff; border-radius: 1.2rem; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .4);
+    transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition: transform .25s ease-out;
+    color: #1d1d1f;
+  }
+  .win__bar { height: 2.4rem; flex: none; display: flex; align-items: center; gap: .4rem; padding: 0 .9rem; background: #f5f5f7; border-bottom: 1px solid #e5e5ea; }
+  .win__bar i { width: .7rem; height: .7rem; border-radius: 50%; background: #ff5f57; }
+  .win__bar i:nth-child(2) { background: #febc2e; }
+  .win__bar i:nth-child(3) { background: #28c840; }
+  .win__url { margin: 0 auto; padding: .15rem 1rem; border-radius: 999px; background: #fff; font-size: .72rem; color: #6e6e73; }
+  .win__screen { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+
+  /* Mỗi cảnh phủ kín màn hình, mặc định ẩn + nhòe; is-on thì hiện rõ */
+  .screen {
+    position: absolute; inset: 0; padding: 1.2rem; pointer-events: none;
+    opacity: 0; transform: scale(.97); filter: blur(8px);
+    transition: opacity .5s, transform .5s, filter .5s;
+  }
+  .screen.is-on { opacity: 1; transform: none; filter: none; pointer-events: auto; }
+
+  /* Hiệu ứng "bật lên" dùng chung: phần tử có --k (thứ tự) sẽ hiện lần lượt khi cảnh bật */
+  @keyframes pop { to { opacity: 1; transform: none; } }
+
+  /* --- Cảnh 1: tin nhắn --- */
+  .screen--chat { display: flex; flex-direction: column; justify-content: flex-end; gap: .5rem; }
+  .msg { max-width: 78%; padding: .55rem .9rem; border-radius: 1.2rem; font-size: .9rem; line-height: 1.3; opacity: 0; transform: translateY(10px) scale(.96); }
+  .msg--in  { align-self: flex-start; background: #e9e9eb; border-bottom-left-radius: .35rem; }
+  .msg--out { align-self: flex-end; background: #0a84ff; color: #fff; border-bottom-right-radius: .35rem; }
+  .is-on .msg { animation: pop .5s cubic-bezier(.2, .9, .3, 1.2) forwards; animation-delay: calc(var(--k) * .7s + .2s); }
+  .msg--typing i { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: #8e8e93; animation: bob 1.1s infinite; }
+  .msg--typing i:nth-child(2) { animation-delay: .15s; }
+  .msg--typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes bob { 0%, 100% { transform: translateY(0); opacity: .4; } 50% { transform: translateY(-3px); opacity: 1; } }
+
+  /* --- Cảnh 2: khung dây --- */
+  .screen--wire { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 2.3rem; gap: .6rem; align-content: start; }
+  .wb { border: 2px dashed #c7c7cc; border-radius: .8rem; opacity: 0; transform: scale(.9); transition: background .25s, border-color .25s; }
+  .wb:hover { background: #f2f2f7; border-style: solid; }
+  .wb--nav { grid-column: 1 / -1; grid-row: span 1; }
+  .wb--hero { grid-column: 1 / -1; grid-row: span 2; }
+  .swatches { grid-column: 1 / -1; display: flex; gap: .5rem; }
+  .swatches i { width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--c); opacity: 0; transform: scale(.5); }
+  .is-on .wb, .is-on .swatches i { animation: pop .5s cubic-bezier(.2, .9, .3, 1.2) forwards; animation-delay: calc(var(--k) * .22s + .2s); }
+
+  /* --- Cảnh 3: code + trang tự dựng --- */
+  .screen--build { display: flex; gap: .8rem; }
+  .code { flex: 1; padding: 1rem; border-radius: .9rem; background: #1c1c1e; }
+  .code span { display: block; height: .55rem; margin: .7rem 0; width: 0; border-radius: .4rem; background: var(--c); }
+  .is-on .code span { animation: type .8s ease-out forwards; animation-delay: calc(var(--k) * .35s + .2s); }
+  @keyframes type { to { width: var(--w); } }
+  .prev { flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: .5rem; padding: .9rem; border-radius: .9rem; border: 1px solid #e5e5ea; }
+  .pv { display: block; border-radius: .5rem; opacity: 0; transform: translateY(10px); }
+  .pv--nav { width: 100%; height: .7rem; background: #e5e5ea; }
+  .pv--title { width: 75%; height: 1.4rem; background: #1d1d1f; }
+  .pv--sub { width: 55%; height: .7rem; background: #c7c7cc; }
+  .pv--btn { width: 5rem; height: 1.5rem; border-radius: 999px; background: #0a84ff; }
+  .pv--card { width: calc(50% - .25rem); height: 3.4rem; background: #f2f2f7; }
+  .is-on .pv { animation: pop .5s ease-out forwards; animation-delay: calc(var(--k) * .4s + .5s); }
+
+  /* --- Cảnh 4: dấu tích tự vẽ --- */
+  .screen--live { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; text-align: center; }
+  .check { width: 5.2rem; margin-bottom: .6rem; }
+  .check circle, .check path { fill: none; stroke: #30d158; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .check__c { stroke-dasharray: 151; stroke-dashoffset: 151; }
+  .check__p { stroke-dasharray: 40; stroke-dashoffset: 40; }
+  .is-on .check__c { animation: draw .7s ease forwards; }
+  .is-on .check__p { animation: draw .5s ease .6s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .live__title { font-size: 1.5rem; letter-spacing: -.02em; }
+  .live__sub { font-size: .9rem; color: #6e6e73; }
+  .live__btn { margin-top: .8rem; padding: .5rem 1.2rem; border-radius: 999px; background: #0a84ff; color: #fff; font-size: .9rem; font-weight: 500; }
+
+  /* --- Chấm phân trang --- */
+  .process__dots { display: flex; gap: .5rem; justify-content: center; align-items: center; }
+  .pdot { position: relative; width: .5rem; height: .5rem; padding: 0; border: 0; border-radius: 999px; background: #d2d2d7; transition: width .3s, background .3s; }
+  .pdot.is-active { width: 1.6rem; background: var(--text); }
+  .pdot::after { content: ''; position: absolute; inset: -.8rem -.35rem; }   /* mở rộng vùng bấm */
+
+  @media (prefers-reduced-motion: reduce) {
+    .win { transform: none; transition: none; }
+    .screen, .pstep { transition-duration: .01s; }
+  }
+
+  /* =======================================================
+     PC THU NHỎ (có chuột, <=1000px): giữ logic core
+     1 cột, cửa sổ dính ở TRÊN, chữ cuộn bên dưới.
+     Dùng flex (không dùng grid) vì "sticky" trong grid chỉ dính trong ô của nó.
+     ======================================================= */
+  @media (max-width: 1000px) and (hover: hover) {
+    .process__head { padding-top: 5.5rem; }
+    .process__grid { display: flex; flex-direction: column; gap: 0; }
+    .process__device { order: -1; top: 3.6rem; height: 44svh; z-index: 2; background: var(--bg); padding: .5rem 0 .6rem; }
+    .stage { padding: .8rem; border-radius: 1.4rem; }
+    .win { aspect-ratio: auto; height: 100%; }
+    .pstep { min-height: 50svh; }
+    .pstep__desc { max-width: 44ch; }
+
+    .screen { padding: .8rem; }
+    .msg { font-size: .78rem; padding: .4rem .7rem; }
+    .screen--wire { grid-auto-rows: 1.7rem; gap: .45rem; }
+    .code span { margin: .5rem 0; }
+    .check { width: 3.6rem; }
+    .live__title { font-size: 1.2rem; }
+  }
+  @media (max-width: 1000px) and (max-height: 640px) and (hover: hover) {
+    .process__device { height: 50svh; }
+  }
+  /* PC cửa sổ thấp và rộng: quay lại 2 cột như core */
+  @media (max-height: 560px) and (orientation: landscape) and (hover: hover) {
+    .process__head { padding: 5rem var(--gutter) 1rem; }
+    .process__grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 3vw; }
+    .process__device { order: 0; top: 4rem; height: calc(100svh - 5rem); padding: 0; background: none; }
+    .pstep { min-height: 80svh; }
+  }
+
+  /* =======================================================
+     CẢM ỨNG (điện thoại, tablet; <=1000px)
+     KHÔNG dùng sticky: mỗi bước là một thẻ riêng,
+     chữ ở trên, cửa sổ minh hoạ của bước đó ở dưới.
+     Cuộn tới thẻ nào thẻ đó sáng + diễn cảnh.
+     ======================================================= */
+  @media (max-width: 1000px) and (hover: none) {
+    .process { padding-bottom: 6svh; }
+    .process__head { padding: 5rem var(--gutter) 1.4rem; }
+    .process__grid { display: flex; flex-direction: column; gap: 0; padding: 0 1rem; }
+    .process__device { display: none; }
+    .process__steps { display: flex; flex-direction: column; gap: 1rem; }
+
+    .pstep {
+      min-height: 0; justify-content: flex-start; gap: .55rem;
+      padding: 1.4rem 1.2rem 1.2rem; border-radius: 1.8rem;
+      background: #f5f5f7;
+      opacity: .45; transform: scale(.98);
+    }
+    .pstep.is-active { opacity: 1; transform: none; }
+    .pstep__tag { font-size: .78rem; padding: .2rem .7rem; }
+    .pstep__title { font-size: clamp(1.8rem, 7.5vw, 2.4rem); }
+    .pstep__desc { max-width: none; font-size: 1rem; line-height: 1.55; }
+
+    :global(.pstep__mock) {
+      display: block; margin-top: .9rem; padding: .8rem; border-radius: 1.3rem;
+      background: #e5f0ff;
+    }
+    :global(.pstep__mock[data-step='1']) { background: #f3e8fd; }
+    :global(.pstep__mock[data-step='2']) { background: #fff1dc; }
+    :global(.pstep__mock[data-step='3']) { background: #e2f6e9; }
+    :global(.pstep__mock) .win {
+      width: 100%; aspect-ratio: 1 / .78; transform: none; border-radius: 1rem;
+      box-shadow: 0 16px 36px -20px rgba(0, 0, 0, .35);
+    }
+    .win__bar { height: 1.9rem; padding: 0 .7rem; }
+    .win__bar i { width: .55rem; height: .55rem; }
+    .win__url { font-size: .65rem; padding: .1rem .8rem; }
+
+    .screen { padding: .7rem; }
+    .screen--chat { gap: .35rem; }
+    .msg { font-size: .74rem; padding: .32rem .65rem; max-width: 82%; }
+    .screen--wire { grid-auto-rows: 1.6rem; gap: .4rem; }
+    .wb { border-width: 1.5px; border-radius: .6rem; }
+    .swatches i { width: 1.2rem; height: 1.2rem; }
+    .screen--build { gap: .5rem; }
+    .code { padding: .6rem; }
+    .code span { margin: .45rem 0; height: .45rem; }
+    .prev { padding: .55rem; gap: .35rem; }
+    .pv--title { height: 1.1rem; }
+    .pv--btn { width: 4rem; height: 1.2rem; }
+    .pv--card { height: 2.2rem; }
+    .check { width: 3.4rem; margin-bottom: .3rem; }
+    .live__title { font-size: 1.15rem; }
+    .live__sub { font-size: .78rem; }
+    .live__btn { margin-top: .4rem; padding: .35rem .9rem; font-size: .8rem; }
+  }
+
+  /* Điện thoại xoay ngang (cảm ứng): 2 cột + cửa sổ dính như core */
+  @media (max-height: 560px) and (orientation: landscape) and (hover: none) {
+    .process__head { padding: 5rem var(--gutter) 1rem; }
+    .process__grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 3vw; padding: 0 var(--gutter); }
+    .process__steps { display: block; }
+    .process__device { display: flex; top: 4rem; height: calc(100svh - 5rem); }
+    .pstep { min-height: 80svh; justify-content: center; padding: 0; background: none; border-radius: 0; opacity: .25; transform: translateX(-10px); }
+    .pstep.is-active { opacity: 1; transform: none; }
+    :global(.pstep__mock) { display: none; }
+    .pstep__title { font-size: var(--fs-h2); }
+  }
+</style>
+
+<!-- ============ JS riêng của Process ============ -->
+<script>
+  const steps = Array.from(document.querySelectorAll('.pstep'));
+  const dots = Array.from(document.querySelectorAll('.pdot'));
+  const stage = document.querySelector('.stage');
+  const win = document.querySelector('.win');          // lấy cửa sổ gốc TRƯỚC khi nhân bản
+  const baseScreens = Array.from(win.querySelectorAll('.screen'));
+  baseScreens.forEach((s, k) => { s.dataset.scene = k; });
+
+  /* ----- CẢM ỨNG: mỗi thẻ bước có một cửa sổ riêng (nhân bản từ cửa sổ gốc).
+         Trên PC các bản nhân bản này bị CSS ẩn (display:none), không ảnh hưởng layout core ----- */
+  steps.forEach((el, i) => {
+    const mock = document.createElement('div');
+    mock.className = 'pstep__mock';
+    mock.dataset.step = i;
+    const w = win.cloneNode(true);
+    w.querySelectorAll('.screen').forEach((s) => { if (Number(s.dataset.scene) !== i) s.remove(); });
+    mock.appendChild(w);
+    el.appendChild(mock);
+  });
+  const screens = Array.from(document.querySelectorAll('.screen'));   // gồm cả cảnh gốc và bản nhân bản
+
+  /* ----- HÀM 1: activate(i) - bật bước i (chữ sáng, cảnh hiện, nền đổi màu, chấm) ----- */
+  let current = -1;
+  function activate(i) {
+    if (i === current) return;
+    current = i;
+    steps.forEach((s, k) => s.classList.toggle('is-active', k === i));
+    screens.forEach((s) => s.classList.toggle('is-on', Number(s.dataset.scene) === i));  // đổi class is-on = cảnh diễn lại từ đầu
+    dots.forEach((d, k) => d.classList.toggle('is-active', k === i));
+    stage.dataset.step = i;
+  }
+  activate(0);
+
+  /* ----- HÀM 2: theo dõi bước nào đang nằm ở dải giữa màn hình (IntersectionObserver) ----- */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) activate(Number(e.target.dataset.i)); });
+  }, { rootMargin: '-45% 0px -45% 0px' });   // chỉ tính khi chạm dải 10% ở giữa màn hình
+  steps.forEach((s) => io.observe(s));
+
+  /* ----- HÀM 3: cửa sổ nghiêng 3D theo chuột (chỉ khi có chuột) ----- */
+  if (window.matchMedia('(pointer: fine)').matches) {
+    stage.addEventListener('pointermove', (e) => {
+      const r = stage.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;    // -0.5 .. 0.5
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      win.style.setProperty('--ry', `${x * 14}deg`);
+      win.style.setProperty('--rx', `${-y * 10}deg`);
+    });
+    stage.addEventListener('pointerleave', () => {
+      win.style.setProperty('--rx', '0deg');
+      win.style.setProperty('--ry', '0deg');
+    });
+  }
+
+  /* ----- HÀM 4: bấm chấm để cuộn tới bước tương ứng (dùng Lenis nếu có) ----- */
+  dots.forEach((d, i) => d.addEventListener('click', () => {
+    const el = steps[i];
+    const offset = -(window.innerHeight - el.offsetHeight) / 2;     // đưa bước vào giữa màn hình
+    if (window.__lenis) window.__lenis.scrollTo(el, { offset, duration: 1.2 });
+    else el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }));
+</script>

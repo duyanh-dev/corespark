@@ -1,0 +1,112 @@
+---
+/* =========================================================
+   SIGNAL.ASTRO - Dải chữ công nghệ + 4 số liệu đếm
+   Dải chữ chạy ngang, tốc độ/chiều chạy phụ thuộc tốc độ cuộn trang
+   Số liệu đếm từ 0 khi cuộn tới
+   ========================================================= */
+
+// Danh sách công nghệ cho dải chữ
+const techs = ['HTML', 'CSS', 'JavaScript', 'GSAP', 'Three.js', 'WebGL', 'Astro', 'Responsive'];
+
+// Số liệu: SỬA THÀNH SỐ THẬT CỦA BẠN (to = số cuối, suffix = hậu tố)
+const stats = [
+  { to: 12,  suffix: '+',  label: 'demo chạy thật' },
+  { to: 6,   suffix: '',   label: 'công nghệ chính' },
+  { to: 24,  suffix: 'h',  label: 'phản hồi tin nhắn' },
+  { to: 100, suffix: '%',  label: 'responsive' },
+];
+---
+
+<section class="signal" id="signal">
+  <!-- Dải chữ: lặp 2 lần để chạy vòng lặp liền mạch -->
+  <div class="marquee">
+    <div class="marquee__track">
+      {[0, 1].map(() => techs.map((t, i) => (
+        <>
+          <span class={`marquee__word ${i % 2 ? 'accent' : 'outline'}`}>{t}</span>
+          <i class="marquee__sep">✦</i>
+        </>
+      )))}
+    </div>
+  </div>
+
+  <!-- 4 số liệu -->
+  <div class="stats">
+    {stats.map((s) => (
+      <div class="stat">
+        <span class="stat__num" data-to={s.to} data-suffix={s.suffix}>0{s.suffix}</span>
+        <span class="label">{s.label}</span>
+      </div>
+    ))}
+  </div>
+</section>
+
+<!-- ============ CSS riêng của Signal ============ -->
+<style>
+  .signal { border-top: 1.5px solid var(--line); }
+
+  /* --- Dải chữ --- */
+  .marquee { overflow: hidden; padding: 2.5rem 0; border-bottom: 1.5px solid var(--line); }
+  .marquee__track { display: flex; align-items: center; gap: 2rem; width: max-content; white-space: nowrap; }
+  .marquee__word { font-size: clamp(3rem, 9vw, 8rem); font-weight: 700; line-height: 1; }
+  .marquee__sep { font-style: normal; color: var(--accent); font-size: clamp(1.5rem, 4vw, 3rem); }
+
+  /* --- Số liệu: lưới 4 cột, ngăn cách bằng đường kẻ --- */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .stat { padding: 3rem var(--gutter) 3rem 1.5rem; border-right: 1.5px solid var(--line); display: flex; flex-direction: column; gap: .4rem; }
+  .stat:last-child { border-right: 0; }
+  .stat__num { font-size: clamp(3rem, 7vw, 6rem); font-weight: 700; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  /* --- Điện thoại: lưới 2 cột --- */
+  @media (max-width: 860px) {
+    .stats { grid-template-columns: 1fr 1fr; }
+    .stat { padding: 2rem 1rem; border-bottom: 1.5px solid var(--line); }
+    .stat:nth-child(2n) { border-right: 0; }
+  }
+</style>
+
+<!-- ============ JS riêng của Signal ============ -->
+<script>
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* ----- HÀM 1: dải chữ phản ứng với tốc độ cuộn ----- */
+  const track = document.querySelector('.marquee__track');
+  if (track) {
+    // Chạy từ 0 tới -50% (vì nội dung đã nhân đôi) rồi lặp lại
+    const tween = gsap.to(track, { xPercent: -50, duration: 25, ease: 'none', repeat: -1 });
+
+    let target = 1;    // tốc độ mong muốn (âm = chạy ngược)
+    let current = 1;   // tốc độ đang áp dụng (làm mượt dần về target)
+
+    // Cuộn nhanh -> tăng tốc, đổi chiều theo hướng cuộn
+    ScrollTrigger.create({
+      onUpdate: (self) => {
+        const v = self.getVelocity();
+        if (Math.abs(v) > 10) target = (v < 0 ? -1 : 1) * (1 + Math.abs(v) / 250);
+      },
+    });
+
+    // Mỗi khung hình: nới tốc độ hiện tại về target, và target nguội dần về ±1 (giữ chiều)
+    gsap.ticker.add(() => {
+      current += (target - current) * 0.1;
+      tween.timeScale(current);
+      target += ((target < 0 ? -1 : 1) - target) * 0.04;
+    });
+  }
+
+  /* ----- HÀM 2: số liệu đếm từ 0 khi cuộn tới ----- */
+  gsap.utils.toArray('.stat__num').forEach((el) => {
+    const to = Number(el.dataset.to);
+    const suffix = el.dataset.suffix || '';
+    const obj = { v: 0 };
+    ScrollTrigger.create({
+      trigger: el, start: 'top 88%', once: true,
+      onEnter: () => gsap.to(obj, {
+        v: to, duration: 2, ease: 'power2.out', snap: { v: 1 },
+        onUpdate: () => (el.textContent = obj.v + suffix),
+      }),
+    });
+  });
+</script>

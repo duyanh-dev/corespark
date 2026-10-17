@@ -1,0 +1,135 @@
+---
+/* =========================================================
+   HERO.ASTRO - Section đầu trang (nền sáng, kiểu Apple)
+   Desktop: chữ bên trái, 3D bên phải
+   Mobile: chữ ở trên, 3D nằm dưới (nhờ thứ tự DOM + grid 1 cột)
+   ========================================================= */
+// 4 chương, khớp với 4 hình của hero3d.js
+const chapters = ['Ý tưởng', 'Thiết kế', 'Code', 'Ra mắt'];
+---
+
+<section class="hero" id="hero">
+  <!-- ===== Cột chữ ===== -->
+  <div class="hero__text">
+    <p class="label hero__eyebrow">CoreSpark · Web demo studio</p>
+    <h1 class="hero__title">
+      <span class="line">Mọi website</span>
+      <span class="line">bắt đầu từ</span>
+      <span class="line accent">một tia lửa.</span>
+    </h1>
+    <p class="hero__desc">
+      Những demo thật, bấm vào là chạy. Thấy cái nào hợp, nhắn mình,
+      ta cùng thắp lửa cho dự án của bạn.
+    </p>
+    <div class="hero__cta">
+      <a href="#showcase" class="btn btn--fire">Xem demo</a>
+      <a href="#contact" class="btn btn--ghost">Liên hệ</a>
+    </div>
+  </div>
+
+  <!-- ===== Cột 3D ===== -->
+  <div class="hero__visual">
+    <div class="hero__stage" id="hero-stage" aria-label="Khối hạt 3D tương tác: rê chuột để đẩy hạt, kéo để xoay, bấm để đổi hình"></div>
+
+    <div class="hero__bar">
+      <p class="hero__caption" id="hero-label">1/4 · Ý tưởng</p>
+      <!-- 4 nút chọn hình, dạng "segmented control" của Apple -->
+      <div class="hero__chips">
+        {chapters.map((name, i) => <button class="chip" data-shape={i}>{name}</button>)}
+      </div>
+      <p class="hero__hint">Rê chuột để đẩy hạt · Kéo để xoay · Bấm để đổi hình</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CSS riêng của Hero ============ -->
+<style>
+  /* Khung chung: 2 cột trên desktop */
+  .hero {
+    min-height: 100svh;              /* svh: không bị thanh địa chỉ mobile che */
+    display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 2rem;
+    padding: 6rem var(--gutter) 3rem;
+    overflow: hidden;
+  }
+
+  /* --- Chữ --- */
+  .hero__eyebrow { margin-bottom: 1rem; color: var(--accent); }
+  .hero__title { font-size: var(--fs-hero); line-height: 1.02; margin-bottom: 1.4rem; }
+  .line { display: block; }          /* mỗi dòng 1 hàng, để GSAP animate từng dòng */
+  .hero__desc { color: var(--text-dim); max-width: 34ch; margin-bottom: 2rem; font-size: clamp(1.1rem, 1.6vw, 1.4rem); line-height: 1.45; }
+  .hero__cta { display: flex; gap: .8rem; flex-wrap: wrap; }
+
+  /* --- Khung 3D --- */
+  .hero__visual { display: flex; flex-direction: column; align-items: center; min-width: 0; }  /* min-width:0 để cột lưới không bị nội dung đẩy rộng */
+  .hero__stage {
+    width: 100%; aspect-ratio: 1 / 1; max-height: 68svh;
+    cursor: grab;
+    touch-action: pan-y;             /* cho phép cuộn dọc trang khi vuốt trên khối 3D */
+  }
+
+  /* --- Thanh dưới khối 3D: caption + 4 nút + gợi ý --- */
+  .hero__bar { display: flex; flex-direction: column; align-items: center; gap: .7rem; margin-top: .4rem; max-width: 100%; }
+  .hero__caption { font-weight: 600; }
+  .hero__hint { font-size: .85rem; color: var(--text-dim); text-align: center; }
+
+  /* Segmented control: nền xám nhạt, nút đang chọn nổi lên màu trắng */
+  .hero__chips { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--line); }
+  .chip { padding: .5rem 1rem; border-radius: 999px; font-size: .88rem; font-weight: 500; color: var(--text-dim); transition: background .25s, color .25s, box-shadow .25s; }
+  .chip:hover { color: var(--text); }
+  .chip.is-active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, .18); }
+
+  /* --- Tablet và điện thoại (<=1000px): 1 cột, 3D nằm DƯỚI chữ --- */
+  @media (max-width: 1000px) {
+    .hero { grid-template-columns: 1fr; padding-top: 5.5rem; gap: 1rem; }
+    .hero__desc { max-width: 44ch; }
+    .hero__stage { max-height: 60svh; }
+  }
+
+  /* --- Điện thoại nhỏ (iPhone SE, Android nhỏ): nút gọn lại, 2 nút CTA chia đôi hàng --- */
+  @media (max-width: 420px) {
+    .chip { padding: .45rem .65rem; font-size: .78rem; }
+    .hero__cta .btn { flex: 1; justify-content: center; padding-inline: 1rem; }
+  }
+
+  /* --- Điện thoại xoay ngang (màn rất thấp): quay lại 2 cột, bỏ bớt chữ phụ --- */
+  @media (max-height: 560px) and (orientation: landscape) {
+    .hero { grid-template-columns: 1fr 1fr; min-height: auto; padding: 4.5rem var(--gutter) 1.5rem; }
+    .hero__title { font-size: clamp(2rem, 5.5vw, 3.4rem); margin-bottom: .8rem; }
+    .hero__desc { margin-bottom: 1rem; font-size: 1rem; }
+    .hero__stage { max-height: 70svh; }
+    .hero__hint { display: none; }
+  }
+</style>
+
+<!-- ============ JS riêng của Hero ============ -->
+<script>
+  import gsap from 'gsap';
+import { initHeroGlass, SHAPES } from '../scripts/hero-glass.js';
+
+  const stage = document.querySelector('#hero-stage');
+  const chips = document.querySelectorAll('.chip');
+  const label = document.querySelector('#hero-label');
+
+  // 1) Khởi tạo 3D (hạt trung tính màu #1d1d1f cho hợp nền sáng) và nối với nhãn + 4 nút
+  if (stage) {
+const api = initHeroGlass(stage);
+    // HÀM sync: cập nhật nhãn và nút đang chọn mỗi khi đổi hình
+    const sync = (i) => {
+      chips.forEach((c, k) => c.classList.toggle('is-active', k === i));
+      label.textContent = `${i + 1}/4 · ${SHAPES[i]}`;
+    };
+    api.onChange = sync;
+    sync(0);
+    chips.forEach((c, i) => c.addEventListener('click', () => api.setShape(i)));
+  }
+
+ // 2) Animation vào trang: chờ preloader lộ trang ra mới chạy
+const intro = gsap.from('.hero__eyebrow, .hero__title .line, .hero__desc, .hero__cta, .hero__visual', {
+  y: 40, opacity: 0, duration: 1, ease: 'power3.out', stagger: 0.12, paused: true,
+});
+if (document.documentElement.classList.contains('is-loading')) {
+  window.addEventListener('corespark:reveal', () => intro.play(), { once: true });
+} else {
+  intro.play();   // trường hợp không có preloader
+}
+</script>

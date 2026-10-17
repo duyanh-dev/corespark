@@ -1,0 +1,171 @@
+---
+/* =========================================================
+   TOOLBOX.ASTRO - "Bộ đồ nghề"
+   Các chip công nghệ là vật thể vật lý thật (Matter.js):
+   rơi xuống thùng khi cuộn tới, kéo/ném/va chạm được
+   Mỗi chip là 1 thẻ <span> DOM bình thường, JS chỉ cập nhật vị trí + góc xoay
+   c: màu chip (mint | lav | butter | sky | cream | outline)
+   ========================================================= */
+const tools = [
+  { name: 'HTML', c: 'mint' }, { name: 'CSS', c: 'lav' }, { name: 'JavaScript', c: 'butter' },
+  { name: 'GSAP', c: 'sky' }, { name: 'Three.js', c: 'cream' }, { name: 'WebGL', c: 'outline' },
+  { name: 'Shader', c: 'lav' }, { name: 'Astro', c: 'mint' }, { name: 'Responsive', c: 'butter' },
+  { name: 'ScrollTrigger', c: 'outline' }, { name: 'Lenis', c: 'sky' }, { name: 'SEO', c: 'cream' },
+  { name: 'Animation', c: 'mint' }, { name: 'UI', c: 'lav' }, { name: '3D', c: 'butter' },
+];
+---
+
+<section class="toolbox" id="toolbox">
+  <!-- Tiêu đề + gợi ý + nút lắc -->
+  <div class="toolbox__head">
+    <p class="label toolbox__eyebrow">[ bộ đồ nghề ]</p>
+    <h2 class="toolbox__title">Mình dùng những thứ này.<br /><span class="accent">Thử hất tung xem.</span></h2>
+    <p class="toolbox__hint" id="tb-hint">Kéo, ném, va chạm thoải mái.</p>
+    <button class="btn btn--ghost" id="tb-shake" type="button">Lắc thùng ↻</button>
+  </div>
+
+  <!-- Thùng chứa: chip nằm trong này -->
+  <div class="toolbox__box" id="tb-box">
+    {tools.map((t) => <span class={`pill pill--${t.c}`}>{t.name}</span>)}
+  </div>
+</section>
+
+<!-- ============ CSS riêng của Toolbox ============ -->
+<style>
+  /* Khung section + tiêu đề */
+  .toolbox { border-top: 1.5px solid var(--line); padding: 7rem var(--gutter) 6rem; }
+  .toolbox__head { max-width: 42rem; margin-bottom: 2.2rem; }
+  .toolbox__eyebrow { color: var(--accent); }
+  .toolbox__title { font-size: var(--fs-h2); line-height: 1.05; margin: .8rem 0 1rem; }
+  .toolbox__hint { color: var(--text-dim); margin-bottom: 1.4rem; }
+
+  /* Thùng chứa: có chiều cao cố định để vật lý có "đáy" */
+  .toolbox__box {
+    position: relative; overflow: hidden;
+    height: clamp(420px, 68vh, 640px);
+    border: 1.5px solid var(--line); border-radius: 1.2rem; background: var(--bg-soft);
+    touch-action: pan-y;                  /* vuốt dọc vẫn cuộn được trang trên điện thoại */
+  }
+  /* Dự phòng khi JS chưa chạy / lỗi: chip xếp bình thường dưới đáy thùng, không bao giờ trống */
+  .toolbox__box:not(.is-physics) { display: flex; flex-wrap: wrap; align-content: flex-end; gap: .7rem; padding: 1.5rem; }
+  /* Khi JS bật vật lý: chip chuyển sang absolute, vị trí do Matter.js điều khiển */
+  .is-physics .pill { position: absolute; left: 0; top: 0; will-change: transform; }
+
+  /* Chip */
+  .pill {
+    padding: .65rem 1.3rem; border-radius: 999px;
+    font-weight: 700; font-size: clamp(1rem, 2vw, 1.45rem); white-space: nowrap;
+    color: var(--ink); background: var(--mint);
+    user-select: none; cursor: grab;
+  }
+  .pill:active { cursor: grabbing; }
+  .pill--lav { background: var(--lav); }
+  .pill--butter { background: var(--butter); }
+  .pill--sky { background: var(--sky); }
+  .pill--cream { background: var(--cream); }
+  .pill--outline { background: transparent; color: var(--text); border: 1.5px solid var(--text); }
+</style>
+
+<!-- ============ JS riêng của Toolbox ============ -->
+<script>
+  import Matter from 'matter-js';
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+  gsap.registerPlugin(ScrollTrigger);
+
+  const box = document.querySelector('#tb-box');
+  const pills = box ? Array.from(box.querySelectorAll('.pill')) : [];
+  if (box && pills.length) initToolbox();
+
+  /* ---------- HÀM CHÍNH: dựng thế giới vật lý ---------- */
+  function initToolbox() {
+    const { Engine, Bodies, Body, Composite, Mouse, MouseConstraint } = Matter;
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+    // 1) Đo kích thước từng chip khi còn xếp bình thường, rồi mới chuyển sang chế độ vật lý
+    const sizes = pills.map((p) => ({ w: p.offsetWidth, h: p.offsetHeight }));
+    box.classList.add('is-physics');
+    document.querySelector('#tb-hint').textContent = isTouch
+      ? 'Chạm vào chip để hất lên, hoặc bấm "Lắc thùng".'
+      : 'Kéo, ném, va chạm thoải mái.';
+
+    // 2) Tạo engine + trọng lực
+    const engine = Engine.create();
+    engine.gravity.y = 1.1;
+    const world = engine.world;
+    let W = box.clientWidth, H = box.clientHeight;
+
+    // 3) HÀM buildWalls: sàn + 2 tường (không có trần để chip rơi từ trên xuống)
+    let walls = [];
+    function buildWalls() {
+      Composite.remove(world, walls);
+      const t = 200; // độ dày tường
+      walls = [
+        Bodies.rectangle(W / 2, H + t / 2, W + t * 2, t, { isStatic: true }),   // sàn
+        Bodies.rectangle(-t / 2, H / 2, t, H * 4, { isStatic: true }),          // tường trái
+        Bodies.rectangle(W + t / 2, H / 2, t, H * 4, { isStatic: true }),       // tường phải
+      ];
+      Composite.add(world, walls);
+    }
+    buildWalls();
+
+    // 4) Mỗi chip là 1 thân hình chữ nhật bo tròn, xuất hiện ngẫu nhiên phía trên thùng
+    const bodies = pills.map((_, i) => {
+      const { w, h } = sizes[i];
+      return Bodies.rectangle(
+        Math.max(w / 2, Math.min(W - w / 2, rnd(w, W - w))), -rnd(60, 700) - i * 30, w, h,
+        { chamfer: { radius: h / 2 }, restitution: 0.35, friction: 0.2, frictionAir: 0.01, angle: rnd(-0.6, 0.6) }
+      );
+    });
+    Composite.add(world, bodies);
+
+    // 5) HÀM render: chép vị trí + góc xoay từ thân hình vật lý sang thẻ DOM
+    function render() {
+      bodies.forEach((b, i) => {
+        pills[i].style.transform =
+          `translate(${b.position.x - sizes[i].w / 2}px, ${b.position.y - sizes[i].h / 2}px) rotate(${b.angle}rad)`;
+      });
+    }
+    render(); // vẽ 1 lần ngay để chip không bị chồng ở góc trên trái
+
+    // 6) Chỉ chạy vật lý khi thùng đang trong màn hình (tiết kiệm pin)
+    let active = false;
+    ScrollTrigger.create({
+      trigger: box, start: 'top 90%', end: 'bottom top',
+      onToggle: (self) => (active = self.isActive),
+    });
+    gsap.ticker.add((time, delta) => {
+      if (!active) return;
+      Engine.update(engine, Math.min(delta, 33)); // delta tính bằng ms, giới hạn để không "nổ" khi tab bị treo
+      render();
+    });
+
+    // 7) Tương tác
+    if (!isTouch) {
+      // Desktop: kéo ném bằng chuột
+      const mouse = Mouse.create(box);
+      // Gỡ các listener của Matter làm hỏng cuộn trang (lăn chuột + chạm)
+      ['wheel', 'mousewheel', 'DOMMouseScroll'].forEach((ev) => box.removeEventListener(ev, mouse.mousewheel));
+      box.removeEventListener('touchstart', mouse.mousedown);
+      box.removeEventListener('touchmove', mouse.mousemove);
+      box.removeEventListener('touchend', mouse.mouseup);
+      Composite.add(world, MouseConstraint.create(engine, { mouse, constraint: { stiffness: 0.2, render: { visible: false } } }));
+    } else {
+      // Điện thoại: chạm vào chip thì hất nó lên (không chặn cuộn trang)
+      pills.forEach((el, i) => el.addEventListener('pointerdown', () =>
+        Body.setVelocity(bodies[i], { x: rnd(-6, 6), y: -rnd(10, 16) })));
+    }
+
+    // Nút "Lắc thùng": hất tung tất cả chip
+    document.querySelector('#tb-shake')?.addEventListener('click', () =>
+      bodies.forEach((b) => Body.setVelocity(b, { x: rnd(-14, 14), y: -rnd(12, 26) })));
+
+    // 8) Đổi kích thước màn hình: dựng lại tường, kéo chip lọt ra ngoài về giữa
+    new ResizeObserver(() => {
+      W = box.clientWidth; H = box.clientHeight;
+      buildWalls();
+      bodies.forEach((b) => { if (b.position.x > W - 10) Body.setPosition(b, { x: W / 2, y: b.position.y }); });
+    }).observe(box);
+  }
+</script>

@@ -1,16 +1,29 @@
 ---
+/* =========================================================
+   INDEX.ASTRO - Trang chủ: chỉ ghép các section theo thứ tự
+   Nhịp sáng/tối: Hero (sáng) > Spark (đen) > Process (sáng) > Studio (đen)
+   ========================================================= */
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import Spark from '../components/Spark.astro';
+import Process from '../components/Process.astro';
+import Studio from '../components/Studio.astro';
+import Footer from '../components/Footer.astro';
+import Showcase from '../components/Showcase.astro';
+import Contact from '../components/Contact.astro';
+
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout>
+  <Hero />
+  <Spark />
+  <Process />
+  <Studio />
+  <Showcase />
+  <Contact />
+
+  <!-- Phần 3: <Showcase /> (id="showcase", nền sáng) -->
+  <!-- Phần 5: <Contact /> (id="contact", nền đen) -->
+
+  <Footer />
+</Layout>

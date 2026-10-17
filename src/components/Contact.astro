@@ -1,0 +1,479 @@
+---
+/* =========================================================
+   CONTACT.ASTRO - Section "Liên hệ" (id="contact", nền sáng, kiểu Apple)
+   - Bên trái: 5 kênh (Zalo, Gmail, Facebook, Instagram, LinkedIn) dạng "dock":
+     rê chuột thì hàng phình ra theo khoảng cách tới con trỏ, bấm/rê để chọn
+   - Bên phải: cửa sổ xem trước nghiêng 3D theo chuột, mỗi kênh một cảnh riêng:
+     chat tự diễn (Zalo/Facebook/Instagram/LinkedIn) và form soạn thư THẬT cho Gmail
+     (chọn loại dự án, gõ tên + mô tả -> tạo sẵn thư gửi qua Gmail/mailto)
+   - Tiêu đề đổi tên kênh + màu theo kênh đang chọn; trạng thái trực tuyến theo giờ Sài Gòn
+   - Nút "Sao chép": bắn tia lửa màu thương hiệu + thông báo nhỏ
+   - Điện thoại: dock 5 biểu tượng nằm ngang, cửa sổ xem trước ngay bên dưới
+
+   SỬA Ở ĐÂY: email, link, handle thật của bạn (các giá trị bên dưới đang là MẪU)
+   ========================================================= */
+const email = 'hello@duyanh.dev';            // đổi thành email thật
+
+// c = màu thương hiệu (phẳng), t = màu nền nhạt của ô xem trước, url = chữ trên thanh địa chỉ
+// copy = chuỗi được sao chép khi bấm "Sao chép"; msgs = đoạn chat minh hoạ [hướng, nội dung]
+const channels = [
+  {
+    id: 'zalo', name: 'Zalo', word: 'Zalo', c: '#0068ff', t: '#e5f0ff', url: 'zalo.me',
+    handle: '090 000 0000', href: 'https://zalo.me/0900000000', cta: 'Mở Zalo', copy: '0900000000', copyLabel: 'số Zalo',
+    msgs: [['in', 'Chào bạn, mình cần một trang giới thiệu thật nổi bật ✨'], ['out', 'Chào bạn! Kể mình nghe về dự án nhé.'], ['in', 'Gọn gàng, sáng sủa, kiểu Apple.'], ['out', 'Mình gửi demo cho bạn ngay hôm nay.']],
+  },
+  {
+    id: 'gmail', name: 'Gmail', word: 'Gmail', c: '#ea4335', t: '#fdeceb', url: 'mail.google.com',
+    handle: email, href: `mailto:${email}`, cta: 'Gửi email', copy: email, copyLabel: 'email',
+    msgs: [],
+  },
+  {
+    id: 'facebook', name: 'Facebook', word: 'Messenger', c: '#0866ff', t: '#e8f0ff', url: 'messenger.com',
+    handle: 'facebook.com/tenban', href: 'https://facebook.com/tenban', cta: 'Mở Facebook', copy: 'https://facebook.com/tenban', copyLabel: 'link',
+    msgs: [['in', 'Mình thấy các demo của bạn rất đẹp!'], ['out', 'Cảm ơn bạn! Bạn đang cần làm gì vậy?'], ['in', 'Một website cho thương hiệu của mình.'], ['out', 'Tuyệt, mình tư vấn hướng đi liền nhé.']],
+  },
+  {
+    id: 'instagram', name: 'Instagram', word: 'Instagram', c: '#e1306c', t: '#ffe8f0', url: 'instagram.com',
+    handle: '@tenban', href: 'https://instagram.com/tenban', cta: 'Mở Instagram', copy: '@tenban', copyLabel: 'tên',
+    msgs: [['in', 'Hiệu ứng cuộn trang đó làm sao vậy? 👀'], ['out', 'Mình dựng riêng từng cảnh luôn đó.'], ['in', 'Làm cho mình một trang như vậy được không?'], ['out', 'Được chứ, nhắn mình chi tiết nhé!']],
+  },
+  {
+    id: 'linkedin', name: 'LinkedIn', word: 'LinkedIn', c: '#0a66c2', t: '#e3effa', url: 'linkedin.com',
+    handle: 'linkedin.com/in/tenban', href: 'https://linkedin.com/in/tenban', cta: 'Mở LinkedIn', copy: 'https://linkedin.com/in/tenban', copyLabel: 'link',
+    msgs: [['in', 'Bên mình muốn hợp tác dài hạn về giao diện web.'], ['out', 'Rất vui được trao đổi. Quy mô thế nào ạ?'], ['in', 'Một bộ website cho 3 thương hiệu.'], ['out', 'Mình gửi đề xuất trong 24 giờ nhé.']],
+  },
+];
+
+// Biểu tượng đơn giản, tô bằng currentColor (chữ trắng trên ô màu thương hiệu)
+const icons = {
+  zalo: '<svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="15.8" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-weight="800" font-size="9.2" fill="currentColor">Zalo</text></svg>',
+  gmail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3.8 7.5l8.2 6.2 8.2-6.2"/></svg>',
+  facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.6 21v-7.4h2.5l.4-2.9h-2.9V8.9c0-.8.3-1.4 1.5-1.4h1.5V5c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v2H8v2.9h2.7V21h2.9z"/></svg>',
+  instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".9" fill="currentColor" stroke="none"/></svg>',
+  linkedin: '<svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="16.8" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-weight="800" font-size="12.5" fill="currentColor">in</text></svg>',
+};
+const types = ['Landing page', 'Website', 'Ứng dụng web', 'Chưa rõ'];
+---
+
+<section class="contact" id="contact">
+  <!-- Tiêu đề: từ cuối đổi theo kênh đang chọn -->
+  <div class="ct__head rise" style="--i:0">
+    <p class="ct__eyebrow">Liên hệ</p>
+    <h2 class="ct__title">Nhắn mình qua <span class="ct__word">Zalo</span>.</h2>
+    <p class="ct__lede">Chọn kênh bạn quen dùng nhất. Mình trả lời nhanh, và luôn bắt đầu bằng việc lắng nghe.</p>
+    <p class="ct__status"><span class="ct__dot"></span><span class="js-status">Đang kiểm tra...</span></p>
+  </div>
+
+  <div class="ct__grid">
+    <!-- ===== Dock các kênh ===== -->
+    <div class="ct__list rise" style="--i:1" role="tablist" aria-orientation="vertical" aria-label="Kênh liên hệ">
+      {channels.map((c, i) => (
+        <button
+          class={`chan${i === 0 ? ' is-active' : ''}`} type="button" role="tab"
+          id={`ct-tab-${c.id}`} aria-controls={`ct-scene-${c.id}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1}
+          data-i={i} data-c={c.c} data-t={c.t} data-word={c.word} data-url={c.url}
+          style={`--c:${c.c};--t:${c.t}`}
+        >
+          <span class="chan__ico" set:html={icons[c.id]}></span>
+          <span class="chan__txt"><b>{c.name}</b><small>{c.handle}</small></span>
+          <span class="chan__go" aria-hidden="true">↗</span>
+        </button>
+      ))}
+    </div>
+
+    <!-- ===== Cửa sổ xem trước ===== -->
+    <div class="ct__device rise" style="--i:2">
+      <div class="ct__stage" data-i="0" style={`--t:${channels[0].t}`}>
+        <div class="ct__win">
+          <div class="ct__bar"><i></i><i></i><i></i><span class="ct__url">{channels[0].url}</span></div>
+
+          <div class="ct__screen">
+            {channels.map((c, i) =>
+              c.id === 'gmail' ? (
+                <form class={`scene scene--mail${i === 0 ? ' is-on' : ''}`} id={`ct-scene-${c.id}`} role="tabpanel" aria-labelledby={`ct-tab-${c.id}`} style={`--c:${c.c}`} data-email={email} novalidate>
+                  <label class="fld" style="--k:0"><span>Tên của bạn</span><input type="text" name="ct-name" placeholder="Nguyễn Văn A" autocomplete="name" /></label>
+                  <fieldset class="fld" style="--k:1">
+                    <legend>Bạn cần gì?</legend>
+                    <div class="chips">
+                      {types.map((ty, k) => (
+                        <label class="chip"><input type="radio" name="ct-type" value={ty} checked={k === 0} /><span>{ty}</span></label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <label class="fld" style="--k:2"><span>Mô tả ngắn</span><textarea name="ct-msg" rows="3" placeholder="Vài dòng về dự án, thời gian, phong cách bạn thích..."></textarea></label>
+                  <p class="subject fld" style="--k:3">Chủ đề: <b class="js-subject"></b></p>
+                  <div class="acts fld" style="--k:4">
+                    <a class="btn btn--main js-send" href={`mailto:${email}`}>Gửi thư <span>↗</span></a>
+                    <a class="btn btn--ghost js-web" href="https://mail.google.com" target="_blank" rel="noopener">Mở trong Gmail</a>
+                    <button class="btn btn--ghost" type="button" data-copy={c.copy} data-label={c.copyLabel}>Sao chép email</button>
+                  </div>
+                </form>
+              ) : (
+                <div class={`scene scene--chat${i === 0 ? ' is-on' : ''}`} id={`ct-scene-${c.id}`} role="tabpanel" aria-labelledby={`ct-tab-${c.id}`} style={`--c:${c.c}`}>
+                  <div class="who">
+                    <span class="who__av">C</span>
+                    <div><b>coreSpark</b><small class="js-status">Đang kiểm tra...</small></div>
+                  </div>
+                  <div class="msgs">
+                    {c.msgs.map(([d, t], k) => <p class={`m m--${d}`} style={`--k:${k}`}>{t}</p>)}
+                    <p class="m m--in m--typing" style={`--k:${c.msgs.length}`}><i></i><i></i><i></i></p>
+                  </div>
+                  <div class="acts">
+                    <a class="btn btn--main" href={c.href} target="_blank" rel="noopener">{c.cta} <span>↗</span></a>
+                    <button class="btn btn--ghost" type="button" data-copy={c.copy} data-label={c.copyLabel}>Sao chép {c.copyLabel}</button>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ct__toast" role="status" aria-live="polite"></div>
+</section>
+
+<!-- ============ CSS riêng của Contact ============ -->
+<style>
+  .contact { position: relative; padding: clamp(5rem, 11vw, 9rem) 0 clamp(5rem, 10vw, 8rem); }
+
+  /* ----- Vào trang: hiện dần khi cuộn tới (chỉ ẩn khi JS đã sẵn sàng, tránh trang trống nếu JS lỗi) ----- */
+  .contact.is-armed:not(.is-in) .rise { opacity: 0; transform: translateY(28px); }
+  .rise { transition: opacity .9s cubic-bezier(.2, .9, .3, 1), transform .9s cubic-bezier(.2, .9, .3, 1); transition-delay: calc(var(--i, 0) * .12s); }
+
+  /* ----- Đầu section ----- */
+  .ct__head { padding: 0 var(--gutter, 1.5rem); text-align: center; margin-bottom: clamp(2.2rem, 5vw, 3.6rem); }
+  .ct__eyebrow { margin: 0 0 .7rem; font-size: .9rem; font-weight: 600; color: var(--accent, #0071e3); }
+  .ct__title { margin: 0; font-size: var(--fs-h2, clamp(2.2rem, 5.4vw, 4.2rem)); line-height: 1.05; letter-spacing: -.035em; font-weight: 700; color: var(--text, #1d1d1f); }
+  .ct__word { display: inline-block; color: var(--wc, #0068ff); transition: color .5s; }
+  .ct__lede { max-width: 44ch; margin: 1.1rem auto 0; font-size: clamp(1.05rem, 1.4vw, 1.25rem); line-height: 1.5; color: var(--text-dim, #6e6e73); }
+  .ct__status { display: inline-flex; align-items: center; gap: .55rem; margin: 1.3rem 0 0; padding: .4rem .95rem; border-radius: 999px; background: #f5f5f7; font-size: .85rem; font-weight: 500; color: #6e6e73; }
+  .ct__dot { position: relative; width: .55rem; height: .55rem; border-radius: 50%; background: #8e8e93; transition: background .4s; }
+  .ct__dot.is-online { background: #30d158; }
+  .ct__dot.is-online::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid #30d158; animation: ctping 1.8s ease-out infinite; }
+  @keyframes ctping { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+
+  /* ----- Lưới 2 cột ----- */
+  .ct__grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 4vw; align-items: center; padding: 0 var(--gutter, 1.5rem); max-width: 1240px; margin: 0 auto; }
+
+  /* ----- Dock các kênh ----- */
+  .ct__list { display: grid; gap: .7rem; }
+  .chan {
+    --x: 0px; --s: 1;
+    position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem;
+    padding: .9rem 1.1rem .9rem .9rem; border: 0; border-radius: 1.5rem; text-align: left; cursor: pointer;
+    background: #f5f5f7; color: #1d1d1f; font: inherit;
+    transform: translateX(var(--x)) scale(var(--s)); transform-origin: left center;
+    transition: transform .28s cubic-bezier(.2, .9, .3, 1.2), background .35s, box-shadow .35s;
+  }
+  .chan:hover { background: #ececf0; }
+  .chan.is-active { background: var(--t); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 40%, transparent); }
+  .chan:focus-visible { outline: 2px solid var(--c); outline-offset: 3px; }
+  .chan__ico {
+    display: grid; place-items: center; width: 3.1rem; height: 3.1rem; border-radius: 1rem;
+    background: var(--c); color: #fff;
+    transition: transform .5s cubic-bezier(.2, .9, .3, 1.5);
+  }
+  .chan__ico :global(svg) { width: 1.6rem; height: 1.6rem; display: block; }
+  .chan:hover .chan__ico, .chan.is-active .chan__ico { transform: rotate(-6deg) scale(1.08); }
+  .chan__txt { display: grid; gap: .1rem; min-width: 0; }
+  .chan__txt b { font-size: 1.1rem; font-weight: 650; letter-spacing: -.015em; }
+  .chan__txt small { font-size: .85rem; color: #6e6e73; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chan__go {
+    display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%;
+    background: #e5e5ea; color: #6e6e73; font-size: 1rem;
+    transition: background .35s, color .35s, transform .4s cubic-bezier(.2, .9, .3, 1.5);
+  }
+  .chan.is-active .chan__go { background: var(--c); color: #fff; transform: rotate(45deg); }
+
+  /* ----- Ô xem trước ----- */
+  .ct__stage {
+    display: grid; place-items: center; padding: clamp(1rem, 3vw, 2.4rem); border-radius: 2rem;
+    background: var(--t); transition: background .6s;
+  }
+  .ct__win {
+    width: 100%; display: flex; flex-direction: column; overflow: hidden;
+    background: #fff; border-radius: 1.2rem; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .4);
+    transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition: transform .25s ease-out; color: #1d1d1f;
+  }
+  .ct__bar { height: 2.4rem; flex: none; display: flex; align-items: center; gap: .4rem; padding: 0 .9rem; background: #f5f5f7; border-bottom: 1px solid #e5e5ea; }
+  .ct__bar i { width: .7rem; height: .7rem; border-radius: 50%; background: #ff5f57; }
+  .ct__bar i:nth-child(2) { background: #febc2e; }
+  .ct__bar i:nth-child(3) { background: #28c840; }
+  .ct__url { margin: 0 auto; padding: .15rem 1rem; border-radius: 999px; background: #fff; font-size: .72rem; color: #6e6e73; }
+  .ct__screen { position: relative; height: clamp(26rem, 34vw, 31rem); }
+
+  /* Mỗi cảnh phủ kín màn hình; cảnh đang chọn hiện rõ và diễn lại từ đầu */
+  .scene {
+    position: absolute; inset: 0; display: flex; flex-direction: column; padding: 1.2rem; margin: 0; overflow-y: auto;
+    opacity: 0; transform: scale(.97); filter: blur(8px); pointer-events: none;
+    transition: opacity .5s, transform .5s, filter .5s;
+  }
+  .scene.is-on { opacity: 1; transform: none; filter: none; pointer-events: auto; }
+  @keyframes ctpop { to { opacity: 1; transform: none; } }
+
+  /* --- Cảnh chat --- */
+  .who { display: flex; align-items: center; gap: .7rem; padding-bottom: .8rem; border-bottom: 1px solid #eee; }
+  .who__av { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--c); color: #fff; font-weight: 700; font-size: 1.05rem; }
+  .who b { display: block; font-size: .98rem; letter-spacing: -.01em; }
+  .who small { display: block; font-size: .78rem; color: #6e6e73; }
+  .msgs { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: .45rem; padding: .8rem 0; }
+  .m { max-width: 80%; margin: 0; padding: .55rem .9rem; border-radius: 1.2rem; font-size: .9rem; line-height: 1.35; opacity: 0; transform: translateY(10px) scale(.96); }
+  .m--in { align-self: flex-start; background: #e9e9eb; border-bottom-left-radius: .35rem; }
+  .m--out { align-self: flex-end; background: var(--c); color: #fff; border-bottom-right-radius: .35rem; }
+  .is-on .m { animation: ctpop .5s cubic-bezier(.2, .9, .3, 1.2) forwards; animation-delay: calc(var(--k) * .65s + .25s); }
+  .m--typing i { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: #8e8e93; animation: ctbob 1.1s infinite; }
+  .m--typing i:nth-child(2) { animation-delay: .15s; }
+  .m--typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes ctbob { 0%, 100% { transform: translateY(0); opacity: .4; } 50% { transform: translateY(-3px); opacity: 1; } }
+
+  /* --- Nút --- */
+  .acts { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: .4rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: .35rem; padding: .65rem 1.15rem; border: 0; border-radius: 999px;
+    font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer; text-decoration: none;
+    transition: transform .3s cubic-bezier(.2, .9, .3, 1.4), filter .25s, background .25s;
+  }
+  .btn--main { background: var(--c); color: #fff; }
+  .btn--ghost { background: #f2f2f7; color: #1d1d1f; }
+  .btn:hover { transform: scale(1.05); }
+  .btn--main:hover { filter: brightness(1.08); }
+  .btn--ghost:hover { background: #e8e8ed; }
+  .btn:active { transform: scale(.95); }
+  .btn:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+  .btn span { display: inline-block; transition: transform .3s cubic-bezier(.2, .9, .3, 1.4); }
+  .btn--main:hover span { transform: translate(2px, -2px); }
+
+  /* --- Cảnh Gmail: form thật --- */
+  .scene--mail { gap: .7rem; }
+  .fld { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: .3rem; opacity: 0; transform: translateY(10px); }
+  .is-on .fld { animation: ctpop .5s cubic-bezier(.2, .9, .3, 1.2) forwards; animation-delay: calc(var(--k) * .1s + .2s); }
+  .fld > span, .fld legend { padding: 0; font-size: .74rem; font-weight: 600; color: #6e6e73; }
+  .scene--mail input[type='text'], .scene--mail textarea {
+    width: 100%; box-sizing: border-box; padding: .62rem .85rem; border: 1.5px solid transparent; border-radius: .85rem;
+    background: #f5f5f7; color: #1d1d1f; font: inherit; font-size: .9rem; resize: none;
+    transition: border-color .25s, background .25s;
+  }
+  .scene--mail input[type='text']:focus, .scene--mail textarea:focus { outline: 0; border-color: var(--c); background: #fff; }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .3rem; }
+  .chip { position: relative; cursor: pointer; }
+  .chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .chip span {
+    display: inline-block; padding: .38rem .85rem; border-radius: 999px; font-size: .82rem; font-weight: 500;
+    background: #f2f2f7; color: #1d1d1f; transition: background .25s, color .25s, transform .3s cubic-bezier(.2, .9, .3, 1.4);
+  }
+  .chip:hover span { transform: scale(1.04); }
+  .chip input:checked + span { background: var(--c); color: #fff; }
+  .chip input:focus-visible + span { outline: 2px solid var(--c); outline-offset: 2px; }
+  .subject { margin: 0; font-size: .78rem; color: #6e6e73; display: block; }
+  .subject b { color: #1d1d1f; font-weight: 600; word-break: break-word; }
+
+  /* --- Thông báo nhỏ khi sao chép --- */
+  .ct__toast {
+    position: fixed; left: 50%; bottom: 1.6rem; z-index: 90; padding: .65rem 1.2rem; border-radius: 999px;
+    background: #1d1d1f; color: #fff; font-size: .9rem; font-weight: 500; pointer-events: none;
+    opacity: 0; transform: translate(-50%, 16px) scale(.96);
+    transition: opacity .35s, transform .45s cubic-bezier(.2, .9, .3, 1.3);
+  }
+  .ct__toast.is-on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+  /* Tia lửa tạo bằng JS: không có thuộc tính scope của Astro nên phải dùng :global */
+  :global(.ct-dot) { position: fixed; z-index: 95; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; pointer-events: none; }
+
+  /* ----- Tablet và điện thoại: dock nằm ngang, cửa sổ xem trước ngay bên dưới ----- */
+  @media (max-width: 900px) {
+    .ct__grid { grid-template-columns: 1fr; gap: 1.2rem; }
+    .ct__list { grid-template-columns: repeat(5, 1fr); gap: .35rem; }
+    .chan {
+      grid-template-columns: 1fr; justify-items: center; gap: .45rem; padding: .7rem .2rem .6rem; border-radius: 1.3rem;
+      transform: none; text-align: center;
+    }
+    .chan__ico { width: 2.9rem; height: 2.9rem; border-radius: .95rem; }
+    .chan__txt small, .chan__go { display: none; }
+    .chan__txt b { font-size: .7rem; font-weight: 600; }
+    .ct__stage { padding: .8rem; border-radius: 1.5rem; }
+    .ct__screen { height: 30rem; }
+    .scene { padding: 1rem; }
+  }
+  @media (max-width: 380px) { .chan__txt b { font-size: .64rem; } .chan__ico { width: 2.6rem; height: 2.6rem; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ct__win { transform: none; transition: none; }
+    .rise, .scene, .chan, .chan__ico, .chan__go { transition-duration: .01s; transition-delay: 0s; }
+    .ct__dot.is-online::after { animation: none; }
+  }
+</style>
+
+<!-- ============ JS riêng của Contact ============ -->
+<script>
+  const root = document.querySelector('.contact');
+  const chans = Array.from(root.querySelectorAll('.chan'));
+  const scenes = Array.from(root.querySelectorAll('.scene'));
+  const stage = root.querySelector('.ct__stage');
+  const win = root.querySelector('.ct__win');
+  const urlEl = root.querySelector('.ct__url');
+  const wordEl = root.querySelector('.ct__word');
+  const list = root.querySelector('.ct__list');
+  const toast = root.querySelector('.ct__toast');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fine = window.matchMedia('(pointer: fine)').matches;
+
+  /* ----- HÀM 1: hiện dần khi cuộn tới (cài "armed" trước để khi JS lỗi nội dung vẫn hiện) ----- */
+  root.classList.add('is-armed');
+  new IntersectionObserver((es, ob) => {
+    if (es.some((e) => e.isIntersecting)) { root.classList.add('is-in'); ob.disconnect(); }
+  }, { threshold: 0.12 }).observe(root);
+
+  /* ----- HÀM 2: chọn kênh (đổi dock, cảnh, màu nền ô, từ trên tiêu đề, thanh địa chỉ) ----- */
+  let cur = -1;
+  function select(i, opts = {}) {
+    if (i === cur) { if (opts.focus) chans[i].focus(); return; }
+    const first = cur === -1;
+    cur = i;
+    const b = chans[i];
+    chans.forEach((el, k) => {
+      const on = k === i;
+      el.classList.toggle('is-active', on);
+      el.setAttribute('aria-selected', String(on));
+      el.tabIndex = on ? 0 : -1;
+    });
+    scenes.forEach((s, k) => { s.classList.toggle('is-on', k === i); s.inert = k !== i; });  // inert: cảnh ẩn không nhận focus
+    stage.dataset.i = String(i);
+    stage.style.setProperty('--t', b.dataset.t);
+    root.style.setProperty('--wc', b.dataset.c);
+    urlEl.textContent = b.dataset.url;
+    wordEl.textContent = b.dataset.word;
+    if (!first && !reduce) {
+      wordEl.animate(
+        [{ transform: 'translateY(.4em)', opacity: 0, filter: 'blur(6px)' }, { transform: 'none', opacity: 1, filter: 'none' }],
+        { duration: 520, easing: 'cubic-bezier(.2,.9,.3,1)' }
+      );
+    }
+    if (opts.focus) b.focus();
+  }
+  chans.forEach((b, i) => {
+    b.addEventListener('click', () => select(i));
+    if (fine) b.addEventListener('pointerenter', () => select(i));      // có chuột: rê tới là xem trước ngay
+  });
+  // Bàn phím: mũi tên / Home / End di chuyển giữa các kênh
+  list.addEventListener('keydown', (e) => {
+    const keys = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 };
+    let n = null;
+    if (e.key in keys) n = (cur + keys[e.key] + chans.length) % chans.length;
+    else if (e.key === 'Home') n = 0;
+    else if (e.key === 'End') n = chans.length - 1;
+    if (n !== null) { e.preventDefault(); select(n, { focus: true }); }
+  });
+  select(0);
+
+  /* ----- HÀM 3: "dock" phình theo khoảng cách tới con trỏ (chỉ khi có chuột, màn rộng) ----- */
+  const wide = window.matchMedia('(min-width: 901px)');
+  if (fine && !reduce) {
+    list.addEventListener('pointermove', (e) => {
+      if (!wide.matches) return;
+      chans.forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const d = Math.abs(e.clientY - (r.top + r.height / 2));
+        const f = Math.max(0, 1 - d / 150);
+        el.style.setProperty('--s', (1 + f * 0.035).toFixed(3));
+        el.style.setProperty('--x', `${(f * 10).toFixed(1)}px`);
+      });
+    });
+    list.addEventListener('pointerleave', () => chans.forEach((el) => { el.style.removeProperty('--s'); el.style.removeProperty('--x'); }));
+  }
+
+  /* ----- HÀM 4: cửa sổ nghiêng 3D theo chuột ----- */
+  if (fine && !reduce) {
+    stage.addEventListener('pointermove', (e) => {
+      const r = stage.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      win.style.setProperty('--ry', `${(x * 12).toFixed(2)}deg`);
+      win.style.setProperty('--rx', `${(-y * 9).toFixed(2)}deg`);
+    });
+    stage.addEventListener('pointerleave', () => { win.style.setProperty('--rx', '0deg'); win.style.setProperty('--ry', '0deg'); });
+  }
+
+  /* ----- HÀM 5: trạng thái trực tuyến theo giờ Sài Gòn (8h-22h) ----- */
+  const hourFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: 'numeric', hour12: false });
+  function paintStatus() {
+    const h = Number(hourFmt.format(new Date())) % 24;
+    const online = h >= 8 && h < 22;
+    const text = online ? 'Đang trực tuyến · thường trả lời trong vài phút' : 'Ngoài giờ làm việc · mình sẽ trả lời vào sáng mai';
+    root.querySelectorAll('.js-status').forEach((el) => { el.textContent = text; });
+    root.querySelector('.ct__dot').classList.toggle('is-online', online);
+  }
+  paintStatus();
+  setInterval(paintStatus, 60000);
+
+  /* ----- HÀM 6: sao chép + thông báo + tia lửa màu thương hiệu ----- */
+  let toastTimer = 0;
+  function say(msg) {
+    toast.textContent = msg;
+    toast.classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => toast.classList.remove('is-on'), 1900);
+  }
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; }
+    catch {
+      const ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch {}
+      ta.remove();
+      return ok;
+    }
+  }
+  function sparks(btn, color) {
+    if (reduce) return;
+    const r = btn.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    for (let i = 0; i < 14; i++) {
+      const el = document.createElement('span');
+      el.className = 'ct-dot';
+      el.style.left = `${x}px`; el.style.top = `${y}px`; el.style.background = color;
+      document.body.appendChild(el);
+      const a = Math.random() * Math.PI * 2, d = 40 + Math.random() * 60;
+      const anim = el.animate(
+        [{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d - 14}px) scale(.2)`, opacity: 0 }],
+        { duration: 650 + Math.random() * 250, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' }
+      );
+      anim.onfinish = () => el.remove();
+    }
+  }
+  root.querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
+    const ok = await copyText(btn.dataset.copy);
+    say(ok ? `Đã sao chép ${btn.dataset.label}` : 'Không sao chép được, bạn chép tay giúp mình nhé');
+    if (ok) sparks(btn, chans[cur].dataset.c);
+  }));
+
+  /* ----- HÀM 7: form Gmail: tạo sẵn chủ đề + nội dung thư theo những gì bạn gõ ----- */
+  const form = root.querySelector('.scene--mail');
+  if (form) {
+    const to = form.dataset.email;
+    const nameIn = form.querySelector('[name="ct-name"]');
+    const msgIn = form.querySelector('[name="ct-msg"]');
+    const subj = form.querySelector('.js-subject');
+    const send = form.querySelector('.js-send');
+    const web = form.querySelector('.js-web');
+    const enc = encodeURIComponent;
+    function build() {
+      const name = nameIn.value.trim();
+      const type = form.querySelector('[name="ct-type"]:checked').value;
+      const msg = msgIn.value.trim();
+      const subject = `[coreSpark] ${type} - ${name || 'Khách mới'}`;
+      const body = `Chào bạn,\n\n${msg || 'Mình muốn trao đổi về một dự án.'}\n\n${name ? '- ' + name : ''}`;
+      subj.textContent = subject;
+      send.href = `mailto:${to}?subject=${enc(subject)}&body=${enc(body)}`;
+      web.href = `https://mail.google.com/mail/?view=cm&fs=1&to=${enc(to)}&su=${enc(subject)}&body=${enc(body)}`;
+    }
+    form.addEventListener('input', build);
+    form.addEventListener('change', build);
+    form.addEventListener('submit', (e) => { e.preventDefault(); send.click(); });
+    build();
+  }
+</script>

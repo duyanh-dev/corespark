@@ -1,0 +1,613 @@
+---
+/* =========================================================
+   SHOWCASE.ASTRO - Khu chọn và xem demo (nền sáng, UI liquid glass)
+   Dữ liệu: src/data/demos.json. Thẻ + chip lọc được render sẵn lúc build (tốt cho SEO)
+   Logic nằm ở src/scripts/showcase/*.js
+   ========================================================= */
+import raw from '../data/demos.json';
+
+/* Thêm base cho đường dẫn nội bộ (bỏ qua link https://...) */
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const withBase = (p) => (p && p.startsWith('/') && !p.startsWith('//') ? base + p : p);
+
+const demos = raw.map((d) => ({
+  ...d,
+  thumb: withBase(d.thumb),
+  url: withBase(d.url),
+  siteUrl: withBase(d.siteUrl),
+}));
+/* Thứ tự mặc định: mới nhất lên đầu (JS sắp xếp lại khi người dùng đổi) */
+const list = [...demos].sort((a, b) => b.date.localeCompare(a.date));
+
+/* HÀM sắp chip: giá trị có trong "first" lên đầu theo đúng thứ tự đó, còn lại xếp A-Z */
+const sorted = (arr, first = []) =>
+  [...new Set(arr)].sort((a, b) => {
+    const ia = first.indexOf(a), ib = first.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, 'vi');
+  });
+
+/* Các nhóm chip. Chip TỰ SINH từ dữ liệu: thêm demo mới có giá trị mới là chip mới tự xuất hiện.
+   key phải trùng với bảng GROUPS trong filters.js */
+const groups = [
+  { key: 'type',  title: 'Loại website', hint: '', items: sorted(demos.map((d) => d.type), ['Landing page', 'Web app', 'Portfolio']) },
+  { key: 'topic', title: 'Lĩnh vực',     hint: '', items: sorted(demos.map((d) => d.topic)) },
+  { key: 'style', title: 'Phong cách',   hint: '', items: sorted(demos.flatMap((d) => d.styles)) },
+  { key: 'tech',  title: 'Công nghệ',    hint: 'Chọn nhiều: demo phải có đủ tất cả', items: sorted(demos.flatMap((d) => d.tech)) },
+];
+const toggles = [
+  { key: 'featured', t: 'Nổi bật' },
+  { key: 'has3d',    t: 'Có 3D / WebGL' },
+  { key: 'mobile',   t: 'Tối ưu cho điện thoại' },
+];
+
+/* Số demo ban đầu của mỗi chip (JS cập nhật lại khi lọc) */
+const valuesOf = { type: (d) => [d.type], topic: (d) => [d.topic], style: (d) => d.styles, tech: (d) => d.tech };
+const countOf = (g, v) => demos.filter((d) => valuesOf[g](d).includes(v)).length;
+const fmtDate = (s) => new Date(s).toLocaleDateString('vi-VN', { month: '2-digit', year: 'numeric' });
+const is3d = (d) => d.tech.some((t) => /three|webgl/i.test(t));
+
+/* Dữ liệu cho JS (thay "<" để không phá thẻ script) */
+const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
+---
+
+<section class="sc" id="showcase">
+  <!-- Nền màu pastel nhòe sau lưng để kính có màu mà nhòe. Không thích thì xóa cả khối này -->
+  <div class="sc-bg" aria-hidden="true"><i class="sc-blob sc-blob--a"></i><i class="sc-blob sc-blob--b"></i><i class="sc-blob sc-blob--c"></i></div>
+
+  <!-- ===== Tiêu đề ===== -->
+  <header class="sc-head">
+    <p class="label sc-eyebrow">Demo</p>
+    <h2 class="sc-title">Chọn một demo.<br /><span class="accent">Bấm là chạy.</span></h2>
+    <p class="sc-sub">Mỗi demo là một trang chạy thật. Lọc theo loại website, lĩnh vực, phong cách hay công nghệ, rồi mở ra xem trên máy tính và điện thoại.</p>
+  </header>
+
+  <div class="sc-layout">
+    <!-- ===== Cột bộ lọc (desktop: tấm kính dính bên trái. Mobile: ngăn kéo từ dưới lên) ===== -->
+<aside class="sc-filters" id="sc-filters" aria-label="Bộ lọc demo" data-lenis-prevent>
+      <div class="sc-ftop">
+        <h3 class="sc-ftitle">Bộ lọc</h3>
+        <button class="sc-clear" id="sc-clear" type="button" disabled>Xóa tất cả</button>
+        <button class="sc-fdone" id="sc-fdone" type="button">Xong</button>
+      </div>
+
+      {groups.map((g) => (
+        <div class="sc-fgroup">
+          <p class="sc-fname">{g.title}</p>
+          {g.hint && <p class="sc-fhint">{g.hint}</p>}
+          <div class="sc-chips">
+            {g.items.map((v) => (
+              <button type="button" class="sc-fchip" data-group={g.key} data-value={v} aria-pressed="false">
+                <span>{v}</span><span class="sc-fn">{countOf(g.key, v)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div class="sc-fgroup">
+        <p class="sc-fname">Tuỳ chọn</p>
+        {toggles.map((t) => (
+          <label class="sc-switch"><span>{t.t}</span><input type="checkbox" data-key={t.key} /></label>
+        ))}
+      </div>
+
+      <button class="sc-apply" id="sc-apply" type="button">Xem <b id="sc-apply-n">{demos.length}</b> kết quả</button>
+    </aside>
+
+    <!-- ===== Cột chính: thanh công cụ + thẻ demo ===== -->
+    <div class="sc-main">
+      <div class="sc-toolbar">
+        <div class="sc-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+          <input id="sc-q" type="search" placeholder="Tìm demo, công nghệ, phong cách…" aria-label="Tìm kiếm demo" autocomplete="off" />
+          <button class="sc-qclear" id="sc-qclear" type="button" aria-label="Xóa tìm kiếm" hidden>✕</button>
+        </div>
+        <button class="sc-fbtn" id="sc-fbtn" type="button">Bộ lọc <span class="sc-fbadge" id="sc-fbadge" hidden>0</span></button>
+        <select class="sc-sort" id="sc-sort" aria-label="Sắp xếp">
+          <option value="newest">Mới nhất</option>
+          <option value="featured">Nổi bật trước</option>
+          <option value="az">Tên A → Z</option>
+          <option value="oldest">Cũ nhất</option>
+        </select>
+      </div>
+
+      <!-- Thanh "đang bật": JS vẽ số kết quả + từng điều kiện -->
+      <div class="sc-active" id="sc-active" aria-live="polite"></div>
+
+      <!-- Lưới thẻ (SP: 2 cột) -->
+      <div class="sc-grid" id="sc-grid">
+        {list.map((d) => (
+          <a class="sc-card" href={d.siteUrl ?? d.url} target="_blank" rel="noopener noreferrer" data-slug={d.slug} style={`--tile:${d.color}`} aria-label={`Xem demo ${d.title}`}>
+            <div class="sc-tilt">
+              <div class="sc-media">
+                <!-- Hình giả cửa sổ trình duyệt (luôn có, làm nền khi chưa có ảnh hoặc ảnh lỗi) -->
+                <span class="sc-mock" aria-hidden="true"><i></i><b style="width:72%"></b><b style="width:48%"></b><u></u></span>
+                {d.thumb && <img src={d.thumb} alt="" width="1280" height="800" loading="lazy" decoding="async" />}
+                <span class="sc-badges"><span class="sc-badge">{d.type}</span></span>
+                <span class="sc-badges sc-badges--r">
+                  {d.featured && <span class="sc-badge sc-badge--hot">Nổi bật</span>}
+                  {is3d(d) && <span class="sc-badge sc-badge--3d">3D</span>}
+                </span>
+                <span class="sc-go">Xem demo →</span>
+              </div>
+              <!-- Tấm kính thông tin đè lên mép dưới ảnh -->
+              <div class="sc-body">
+                <div class="sc-meta"><span>{d.topic}</span><time datetime={d.date}>{fmtDate(d.date)}</time></div>
+                <h3 class="sc-name">{d.title}</h3>
+                <p class="sc-desc">{d.desc}</p>
+                <div class="sc-styles">{d.styles.map((s) => <span>{s}</span>)}</div>
+                <p class="sc-tech">{d.tech.join(' · ')}</p>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <!-- Trạng thái không có kết quả -->
+      <div class="sc-empty" id="sc-empty" hidden>
+        <strong>Chưa có demo khớp bộ lọc này.</strong>
+        <p>Thử bỏ bớt điều kiện hoặc tìm bằng từ khóa khác.</p>
+        <button class="btn btn--fire" id="sc-empty-reset" type="button">Xóa bộ lọc</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nền mờ phía sau ngăn kéo bộ lọc (mobile) -->
+  <div class="sc-backdrop" id="sc-backdrop"></div>
+
+  <!-- ===== KHUNG XEM DEMO (JS sẽ chuyển ra <body> khi khởi tạo) ===== -->
+  <div class="sc-viewer" id="sc-viewer" role="dialog" aria-modal="true" aria-label="Xem demo" hidden>
+    <!-- Quầng sáng màu phía sau khung (màu theo demo) để 2 thanh kính có màu mà nhòe -->
+    <div class="sc-vglow" aria-hidden="true"></div>
+
+    <!-- Thanh kính nổi phía trên -->
+    <div class="sc-vbar" id="v-bar">
+      <button class="sc-vbtn sc-vclose" id="v-close" type="button" aria-label="Đóng (Esc)">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+
+      <div class="sc-vtitle"><strong id="v-title"></strong><span id="v-meta"></span></div>
+
+      <!-- Chỉ còn Máy tính / Điện thoại -->
+      <div class="sc-seg" id="v-devices" role="group" aria-label="Chọn thiết bị">
+        <button type="button" data-d="desktop" class="is-active">Máy tính</button>
+        <button type="button" data-d="mobile">Điện thoại</button>
+      </div>
+
+      <div class="sc-vtools">
+        <button class="sc-vbtn" id="v-prev" type="button" aria-label="Demo trước (←)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg></button>
+        <button class="sc-vbtn" id="v-next" type="button" aria-label="Demo sau (→)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg></button>
+        <button class="sc-vbtn" id="v-reload" type="button" aria-label="Tải lại"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" /></svg></button>
+        <button class="sc-vbtn" id="v-copy" type="button" aria-label="Sao chép link demo"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg></button>
+      </div>
+
+      <div class="sc-vcta">
+        <a class="sc-visit" id="v-visit" href="#" target="_blank" rel="noopener noreferrer">Visit site ↗</a>
+      </div>
+    </div>
+
+    <div class="sc-stage" id="v-stage">
+      <div class="sc-frame" id="v-frame" data-device="desktop">
+        <div class="sc-screen" id="v-screen">
+          <div class="sc-loader" id="v-loader"><span class="sc-spin"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thanh kính nổi phía dưới -->
+    <div class="sc-vfoot" id="v-foot">
+      <p class="sc-vhint" id="v-hint">Demo không hiện? Một số trang không cho nhúng. Bấm <b>Visit site</b> để mở ở tab mới.</p>
+      <button class="sc-want" id="v-want" type="button">Tôi muốn web như này</button>
+    </div>
+
+    <div class="sc-toast" id="v-toast" role="status"></div>
+  </div>
+
+  <!-- Dữ liệu demo cho JS -->
+  <script is:inline type="application/json" id="sc-data" set:html={dataJson}></script>
+</section>
+
+<!-- ============ CSS của Showcase (global, tiền tố "sc-") ============ -->
+<style is:global>
+
+.sc-filters::-webkit-scrollbar { width: 10px; }
+.sc-filters::-webkit-scrollbar-track { margin: 1.4rem 0; background: transparent; }
+.sc-filters::-webkit-scrollbar-thumb {
+  background-color: transparent; border: 3px solid transparent;
+  background-clip: content-box; border-radius: 999px;
+}
+.sc-filters:hover::-webkit-scrollbar-thumb { background-color: rgba(60, 60, 67, .32); }
+.sc-filters::-webkit-scrollbar-thumb:hover { background-color: rgba(60, 60, 67, .55); }
+@supports not selector(::-webkit-scrollbar) {
+  .sc-filters { scrollbar-width: thin; scrollbar-color: rgba(60, 60, 67, .3) transparent; }
+}
+  /* ---------- 1. KHUNG SECTION + "VẬT LIỆU KÍNH" DÙNG CHUNG ---------- */
+  .sc {
+    position: relative; padding: 8rem 0 7rem;
+    /* Vật liệu kính: nền trong mờ + nhòe + tăng bão hòa + viền sáng + vệt sáng ở mép (dùng bóng đổ trong, không gradient) */
+    --g-bg: rgba(255, 255, 255, .46);
+    --g-bg-strong: rgba(255, 255, 255, .68);
+    --g-bd: rgba(255, 255, 255, .78);
+    --g-blur: blur(22px) saturate(180%);
+    --g-shadow: 0 8px 30px rgba(20, 30, 60, .10), inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 0 rgba(255, 255, 255, .35);
+  }
+  .sc-head, .sc-layout { position: relative; z-index: 1; }       /* nằm trên lớp nền màu */
+  .sc-head { text-align: center; padding: 0 var(--gutter); margin-bottom: 3.5rem; }
+  .sc-eyebrow { color: var(--accent); margin-bottom: .6rem; }
+  .sc-title { font-size: clamp(2.2rem, 6vw, 5rem); line-height: 1.04; margin-bottom: 1rem; }
+  .sc-sub { max-width: 46ch; margin: 0 auto; color: var(--text-dim); font-size: clamp(1.05rem, 1.5vw, 1.3rem); }
+
+  /* Lưới 2 cột: bộ lọc + nội dung */
+  .sc-layout { display: grid; grid-template-columns: minmax(230px, 270px) minmax(0, 1fr); gap: 2rem; padding: 0 var(--gutter); align-items: start; }
+  .sc-main { min-width: 0; }
+
+  /* Nền màu nhòe, trôi chậm (khối bọc tự cắt phần tràn, KHÔNG đặt overflow lên .sc vì sẽ làm hỏng "sticky") */
+  .sc-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .sc-blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .5; will-change: transform; animation: sc-float 20s ease-in-out infinite alternate; }
+  .sc-blob--a { width: 44vw; height: 44vw; left: -10vw; top: 12%; background: #8ec5ff; }
+  .sc-blob--b { width: 40vw; height: 40vw; right: -8vw; top: 38%; background: #d9b8ff; animation-delay: -6s; }
+  .sc-blob--c { width: 36vw; height: 36vw; left: 22vw; bottom: -6%; background: #ffc9d6; animation-delay: -12s; }
+  @keyframes sc-float { to { transform: translate3d(6vw, -5vh, 0) scale(1.12); } }
+
+  /* ---------- 2. CỘT BỘ LỌC (tấm kính) ---------- */
+  .sc-filters {
+    position: sticky; top: 4.8rem; max-height: calc(100svh - 5.8rem); overflow: auto; scrollbar-width: thin;
+    padding: 1.2rem 1.2rem 1rem; border-radius: 1.8rem;
+    background: var(--g-bg); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
+    border: 1px solid var(--g-bd); box-shadow: var(--g-shadow);
+    overscroll-behavior: contain; 
+  }
+  .sc-ftop { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .4rem; }
+  .sc-ftitle { font-size: 1.15rem; letter-spacing: -.01em; margin-right: auto; }
+  .sc-clear, .sc-fdone { font-size: .85rem; color: var(--accent); }
+  .sc-clear:disabled { opacity: .35; cursor: default; }
+  .sc-fdone { display: none; font-weight: 600; }            /* chỉ hiện trong ngăn kéo mobile */
+
+  .sc-fgroup { padding: 1rem 0 .6rem; border-top: 1px solid rgba(255, 255, 255, .7); }
+  .sc-fgroup:first-of-type { border-top: 0; }
+  .sc-fname { font-weight: 600; font-size: .95rem; margin-bottom: .2rem; }
+  .sc-fhint { font-size: .78rem; color: var(--text-dim); }
+  .sc-chips { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .6rem; }
+
+  /* Chip lọc: kính nhỏ (không nhòe riêng vì đã nằm trên tấm kính lớn) */
+  .sc-fchip {
+    display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .8rem; border-radius: 999px;
+    background: rgba(255, 255, 255, .55); border: 1px solid rgba(255, 255, 255, .85);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06), inset 0 1px 0 rgba(255, 255, 255, .95);
+    color: var(--text); font-size: .85rem; font-weight: 500;
+    transition: background .2s, color .2s, opacity .2s, box-shadow .2s;
+  }
+  .sc-fchip:hover { background: rgba(255, 255, 255, .9); }
+  .sc-fchip.is-on {
+    background: color-mix(in srgb, var(--accent) 90%, transparent); border-color: rgba(255, 255, 255, .4); color: #fff;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, .45);
+  }
+  .sc-fchip:disabled { opacity: .35; cursor: not-allowed; }
+  .sc-fn { font-size: .72rem; opacity: .6; font-variant-numeric: tabular-nums; }
+
+  /* Công tắc kiểu iOS: núm trắng như giọt kính */
+  .sc-switch { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .55rem 0; font-size: .92rem; cursor: pointer; }
+  .sc-switch input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 2.7rem; height: 1.65rem; border-radius: 999px; background: rgba(120, 120, 128, .32); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .15); cursor: pointer; transition: background .25s; }
+  .sc-switch input::after { content: ''; position: absolute; top: .15rem; left: .15rem; width: 1.35rem; height: 1.35rem; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .3), inset 0 1px 0 #fff; transition: transform .25s; }
+  .sc-switch input:checked { background: var(--green); }
+  .sc-switch input:checked::after { transform: translateX(1.05rem); }
+
+  .sc-apply { display: none; }                               /* nút "Xem N kết quả": chỉ hiện trong ngăn kéo mobile */
+
+  /* ---------- 3. THANH CÔNG CỤ: tìm kiếm, nút bộ lọc, sắp xếp (đều là kính) ---------- */
+  .sc-toolbar { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; margin-bottom: 1rem; }
+  .sc-search { position: relative; flex: 1 1 14rem; min-width: 0; }
+  .sc-search svg { position: absolute; left: 1.05rem; top: 50%; width: 1.1rem; height: 1.1rem; transform: translateY(-50%); fill: none; stroke: var(--text-dim); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+  .sc-search input, .sc-sort, .sc-fbtn {
+    background-color: var(--g-bg); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
+    border: 1px solid var(--g-bd); box-shadow: var(--g-shadow);
+  }
+  .sc-search input {
+    width: 100%; padding: .78rem 2.6rem .78rem 2.8rem; border-radius: 999px; outline: none;
+    color: var(--text); font: inherit; font-size: 1rem; transition: box-shadow .2s;
+  }
+  .sc-search input:focus { box-shadow: var(--g-shadow), 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .sc-qclear { position: absolute; right: .6rem; top: 50%; transform: translateY(-50%); width: 1.6rem; height: 1.6rem; border-radius: 50%; background: rgba(120, 120, 128, .25); font-size: .7rem; }
+  .sc-qclear[hidden] { display: none; }
+
+  .sc-sort {
+    appearance: none; -webkit-appearance: none; padding: .78rem 2.4rem .78rem 1.2rem; border-radius: 999px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236e6e73' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 1rem center; background-size: .7rem;
+    color: var(--text); font: inherit; font-size: .92rem; font-weight: 500; cursor: pointer;
+  }
+  .sc-fbtn { display: none; align-items: center; gap: .5rem; padding: .78rem 1.2rem; border-radius: 999px; font-weight: 500; font-size: .92rem; }   /* chỉ hiện trên mobile */
+  .sc-fbadge { display: inline-grid; place-items: center; min-width: 1.3rem; height: 1.3rem; padding: 0 .35rem; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: .72rem; font-weight: 700; }
+  .sc-fbadge[hidden] { display: none; }
+
+  /* Thanh "đang bật" */
+  .sc-active { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 2rem; margin-bottom: 1.2rem; }
+  .sc-count { font-weight: 600; margin-right: .4rem; }
+  .sc-tag {
+    display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .75rem; border-radius: 999px;
+    background: rgba(255, 255, 255, .65); border: 1px solid rgba(255, 255, 255, .9);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06), inset 0 1px 0 #fff;
+    color: var(--accent); font-size: .82rem; font-weight: 500;
+  }
+  .sc-tag::after { content: '✕'; font-size: .65rem; opacity: .7; }
+
+  /* ---------- 4. LƯỚI THẺ DEMO ---------- */
+  .sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 1.5rem; }
+  .sc-card { display: block; border-radius: 1.7rem; color: inherit; outline: none; }
+  .sc-card.is-hidden { display: none; }
+
+  /* Lớp nghiêng 3D (tách riêng khỏi .sc-card vì GSAP Flip điều khiển vị trí của .sc-card) */
+  .sc-tilt {
+    position: relative; overflow: hidden; border-radius: 1.7rem; background: var(--tile, #e5f0ff);
+    border: 1px solid rgba(255, 255, 255, .8);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 14px 34px -14px rgba(20, 30, 60, .28);
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
+    transition: transform .3s ease-out, box-shadow .3s;
+  }
+  .sc-card:hover .sc-tilt { box-shadow: 0 2px 4px rgba(0, 0, 0, .06), 0 32px 50px -20px rgba(20, 30, 60, .38); }
+  .sc-card:focus-visible .sc-tilt { box-shadow: 0 0 0 3px var(--accent); }
+
+  /* Khung ảnh: ảnh thumbnail phủ kín, bên dưới là hình giả cửa sổ trình duyệt (hiện khi chưa có ảnh/ảnh lỗi) */
+  .sc-media { position: relative; aspect-ratio: 16 / 10; overflow: hidden; }
+  .sc-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; opacity: 0; transition: opacity .5s; }
+  .sc-media img.is-in { opacity: 1; }
+  .sc-media.no-thumb img { display: none; }
+  .sc-mock { position: absolute; inset: 16% 12% -8%; display: flex; flex-direction: column; gap: .5rem; padding: .9rem; border-radius: .9rem .9rem 0 0; background: #fff; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, .25); }
+  .sc-mock i { display: block; width: 50%; height: .9rem; border-radius: .3rem; background: #1d1d1f; }
+  .sc-mock b { display: block; height: .55rem; border-radius: .3rem; background: #e5e5ea; }
+  .sc-mock u { display: block; height: 3rem; margin-top: .3rem; border-radius: .6rem; background: var(--tile); text-decoration: none; }
+
+  /* Bản xem trước sống (iframe do cards.js tạo) */
+  .sc-live { position: absolute; left: 0; top: 0; border: 0; background: #fff; transform-origin: 0 0; pointer-events: none; opacity: 0; transition: opacity .4s; }
+  .sc-live.is-on { opacity: 1; }
+
+  /* Nhãn kính trên ảnh (loại website bên trái, nổi bật/3D bên phải) + nút "Xem demo" */
+  .sc-badges { position: absolute; top: .75rem; left: .75rem; z-index: 2; display: flex; gap: .35rem; }
+  .sc-badges--r { left: auto; right: .75rem; }
+  .sc-badge {
+    padding: .22rem .65rem; border-radius: 999px; font-size: .72rem; font-weight: 600; color: #1d1d1f;
+    background: rgba(255, 255, 255, .55); -webkit-backdrop-filter: blur(12px) saturate(180%); backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, .75); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+  }
+  .sc-badge--hot { background: rgba(29, 29, 31, .7); color: #fff; border-color: rgba(255, 255, 255, .2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25); }
+  .sc-go {
+    position: absolute; right: .75rem; bottom: 2.9rem; z-index: 2; padding: .4rem .9rem; border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 85%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, .45); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5);
+    color: var(--on-accent); font-size: .82rem; font-weight: 500;
+    opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .3s;
+  }
+  .sc-card:hover .sc-go, .sc-card:focus-visible .sc-go { opacity: 1; transform: none; }
+  @media (hover: none) { .sc-go { display: none; } }          /* điện thoại: cả thẻ là nút bấm, không cần nút phụ */
+
+  /* Tấm kính thông tin đè lên mép dưới ảnh */
+  .sc-body {
+    position: relative; display: flex; flex-direction: column; gap: .45rem;
+    margin: -2.6rem .65rem .65rem; padding: .95rem 1.1rem 1.05rem; border-radius: 1.3rem;
+    background: var(--g-bg-strong); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
+    border: 1px solid var(--g-bd); box-shadow: var(--g-shadow);
+  }
+  .sc-meta { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 600; color: var(--accent); }
+  .sc-meta time { color: var(--text-dim); font-weight: 500; }
+  .sc-name { font-size: 1.28rem; line-height: 1.15; letter-spacing: -.02em; }
+  .sc-desc { color: var(--text-dim); font-size: .92rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .sc-styles { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .sc-styles span { padding: .15rem .6rem; border-radius: 999px; background: rgba(255, 255, 255, .6); border: 1px solid rgba(255, 255, 255, .85); color: var(--text-dim); font-size: .75rem; }
+  .sc-tech { font-size: .78rem; color: var(--text-dim); }
+
+  /* Không có kết quả */
+  .sc-empty { padding: 4rem 1rem; text-align: center; color: var(--text-dim); }
+  .sc-empty[hidden] { display: none; }
+  .sc-empty strong { display: block; margin-bottom: .4rem; font-size: 1.4rem; color: var(--text); }
+  .sc-empty .btn { margin-top: 1.2rem; }
+
+  .sc-backdrop { display: none; }                            /* nền mờ sau ngăn kéo: chỉ dùng trên mobile */
+
+  /* ---------- 5. KHUNG XEM DEMO (2 thanh kính nổi đè lên sân khấu) ---------- */
+  .sc-viewer {
+    position: fixed; inset: 0; z-index: 120; overflow: hidden; background: #0b0b0d; color: #f5f5f7; overscroll-behavior: contain;
+    --v-bg: rgba(255, 255, 255, .12); --v-bd: rgba(255, 255, 255, .24); --v-blur: blur(26px) saturate(180%);
+    --v-shadow: 0 10px 40px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .38), inset 0 -1px 0 rgba(255, 255, 255, .08);
+  }
+  .sc-viewer[hidden] { display: none; }
+
+  /* Quầng sáng màu phía sau (màu lấy theo demo) */
+  .sc-vglow { position: absolute; left: 50%; top: 50%; width: 70vmin; height: 70vmin; transform: translate(-50%, -50%); border-radius: 50%; background: var(--glow, #8ec5ff); filter: blur(110px); opacity: .45; pointer-events: none; transition: background .6s; }
+
+  /* Thanh kính phía trên: [đóng] [tên] [thiết bị] [công cụ] [Visit site] */
+  .sc-vbar {
+    position: absolute; z-index: 3; top: .7rem; left: .7rem; right: .7rem;
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: .8rem;
+    padding: .55rem .7rem; border-radius: 1.6rem;
+    background: var(--v-bg); -webkit-backdrop-filter: var(--v-blur); backdrop-filter: var(--v-blur);
+    border: 1px solid var(--v-bd); box-shadow: var(--v-shadow);
+  }
+  .sc-vbtn {
+    display: inline-grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 50%; color: #f5f5f7;
+    background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3);
+    transition: background .2s;
+  }
+  .sc-vbtn:hover { background: rgba(255, 255, 255, .26); }
+  .sc-vbtn:disabled { opacity: .3; cursor: default; }
+  .sc-vbtn svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .sc-vtitle { min-width: 0; line-height: 1.25; }
+  .sc-vtitle strong, .sc-vtitle span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sc-vtitle strong { font-size: 1rem; }
+  .sc-vtitle span { font-size: .78rem; color: #c7c7cc; }
+  .sc-seg { display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18); }
+  .sc-seg button { padding: .4rem 1rem; border-radius: 999px; color: #d1d1d6; font-size: .85rem; font-weight: 500; transition: background .2s, color .2s; }
+  .sc-seg button.is-active { background: rgba(255, 255, 255, .92); color: #1d1d1f; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+  .sc-vtools { display: flex; gap: .4rem; }
+  .sc-visit {
+    display: inline-flex; align-items: center; gap: .35rem; padding: .55rem 1.1rem; border-radius: 999px; white-space: nowrap;
+    background: color-mix(in srgb, #2997ff 88%, transparent); border: 1px solid rgba(255, 255, 255, .38);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 6px 20px rgba(41, 151, 255, .35);
+    color: #fff; font-size: .9rem; font-weight: 500; transition: transform .2s;
+  }
+  .sc-visit:hover { transform: scale(1.04); }
+
+  /* Sân khấu: phủ kín khung xem. Khoảng trống trên/dưới do JS đặt (chừa chỗ cho 2 thanh kính) */
+  .sc-stage { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; padding: 1rem; overflow: hidden; }
+  .sc-frame {
+    position: relative; overflow: hidden; background: #000; border-radius: 14px;
+    box-shadow: 0 40px 100px -30px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255, 255, 255, .1);
+    transition: width .55s cubic-bezier(.2, .8, .2, 1), height .55s cubic-bezier(.2, .8, .2, 1), border-radius .55s;
+  }
+  .sc-screen { position: absolute; inset: var(--b, 0px); overflow: hidden; background: #fff; transition: inset .55s, border-radius .55s; }
+  .sc-screen iframe { position: absolute; left: 0; top: 0; border: 0; background: #fff; transform-origin: 0 0; opacity: 0; transition: opacity .4s; }
+  .sc-screen iframe.is-loaded { opacity: 1; }
+
+  /* Màn hình chờ: ảnh thumbnail của demo, phủ lớp kính nhòe + vòng quay */
+  .sc-loader { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: #1c1c1e var(--thumb, none) center / cover no-repeat; transition: opacity .4s; }
+  .sc-loader::before { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, .28); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+  .sc-loader.is-done { opacity: 0; pointer-events: none; }
+  .sc-spin { position: relative; width: 2rem; height: 2rem; border: 3px solid rgba(255, 255, 255, .22); border-top-color: #fff; border-radius: 50%; animation: sc-rot .8s linear infinite; }
+  @keyframes sc-rot { to { transform: rotate(360deg); } }
+
+  /* Thanh kính phía dưới: gợi ý + "Tôi muốn web như này" */
+  .sc-vfoot {
+    position: absolute; z-index: 3; left: .7rem; right: .7rem; bottom: calc(.7rem + env(safe-area-inset-bottom));
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: .55rem .7rem .55rem 1.2rem; border-radius: 1.6rem;
+    background: var(--v-bg); -webkit-backdrop-filter: var(--v-blur); backdrop-filter: var(--v-blur);
+    border: 1px solid var(--v-bd); box-shadow: var(--v-shadow);
+  }
+  .sc-vhint { font-size: .82rem; color: #d1d1d6; }
+  .sc-vhint.is-warn { color: #ffd60a; }
+  .sc-want { padding: .6rem 1.2rem; border-radius: 999px; background: rgba(255, 255, 255, .92); color: #1d1d1f; font-size: .9rem; font-weight: 600; white-space: nowrap; box-shadow: 0 2px 10px rgba(0, 0, 0, .25); transition: transform .2s; }
+  .sc-want:hover { transform: scale(1.04); }
+
+  /* Thông báo nhỏ (vd "Đã sao chép") */
+  .sc-toast { position: absolute; left: 50%; bottom: 5.8rem; z-index: 5; padding: .5rem 1rem; border-radius: 999px; background: rgba(255, 255, 255, .92); color: #1d1d1f; font-size: .85rem; font-weight: 600; opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: opacity .25s, transform .25s; }
+  .sc-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- 6. RESPONSIVE: chỉ có PC và SP ---------- */
+
+  /* SP (<=1000px, gồm cả máy tính bảng): 1 cột nội dung, THẺ CHIA 2 CỘT, bộ lọc thành ngăn kéo kính từ dưới lên */
+  @media (max-width: 1000px) {
+    .sc { padding: 6rem 0 5rem; }
+    .sc-head { margin-bottom: 2.4rem; }
+    .sc-layout { grid-template-columns: minmax(0, 1fr); gap: 0;z-index: auto; }
+    .sc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }      /* 2 cột */
+    .sc-fbtn { display: inline-flex; }
+    .sc-fdone { display: inline; }
+    .sc-blob { filter: blur(60px); }
+
+    .sc-filters {
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 90; max-height: 86svh;
+      padding: 1.2rem var(--gutter) calc(1rem + env(safe-area-inset-bottom));
+      border-radius: 1.8rem 1.8rem 0 0; border-bottom: 0;
+      background: rgba(255, 255, 255, .78); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+      box-shadow: 0 -20px 60px rgba(0, 0, 0, .25), inset 0 1px 0 rgba(255, 255, 255, .95);
+      transform: translateY(105%); transition: transform .45s cubic-bezier(.2, .8, .2, 1);
+    }
+    .sc-filters.is-open { transform: none; }
+    .sc-apply { display: block; position: sticky; bottom: 0; width: 100%; margin-top: 1rem; padding: .9rem; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 600; box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, .4); }
+
+    .sc-backdrop { display: block; position: fixed; inset: 0; z-index: 85; background: rgba(0, 0, 0, .35); opacity: 0; pointer-events: none; transition: opacity .3s; }
+    .sc-backdrop.is-open { opacity: 1; pointer-events: auto; }
+
+    /* Khung xem demo: thanh trên xếp 2 hàng */
+    .sc-vbar { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "close title cta" "dev dev tools"; row-gap: .6rem; }
+    .sc-vclose { grid-area: close; }
+    .sc-vtitle { grid-area: title; }
+    .sc-vcta { grid-area: cta; }
+    .sc-seg { grid-area: dev; justify-self: start; }
+    .sc-vtools { grid-area: tools; justify-self: end; }
+    .sc-vtitle span { display: none; }
+  }
+
+  /* Điện thoại: thẻ 2 cột phải GỌN (ẩn mô tả, công nghệ, nút phụ) để vẫn dễ nhìn */
+  @media (max-width: 560px) {
+    .sc-toolbar { gap: .5rem; }
+    .sc-search { flex: 1 1 100%; }
+    .sc-fbtn, .sc-sort { flex: 1; justify-content: center; }
+
+    .sc-grid { gap: .7rem; }
+    .sc-card, .sc-tilt { border-radius: 1.25rem; }
+    .sc-media { aspect-ratio: 5 / 4; }                                              /* ảnh cao hơn một chút cho dễ nhìn */
+    .sc-badges { top: .45rem; left: .45rem; }
+    .sc-badges--r { left: auto; right: .45rem; }
+    .sc-badge { padding: .12rem .45rem; font-size: .62rem; }
+    .sc-badge--3d { display: none; }
+    .sc-body { margin: -1.7rem .35rem .35rem; padding: .55rem .65rem .65rem; border-radius: .95rem; gap: .22rem; }
+    .sc-meta { font-size: .66rem; }
+    .sc-meta time, .sc-desc, .sc-tech { display: none; }
+    .sc-name { font-size: .98rem; }
+    .sc-styles { gap: .25rem; }
+    .sc-styles span { padding: .08rem .45rem; font-size: .64rem; }
+    .sc-styles span:nth-child(n + 3) { display: none; }                             /* chỉ giữ 2 nhãn đầu */
+
+    .sc-seg button { padding: .4rem .8rem; font-size: .82rem; }
+    .sc-visit { padding: .5rem .9rem; }
+    .sc-vfoot { display: block; padding: .5rem; }
+    .sc-vhint { display: none; }
+    .sc-want { width: 100%; }
+    .sc-toast { bottom: 5.4rem; }
+  }
+
+  /* Điện thoại xoay ngang (màn rất thấp): bỏ thanh dưới cho khung xem rộng chỗ */
+  @media (max-height: 560px) and (orientation: landscape) {
+    .sc-vfoot { display: none; }
+    .sc-vbar { top: .4rem; padding: .35rem .6rem; }
+  }
+
+  /* Blob đứng yên: blur chỉ tính 1 lần, kính phía trên không phải tính lại mỗi frame */
+.sc-blob { animation: none; will-change: auto; filter: blur(70px); }
+
+/* Thẻ: bỏ backdrop-filter ở phần tử con, chỉ tăng độ đục nền cho vẫn đọc rõ */
+.sc-body  { background: rgba(255, 255, 255, .84); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.sc-badge { background: rgba(255, 255, 255, .78); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.sc-go    { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Quầng sáng của viewer nhẹ hơn */
+.sc-vglow { filter: blur(70px); }
+</style>
+
+<!-- ============ JS riêng của Showcase (ghép các module lại) ============ -->
+<script>
+  import gsap from 'gsap';
+  import { initFilters } from '../scripts/showcase/filters.js';
+  import { initViewer } from '../scripts/showcase/viewer.js';
+  import { initCards } from '../scripts/showcase/cards.js';
+
+  const root = document.querySelector('#showcase');
+  if (root) {
+    const demos = JSON.parse(document.getElementById('sc-data').textContent);
+    const grid = root.querySelector('#sc-grid');
+
+    /* 1) Khởi tạo 3 module */
+    const filters = initFilters({ demos, root });
+    const viewer = initViewer({ demos, getList: () => filters.getVisible() });
+    initCards(grid, demos);
+
+    /* 2) Bấm thẻ: mở khung xem (giữ nguyên hành vi mặc định nếu bấm Ctrl/Cmd/chuột giữa để mở tab mới) */
+    grid.addEventListener('click', (e) => {
+      const card = e.target.closest('.sc-card');
+      if (!card || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      e.preventDefault();
+      viewer.open(card.dataset.slug, card);
+    });
+
+    /* 3) Ảnh thumbnail: tải xong thì hiện dần; thiếu/lỗi thì ẩn ảnh để lộ hình giả cửa sổ bên dưới */
+    grid.querySelectorAll('.sc-media img').forEach((img) => {
+      const ok = () => img.classList.add('is-in');
+      const fail = () => img.closest('.sc-media').classList.add('no-thumb');
+      img.addEventListener('load', ok);
+      img.addEventListener('error', fail);
+      if (img.complete) (img.naturalWidth ? ok() : fail());     // ảnh đã tải/lỗi xong trước khi script chạy
+    });
+
+    /* 4) Thẻ hiện dần khi cuộn tới (dùng IntersectionObserver, không phụ thuộc ScrollTrigger nên không bị lệch vị trí) */
+    const cards = [...grid.querySelectorAll('.sc-card')];
+    gsap.set(cards, { opacity: 0, y: 40 });
+    new IntersectionObserver(([entry], obs) => {
+      if (!entry.isIntersecting) return;
+      obs.disconnect();
+      gsap.to(cards, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out', stagger: 0.06, clearProps: 'transform,opacity' });
+    }, { rootMargin: '0px 0px -10% 0px' }).observe(grid);
+
+    /* 5) Mở thẳng demo nếu link có #demo=ten-demo */
+    viewer.openFromHash();
+  }
+</script>

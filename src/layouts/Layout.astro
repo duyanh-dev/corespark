@@ -1,0 +1,45 @@
+---
+/* =========================================================
+   LAYOUT.ASTRO - Khung HTML chung cho mọi trang
+   Nhận props: title, description (dùng cho SEO và ảnh chia sẻ)
+   ========================================================= */
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import Preloader from '../components/Preloader.astro';
+
+
+const {
+  title = 'CoreSpark | Web demo portfolio',
+  description = 'Mọi website bắt đầu từ một tia lửa. Xem demo thật, rồi cùng làm web cho bạn.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <!-- viewport-fit=cover: để tràn viền trên điện thoại tai thỏ -->
+   <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+
+    <!-- Font Space Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+
+   <body>
+   <Preloader />
+    <Nav />    <!-- thanh điều hướng kính mờ -->
+    <slot />   <!-- nội dung từng trang chèn vào đây -->
+  </body>
+</html>
+
+<!-- Bật cuộn mượt cho toàn site -->
+<script>
+  import { initSmoothScroll } from '../scripts/smooth-scroll.js';
+  initSmoothScroll();
+</script>

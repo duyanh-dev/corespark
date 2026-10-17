@@ -1,0 +1,165 @@
+---
+/* =========================================================
+   SPARK.ASTRO - Section ghim màn hình, nền ĐEN (class "dark")
+   Cuộn trang -> hạt 3D biến hình + chữ chương đổi theo
+   Mobile: chữ ở trên, 3D ở dưới (cùng 1 màn hình ghim)
+   ========================================================= */
+
+// 4 chương: khớp thứ tự 4 hình trong hero3d.js (NỘI DUNG LÀ MẪU, sửa theo ý bạn)
+const chapters = [
+  { kicker: '1 · Ý tưởng',  title: 'Bắt đầu từ một câu hỏi.', desc: 'Bạn muốn người xem cảm thấy gì? Mình lắng nghe, rồi gom mọi thứ thành một lõi ý tưởng rõ ràng.' },
+  { kicker: '2 · Thiết kế', title: 'Phác thành hình thật.',   desc: 'Khung, nhịp chữ, màu sắc, chuyển động. Mỗi chi tiết đều có lý do để tồn tại.' },
+  { kicker: '3 · Code',     title: 'Viết cho thật mượt.',     desc: 'HTML, CSS, JavaScript cùng GSAP và Three.js. Nhẹ, nhanh, mượt từ điện thoại tới màn hình lớn.' },
+  { kicker: '4 · Ra mắt',   title: 'Lên sóng. Bấm là chạy.',  desc: 'Website có link để gửi cho khách, đo được, sửa được. Tia lửa thành thứ người ta muốn bấm vào.' },
+];
+---
+
+<section class="spark dark" id="spark">
+  <!-- Toàn bộ khối này sẽ bị ghim trong lúc cuộn -->
+  <div class="spark__pin">
+
+    <!-- ===== Cột chữ ===== -->
+    <div class="spark__text">
+      <p class="label spark__eyebrow">Câu chuyện · cuộn để thắp lửa</p>
+
+      <!-- Các chương xếp chồng, chỉ 1 chương hiện tại một thời điểm -->
+      <div class="spark__chapters">
+        {chapters.map((c) => (
+          <article class="chapter">
+            <span class="chapter__kicker">{c.kicker}</span>
+            <h2 class="chapter__title">{c.title}</h2>
+            <p class="chapter__desc">{c.desc}</p>
+          </article>
+        ))}
+      </div>
+
+      <!-- Chấm chọn chương + thanh tiến độ -->
+      <div class="spark__nav">
+        {chapters.map((c, i) => (
+          <button class="dot" data-i={i} aria-label={`Tới chương ${c.kicker}`}>{i + 1}</button>
+        ))}
+        <span class="spark__track"><span class="spark__bar"></span></span>
+      </div>
+    </div>
+
+    <!-- ===== Cột 3D ===== -->
+    <div class="spark__stage" id="spark-stage" aria-label="Khối hạt 3D biến hình theo lúc cuộn trang"></div>
+  </div>
+</section>
+
+<!-- ============ CSS riêng của Spark ============ -->
+<style>
+  /* Khung ghim: đúng 1 màn hình, 2 cột */
+  .spark__pin {
+    height: 100svh;
+    display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 2rem;
+    padding: 5rem var(--gutter) 2rem;
+  }
+  .spark__text { min-width: 0; }
+
+  /* --- Chữ --- */
+  .spark__eyebrow { margin-bottom: 1.4rem; }
+  /* Các chương xếp chồng trong CÙNG 1 ô lưới: khung tự cao bằng chương dài nhất, không bao giờ tràn */
+  .spark__chapters { display: grid; }
+  .chapter { grid-area: 1 / 1; opacity: 0; visibility: hidden; }   /* ẩn sẵn, GSAP bật lên */
+  .chapter__kicker { display: block; font-weight: 600; color: var(--accent); margin-bottom: .8rem; }
+  .chapter__title { font-size: var(--fs-h2); line-height: 1.04; margin-bottom: 1rem; max-width: 14ch; }
+  .chapter__desc { color: var(--text-dim); max-width: 38ch; font-size: clamp(1.05rem, 1.4vw, 1.25rem); line-height: 1.5; }
+
+  /* --- Chấm chương + thanh tiến độ --- */
+  .spark__nav { display: flex; align-items: center; gap: .5rem; margin-top: 2rem; flex-wrap: wrap; }
+  .dot {
+    width: 2.4rem; height: 2.4rem; border-radius: 50%;
+    background: var(--surface); color: var(--text-dim); font-size: .85rem; font-weight: 600;
+    transition: background .25s, color .25s;
+  }
+  .dot:hover { color: var(--text); }
+  .dot.is-active { background: var(--accent); color: var(--on-accent); }
+  .spark__track { flex: 1; min-width: 80px; height: 3px; border-radius: 2px; background: var(--line); margin-left: .8rem; overflow: hidden; }
+  .spark__bar { display: block; height: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; }
+
+  /* --- Khung 3D --- */
+  .spark__stage { width: 100%; height: 100%; min-height: 0; cursor: crosshair; touch-action: pan-y; }
+
+  /* --- Tablet và điện thoại (<=1000px): chữ trên, 3D dưới, vẫn trong 1 màn hình ghim --- */
+  @media (max-width: 1000px) {
+    .spark__pin { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: .8rem; padding: 4.2rem var(--gutter) 1rem; }
+    .spark__eyebrow { display: none; }                          /* tiết kiệm chỗ cho khối 3D */
+    .chapter__title { max-width: none; font-size: clamp(1.7rem, 6.4vw, 2.6rem); margin-bottom: .6rem; }
+    .chapter__desc { max-width: none; font-size: .95rem; }
+    .spark__nav { margin-top: .8rem; }
+    .spark__stage { min-height: 30svh; }                        /* khối 3D không bao giờ bị ép về 0 */
+  }
+
+  /* --- Điện thoại thấp (iPhone SE...): thu nhỏ chữ thêm --- */
+  @media (max-width: 1000px) and (max-height: 680px) {
+    .chapter__kicker { margin-bottom: .3rem; }
+    .chapter__desc { font-size: .85rem; line-height: 1.4; }
+    .dot { width: 2.1rem; height: 2.1rem; }
+  }
+
+  /* --- Điện thoại xoay ngang: quay lại 2 cột --- */
+  @media (max-height: 560px) and (orientation: landscape) {
+    .spark__pin { grid-template-columns: 1fr 1fr; grid-template-rows: none; padding: 3.8rem var(--gutter) 1rem; gap: 1.5rem; }
+    .chapter__title { font-size: clamp(1.6rem, 4.5vw, 2.4rem); max-width: none; }
+    .chapter__desc { font-size: .9rem; max-width: none; }
+    .spark__nav { margin-top: .8rem; }
+  }
+</style>
+
+<!-- Giữ nguyên khối <script> cũ của Spark ở đây (chỉ sửa 1 dòng initHero3D như mục 4d) -->
+
+<!-- ============ JS riêng của Spark ============ -->
+<script>
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+  import { initHero3D } from '../scripts/hero3d.js';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const stage = document.querySelector('#spark-stage');
+  const chapters = gsap.utils.toArray('.chapter');
+  const dots = gsap.utils.toArray('.dot');
+  const bar = document.querySelector('.spark__bar');
+
+  if (stage) {
+    // 1) Tạo cảnh 3D, tắt "click đổi hình" vì hình do cuộn trang quyết định
+        const api = initHero3D(stage, { clickCycles: false, neutral: [0.96, 0.96, 0.97] });  // hạt trung tính màu trắng trên nền đen
+
+    // 2) HÀM show(i): chỉ đổi CHỮ chương + chấm. Hình 3D do api.setScrub lo
+    let active = -1;
+    function show(i) {
+      if (i === active) return;
+      active = i;
+      chapters.forEach((c, k) => {
+        gsap.to(c, {
+          autoAlpha: k === i ? 1 : 0,
+          y: k === i ? 0 : (k < i ? -40 : 40),
+          duration: 0.6, overwrite: true,
+        });
+      });
+      dots.forEach((d, k) => d.classList.toggle('is-active', k === i));
+    }
+    show(0);
+
+    // 3) Ghim section, cuộn 300% chiều cao màn hình = 4 chương
+    const st = ScrollTrigger.create({
+      trigger: '.spark',
+      start: 'top top',
+      end: '+=300%',
+      pin: true,
+      onUpdate: (self) => {
+        const p = self.progress;                                    // 0..1
+        show(Math.min(3, Math.floor(p * 4)));                       // chữ: đổi ở ranh giới chương
+        api.setScrub(Math.min(3, Math.max(0, p * 4 - 0.5)));        // hình: tâm mỗi chương = 1 hình trọn vẹn
+        gsap.set(bar, { scaleX: p });                               // thanh tiến độ
+      },
+    });
+
+    // 4) Bấm chấm: cuộn mượt tới giữa chương đó
+    dots.forEach((d, i) => d.addEventListener('click', () => {
+      const y = st.start + ((i + 0.5) / 4) * (st.end - st.start);
+      window.__lenis ? window.__lenis.scrollTo(y, { duration: 1.4 }) : window.scrollTo({ top: y, behavior: 'smooth' });
+    }));
+  }
+</script>

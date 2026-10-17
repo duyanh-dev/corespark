@@ -1,0 +1,152 @@
+---
+/* =========================================================
+   STUDIO.ASTRO - Section nền ĐEN: khối kính 3D tương tác
+   Điều khiển: đổi hình, đổi màu kính, chỉnh độ khúc xạ
+   3D chỉ khởi tạo khi cuộn gần tới (tiết kiệm tài nguyên lúc tải trang)
+   ========================================================= */
+const shapes = [
+  { k: 'sphere', t: 'Cầu' },
+  { k: 'box',    t: 'Khối' },
+  { k: 'knot',   t: 'Xoắn' },
+];
+// Màu kính: c = màu, n = tên (dùng cho aria-label)
+const tints = [
+  { n: 'Trong suốt', c: '#ffffff' },
+  { n: 'Xanh dương', c: '#0a84ff' },
+  { n: 'Tím',        c: '#bf5af2' },
+  { n: 'Hồng',       c: '#ff375f' },
+  { n: 'Cam',        c: '#ff9f0a' },
+  { n: 'Xanh lá',    c: '#30d158' },
+];
+---
+
+<section class="studio dark" id="studio">
+  <!-- Tiêu đề căn giữa kiểu Apple -->
+  <div class="studio__head">
+    <p class="label studio__eyebrow">Studio</p>
+    <h2 class="studio__title">Chạm vào. Xoay đi.<br /><span class="accent">Bẻ cong ánh sáng.</span></h2>
+    <p class="studio__sub">Những công nghệ mình dùng hằng ngày, nằm trong một khối kính vật lý thật. Kéo để xoay, bấm vào để chúng bung ra.</p>
+  </div>
+
+  <!-- Khung 3D -->
+  <div class="studio__stage" id="studio-stage" aria-label="Khối kính 3D chứa các công nghệ. Kéo để xoay, bấm để bung"></div>
+
+  <!-- Bảng điều khiển -->
+  <div class="studio__controls">
+    <div class="seg" id="seg-shape">
+      {shapes.map((s, i) => <button class={i === 0 ? 'is-active' : ''} data-k={s.k}>{s.t}</button>)}
+    </div>
+
+    <div class="tints" id="tints">
+      {tints.map((t, i) => (
+        <button class={`tint ${i === 0 ? 'is-active' : ''}`} style={`--c:${t.c}`} data-c={t.c} aria-label={`Kính màu ${t.n}`}></button>
+      ))}
+    </div>
+
+    <label class="slider">
+      <span>Khúc xạ</span>
+      <input id="ior" type="range" min="1" max="2.3" step="0.01" value="1.45" />
+    </label>
+  </div>
+
+  <p class="studio__caption" id="studio-caption"></p>
+</section>
+
+<!-- ============ CSS riêng của Studio ============ -->
+<style>
+  /* Khung section */
+  .studio { padding: 8rem 0 7rem; }
+
+  /* --- Tiêu đề --- */
+  .studio__head { text-align: center; padding: 0 var(--gutter); margin-bottom: 3rem; }
+  .studio__eyebrow { color: var(--accent); margin-bottom: .6rem; }
+  .studio__title { font-size: clamp(2.2rem, 6vw, 5rem); line-height: 1.04; margin-bottom: 1.2rem; }
+  .studio__sub { max-width: 40ch; margin: 0 auto; color: var(--text-dim); font-size: clamp(1.05rem, 1.5vw, 1.3rem); }
+
+  /* --- Khung 3D: nền phải trùng STAGE_BG trong studio3d.js --- */
+  .studio__stage {
+    height: clamp(380px, 74vh, 740px);
+    margin: 0 var(--gutter); border-radius: 2rem; overflow: hidden;
+    background: #0b0b0d; cursor: grab;
+    touch-action: pan-y;               /* vuốt dọc vẫn cuộn được trang trên điện thoại */
+  }
+
+  /* --- Bảng điều khiển --- */
+  .studio__controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1.2rem 2rem; margin-top: 1.6rem; padding: 0 var(--gutter); }
+
+  /* Nút chọn hình: segmented control */
+  .seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--surface); }
+  .seg button { padding: .5rem 1.2rem; border-radius: 999px; font-size: .9rem; font-weight: 500; color: var(--text-dim); transition: background .25s, color .25s; }
+  .seg button:hover { color: var(--text); }
+  .seg button.is-active { background: #3a3a3c; color: var(--text); }
+
+  /* Chọn màu kính: các chấm tròn, chấm đang chọn có vòng viền */
+  .tints { display: flex; gap: .7rem; }
+  .tint { width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--c); transition: transform .2s, box-shadow .2s; }
+  .tint:hover { transform: scale(1.15); }
+  .tint.is-active { box-shadow: 0 0 0 3px #000, 0 0 0 5px var(--text); }
+
+  /* Thanh trượt khúc xạ */
+  .slider { display: flex; align-items: center; gap: .8rem; font-size: .9rem; color: var(--text-dim); }
+  .slider input { width: 9rem; accent-color: var(--accent); }
+
+  .studio__caption { text-align: center; margin-top: 1.2rem; font-size: .85rem; color: var(--text-dim); }
+
+    /* --- Tablet và điện thoại (<=1000px) --- */
+  @media (max-width: 1000px) {
+    .studio { padding: 5.5rem 0 4rem; }
+    .studio__head { margin-bottom: 2rem; }
+    .studio__stage { height: 60svh; margin: 0 1rem; border-radius: 1.4rem; }
+    .studio__controls { gap: 1rem 1.4rem; }
+    .slider { width: 100%; justify-content: center; }
+    .slider input { width: min(14rem, 60vw); }
+    .tint { width: 2rem; height: 2rem; }                    /* chấm màu to hơn cho ngón tay */
+  }
+
+  /* --- Điện thoại xoay ngang: khối 3D cao gần hết màn hình --- */
+  @media (max-height: 560px) and (orientation: landscape) {
+    .studio__stage { height: 88svh; }
+  }
+</style>
+
+<!-- ============ JS riêng của Studio ============ -->
+<script>
+  const stage = document.querySelector('#studio-stage');
+  const caption = document.querySelector('#studio-caption');
+  const seg = document.querySelectorAll('#seg-shape button');
+  const tints = document.querySelectorAll('#tints .tint');
+  const ior = document.querySelector('#ior');
+
+  const NAMES = { sphere: 'Cầu', box: 'Khối', knot: 'Xoắn' };
+  let shape = 'sphere';
+
+  /* HÀM 1: cập nhật dòng chú thích bên dưới */
+  function updateCaption() {
+    caption.textContent = `${NAMES[shape]} · chiết suất ${Number(ior.value).toFixed(2)} · MeshPhysicalMaterial (Three.js)`;
+  }
+  updateCaption();
+
+  /* HÀM 2: chỉ tạo cảnh 3D khi người dùng cuộn gần tới (import động để không làm nặng lúc tải trang) */
+  async function start() {
+    const { initStudio } = await import('../scripts/studio3d.js');
+    const api = initStudio(stage);
+
+    // Đổi hình
+    seg.forEach((b) => b.addEventListener('click', () => {
+      shape = b.dataset.k;
+      seg.forEach((x) => x.classList.toggle('is-active', x === b));
+      api.setShape(shape); updateCaption();
+    }));
+    // Đổi màu kính
+    tints.forEach((t) => t.addEventListener('click', () => {
+      tints.forEach((x) => x.classList.toggle('is-active', x === t));
+      api.setTint(t.dataset.c);
+    }));
+    // Kéo thanh khúc xạ
+    ior.addEventListener('input', () => { api.setIor(Number(ior.value)); updateCaption(); });
+  }
+
+  new IntersectionObserver(([entry], obs) => {
+    if (entry.isIntersecting) { obs.disconnect(); start(); }
+  }, { rootMargin: '300px' }).observe(stage);
+</script>
