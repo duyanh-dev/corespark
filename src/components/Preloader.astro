@@ -1,13 +1,20 @@
 ---
 /* =========================================================
-   PRELOADER.ASTRO - Giọt kính lỏng (liquid glass), không gradient
-   Thấu kính nở ra để lộ trang (SVG mask), sự kiện "corespark:reveal"
-   báo cho Hero bắt đầu animation đúng lúc trang lộ ra
+   PRELOADER.ASTRO v3.1 - Giọt kính lỏng WebGL (Three.js), không gradient
+   - Kính thật: khúc xạ + tách màu (transmission), biến dạng như chất lỏng bằng vertex shader
+   - 4 viên màu phẳng quay BÊN TRONG giọt kính, chỉ thấy qua khúc xạ
+   - Rơi xuống -> squash & stretch -> lắc mạnh dần theo tiến độ
+   - Kết thúc: chữ bị hút vào kính -> kính phồng lên rồi vỡ thành vòng sóng quét lộ trang
+   - Giữ nguyên logic gốc: event "corespark:reveal", khóa cuộn, Lenis, failsafe 12s, chờ trang tải tối đa 8s
+   - An toàn Safari iOS: không CSS filter trên SVG, không backdrop-filter
+   - v3.1: canvas luôn nhỏ (rơi bằng CSS transform), làm mượt biên độ liquid,
+           degrade() không recompile shader, resize() chỉ setSize khi thật sự đổi
+   Cần:  npm i three gsap
    ========================================================= */
 const brand = [...'CoreSpark'];
 ---
 
-<!-- Khóa cuộn trang NGAY khi trình duyệt đọc tới đây (trước khi module chạy) + chốt an toàn 12s -->
+<!-- Khóa cuộn trang NGAY khi trình duyệt đọc tới đây + chốt an toàn 12s -->
 <script is:inline>
   document.documentElement.classList.add('is-loading');
   setTimeout(function () { document.documentElement.classList.remove('is-loading'); }, 12000);
@@ -15,38 +22,23 @@ const brand = [...'CoreSpark'];
 <noscript><style>#preloader{display:none!important}html.is-loading{overflow:auto!important}</style></noscript>
 
 <div class="pl" id="preloader" role="status" aria-live="polite" aria-label="Đang tải">
-  <!-- Màn che đặc, có "lỗ tròn" (mask) sẽ nở ra lúc kết thúc -->
-  <svg class="pl-veil" aria-hidden="true">
-    <defs>
-      <mask id="pl-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
-        <rect width="100%" height="100%" fill="#fff" />
-        <circle id="pl-hole" cx="50%" cy="50%" r="0" fill="#000" />
-      </mask>
-    </defs>
-    <rect class="pl-veil-rect" width="100%" height="100%" mask="url(#pl-mask)" />
-  </svg>
+  <canvas class="pl-gl" id="pl-gl" aria-hidden="true"></canvas>
 
   <!-- Gốc toạ độ = tâm màn hình -->
   <div class="pl-stage">
-    <!-- 3 viên màu phẳng quay quanh, nằm SAU kính nên bị khúc xạ -->
-    <span class="pl-blob"><i style="background:#0a84ff"></i></span>
-    <span class="pl-blob"><i style="background:#bf5af2"></i></span>
-    <span class="pl-blob"><i style="background:#ff6b8a"></i></span>
-
-    <div class="pl-orb"></div>
+    <div class="pl-shadow"></div>
 
     <svg class="pl-ring" viewBox="0 0 200 200" aria-hidden="true">
       <circle class="pl-ring-track" cx="100" cy="100" r="96" />
-      <circle class="pl-ring-bar" cx="100" cy="100" r="96" />
+      <circle class="pl-ring-glow" cx="100" cy="100" r="96" transform="rotate(-90 100 100)" />
+      <circle class="pl-ring-bar" cx="100" cy="100" r="96" transform="rotate(-90 100 100)" />
     </svg>
-
-    <div class="pl-core"><div class="pl-num"><span id="pl-num">0</span><small>%</small></div></div>
 
     <div class="pl-text">
       <div class="pl-brand" aria-hidden="true">
         {brand.map((c) => <span class="pl-chw"><span class="pl-ch">{c}</span></span>)}
       </div>
-      <p class="pl-status" id="pl-status">Ý tưởng</p>
+      <p class="pl-status" id="pl-status" aria-hidden="true"></p>
     </div>
   </div>
 </div>
@@ -55,192 +47,472 @@ const brand = [...'CoreSpark'];
   html.is-loading { overflow: hidden; }
 
   .pl {
-    position: fixed; inset: 0; z-index: 9999; overflow: hidden; touch-action: none;
+    position: fixed; inset: 0; z-index: 2147483000; overflow: hidden; touch-action: none; overscroll-behavior: none;
+    background: var(--bg, #fbfbfd);            /* che kín trang; chỉ bỏ đi khi lớp "veil" canvas đã thay thế */
     color: var(--text, #1d1d1f);
-    --o: 11rem;          /* đường kính giọt kính */
-    --b: 5rem;           /* đường kính viên màu */
-    animation: pl-failsafe 0s linear 12s forwards;   /* nếu JS lỗi, tự ẩn sau 12s */
+    --o: 11rem;                                /* đường kính giọt kính (JS ghi đè bằng px) */
+    animation: pl-failsafe 0s linear 12s forwards;
   }
+  .pl.is-gl { background: transparent; }
   @keyframes pl-failsafe { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 
-  .pl-veil { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .pl-veil-rect { fill: var(--bg, #fbfbfd); }
+  /* Canvas WebGL: luôn nhỏ quanh giọt kính; rơi xuống bằng CSS transform (compositor, rất rẻ) */
+  .pl-gl { position: absolute; left: 50%; top: 50%; width: var(--cv, 100%); height: var(--cv, 100%); transform: translate(-50%, -50%); display: block; will-change: transform; }
+  /* Màn che 2D cho cảnh bung ra: rẻ hơn nhiều so với vẽ WebGL toàn màn */
+  .pl-veil { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .pl-stage { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 
-  /* Viên màu */
-  .pl-blob { position: absolute; left: calc(var(--b) / -2); top: calc(var(--b) / -2); width: var(--b); height: var(--b); will-change: transform; }
-  .pl-blob i { display: block; width: 100%; height: 100%; border-radius: 50%; opacity: 0; }
-
-  /* Giọt kính: nền trong + nhòe + tăng bão hòa, độ sâu bằng bóng đổ trong (không gradient) */
-  .pl-orb {
-    --spec: 1;
-    position: absolute; left: calc(var(--o) / -2); top: calc(var(--o) / -2); width: var(--o); height: var(--o);
-    border-radius: 50%; opacity: 0; will-change: transform, border-radius;
-    background: rgba(255, 255, 255, .26);
-    -webkit-backdrop-filter: blur(18px) saturate(190%); backdrop-filter: blur(18px) saturate(190%);
-    border: 1px solid rgba(255, 255, 255, .85);
-    box-shadow:
-      0 24px 60px rgba(20, 30, 60, .16),
-      inset 0 2px 0 rgba(255, 255, 255, .95),
-      inset 0 -12px 26px rgba(255, 255, 255, .32),
-      inset 10px 0 22px rgba(255, 255, 255, .22),
-      inset -10px 0 22px rgba(255, 255, 255, .14);
+  /* Bóng đổ dưới giọt kính (JS điều khiển opacity/scale theo độ cao) */
+  .pl-shadow {
+    position: absolute; left: 0; top: calc(var(--o) * .62);
+    width: calc(var(--o) * .8); height: calc(var(--o) * .11);
+    border-radius: 50%; background: rgba(20, 30, 70, .2); filter: blur(14px);
+    opacity: 0; transform: translateX(-50%) scaleX(.5); will-change: opacity, transform;
   }
-  /* Hai vệt sáng phẳng (điểm sáng phản chiếu) */
-  .pl-orb::before, .pl-orb::after { content: ''; position: absolute; background: #fff; border-radius: 50%; opacity: var(--spec); }
-  .pl-orb::before { left: 15%; top: 10%; width: 36%; height: 17%; transform: rotate(-30deg); filter: blur(1.5px); opacity: calc(var(--spec) * .8); }
-  .pl-orb::after { right: 17%; bottom: 14%; width: 9%; height: 9%; filter: blur(1px); opacity: calc(var(--spec) * .45); }
 
-  /* Vòng tiến độ */
-  .pl-ring { position: absolute; width: calc(var(--o) * 1.27); height: calc(var(--o) * 1.27); left: calc(var(--o) * -.635); top: calc(var(--o) * -.635); transform: rotate(-90deg); opacity: 0; overflow: visible; }
+  /* Vòng tiến độ: không CSS filter, không CSS rotate (xoay bằng attribute SVG) */
+  .pl-ring { position: absolute; width: calc(var(--o) * 1.27); height: calc(var(--o) * 1.27); left: calc(var(--o) * -.635); top: calc(var(--o) * -.635); opacity: 0; overflow: visible; }
   .pl-ring circle { fill: none; stroke-linecap: round; }
   .pl-ring-track { stroke: rgba(60, 60, 67, .12); stroke-width: 2.5; }
-  .pl-ring-bar { stroke: var(--accent, #0a84ff); stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(10, 132, 255, .5)); }
-
-  /* Số đếm trong kính */
-  .pl-core { position: absolute; left: calc(var(--o) / -2); top: calc(var(--o) / -2); width: var(--o); height: var(--o); display: grid; place-items: center; opacity: 0; }
-  .pl-num { font-size: calc(var(--o) * .3); font-weight: 600; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
-  .pl-num small { font-size: .38em; margin-left: .12em; color: var(--text-dim, #6e6e73); font-weight: 500; }
+  .pl-ring-glow { stroke: var(--accent, #0a84ff); stroke-width: 9; opacity: .16; }
+  .pl-ring-bar { stroke: var(--accent, #0a84ff); stroke-width: 3.5; }
 
   /* Tên thương hiệu + trạng thái */
   .pl-text { position: absolute; left: 0; top: calc(var(--o) / 2 + 3.2rem); transform: translateX(-50%); width: max-content; text-align: center; opacity: 0; }
   .pl-brand { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.2; }
   .pl-chw { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .14em; }
   .pl-ch { display: inline-block; }
-  .pl-status { margin-top: .35rem; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim, #6e6e73); }
 
-  @media (max-width: 640px) { .pl { --o: 9rem; --b: 4rem; } }
+  .pl-status { margin-top: .35rem; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim, #6e6e73); display: grid; justify-items: center; }
+  .pl-sv { grid-area: 1 / 1; white-space: pre; }
+  .pl-sw { display: inline-block; overflow: hidden; vertical-align: top; padding: .55em 0 .15em; margin: -.55em 0 -.15em; }   /* mask từng ký tự, chừa chỗ cho dấu tiếng Việt */
+  .pl-sc { display: inline-block; }
 </style>
 
 <script>
   import gsap from 'gsap';
+  import {
+    WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, Color, PMREMGenerator,
+    IcosahedronGeometry, SphereGeometry, PlaneGeometry, MeshPhysicalMaterial, MeshBasicMaterial,
+  } from 'three';
+  import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
   const root = document.getElementById('preloader');
-  if (root) {
+  if (root) boot(root);
+
+  function boot(root) {
     const html = document.documentElement;
     const q = (s) => root.querySelector(s);
-    const orb = q('.pl-orb'), ringEl = q('.pl-ring'), bar = q('.pl-ring-bar'), core = q('.pl-core');
-    const textEl = q('.pl-text'), num = q('#pl-num'), status = q('#pl-status'), hole = q('#pl-hole');
+    const canvas = q('#pl-gl'), ringEl = q('.pl-ring'), bar = q('.pl-ring-bar'), glow = q('.pl-ring-glow');
+    const textEl = q('.pl-text'), status = q('#pl-status'), shadow = q('.pl-shadow');
     const letters = [...root.querySelectorAll('.pl-ch')];
-    const blobs = [...root.querySelectorAll('.pl-blob')];
-    const inners = blobs.map((b) => b.firstElementChild);
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const STEPS = ['Ý tưởng', 'Thiết kế', 'Code', 'Ra mắt'];
-    const C = 2 * Math.PI * 96;                       // chu vi vòng tiến độ
+    const COLORS = [0x0a84ff, 0xbf5af2, 0xff6b8a, 0xff9f0a];   // 4 viên màu phẳng (Apple system colors)
+    const C = 2 * Math.PI * 96;
+    const TAU = Math.PI * 2;
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Chặn cuộn trong lúc tải (kể cả Lenis) */
     ['wheel', 'touchmove'].forEach((t) =>
       root.addEventListener(t, (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
-    let lenisStopped = false;
-
-    let revealed = false;
+    let lenisStopped = false, revealed = false;
     const reveal = () => { if (revealed) return; revealed = true; window.dispatchEvent(new CustomEvent('corespark:reveal')); };
-    const orbit = () => {};                            // gán lại bên dưới
-    const done = () => {
-      gsap.ticker.remove(orbitTick);
-      html.classList.remove('is-loading');
-      window.__lenis?.start?.();
-      root.remove();
-    };
+    const unlock = () => { html.classList.remove('is-loading'); window.__lenis?.start?.(); };
 
-    /* ----- Tiến độ: số, vòng, dòng trạng thái ----- */
-    const prog = { v: 0 };
-    let step = -1;
-    bar.style.strokeDasharray = C;
-    bar.style.strokeDashoffset = C;
-    const render = () => {
-      num.textContent = Math.round(prog.v);
-      bar.style.strokeDashoffset = C * (1 - prog.v / 100);
-      const s = Math.min(3, Math.floor(prog.v / 25));
-      if (s !== step) {
-        step = s;
-        status.textContent = STEPS[s];
-        gsap.fromTo(status, { y: 8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out', overwrite: true });
-      }
-    };
-
-    /* ----- 3 viên màu quay quanh giọt kính, hút vào tâm khi st.conv -> 1 ----- */
-    const st = { conv: 0 };
-    const setX = blobs.map((b) => gsap.quickSetter(b, 'x', 'px'));
-    const setY = blobs.map((b) => gsap.quickSetter(b, 'y', 'px'));
-    function orbitTick(time) {
-      if (!lenisStopped && window.__lenis) { window.__lenis.stop(); lenisStopped = true; }
-      const R = (orb.offsetWidth / 2) * 1.3 * (1 - st.conv);
-      blobs.forEach((_, i) => {
-        const a = time * (0.9 + i * 0.25) + i * 2.09;
-        const r = R * (1 + 0.1 * Math.sin(time * 1.3 + i));
-        setX[i](Math.cos(a) * r);
-        setY[i](Math.sin(a) * r * 0.8);
-      });
-    }
-
-    /* ----- Chờ trang tải xong (tối đa 8s) ----- */
+    /* Chờ trang tải xong (tối đa 8s) */
     const ready = Promise.all([
       new Promise((r) => (document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true }))),
       document.fonts?.ready ?? 0,
     ]);
     const waitReady = () => Promise.race([ready, sleep(8000)]);
 
-    async function run() {
-      /* Bản giảm chuyển động: chỉ mờ dần */
-      if (reduce) {
-        await waitReady();
-        reveal();
-        gsap.to(root, { opacity: 0, duration: 0.35, onComplete: () => { html.classList.remove('is-loading'); window.__lenis?.start?.(); root.remove(); } });
-        return;
+    /* Dự phòng: giảm chuyển động hoặc không có WebGL -> chỉ mờ dần */
+    const fadeOnly = async () => {
+      await waitReady();
+      reveal();
+      gsap.to(root, { opacity: 0, duration: 0.35, onComplete: () => { unlock(); root.remove(); } });
+    };
+    if (reduce) return fadeOnly();
+
+    let renderer;
+    try {
+      renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    } catch (_) { return fadeOnly(); }
+    const dpr = devicePixelRatio || 1;
+    let prSmall = Math.min(dpr, matchMedia('(pointer: coarse)').matches ? 1.75 : 2);   // canvas nhỏ: giữ sắc nét
+    let prFull = Math.min(dpr, 1.5);
+    if ('transmissionResolutionScale' in renderer) renderer.transmissionResolutionScale = 0.75;   // three bản mới
+
+    /* Màu nền và màu nhấn lấy đúng từ CSS đang dùng, để các lớp khớp nhau từng pixel */
+    const cs = getComputedStyle(root);
+    const accent = cs.getPropertyValue('--accent').trim() || '#0a84ff';
+    let bgCss = cs.backgroundColor;
+    if (!bgCss || bgCss === 'transparent' || bgCss === 'rgba(0, 0, 0, 0)') bgCss = '#fbfbfd';
+
+    /* ----- Đo kích thước: mọi thứ lấy từ chính .pl nên không lệch khi thanh địa chỉ iOS co giãn ----- */
+    const FOV = 35, CAM_Z = 7, tanH = Math.tan((FOV * Math.PI) / 360);
+    let W = 1, H = 1, D = 176, CW = 1, CH = 1, ppu7 = 1;   // CW/CH = kích thước canvas; ppu7 = px / 1 đơn vị thế giới tại giọt kính
+    let full = false;   // canvas luôn nhỏ quanh giọt kính; rơi bằng CSS transform
+    const measure = () => {
+      W = root.clientWidth || innerWidth; H = root.clientHeight || innerHeight;
+      D = Math.round(Math.min(Math.max(Math.min(W, H) * 0.44, 150), 230));
+      const S = Math.min(Math.round(D * 2.1), W, H);
+      CW = full ? W : S; CH = full ? H : S;
+      root.style.setProperty('--o', D + 'px');
+      root.style.setProperty('--cv', S + 'px');
+      ppu7 = CH / (2 * tanH * CAM_Z);
+    };
+
+    /* ----- Scene ----- */
+    const scene = new Scene();
+    const cam = new PerspectiveCamera(FOV, 1, 0.1, 100);
+    cam.position.z = CAM_Z;
+    const pmrem = new PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+
+    /* Tấm nền sau giọt kính (để kính có gì đó mà khúc xạ) */
+    const backdrop = new Mesh(new PlaneGeometry(200, 200), new MeshBasicMaterial({ color: new Color(bgCss) }));
+    backdrop.position.z = -3;
+    scene.add(backdrop);
+
+    /* Giọt kính: transmission + biến dạng liquid trong vertex shader (có tính lại normal) */
+    const U = { uTime: { value: 0 }, uAmp: { value: 0.07 }, uOsc: { value: 0 }, uAx: { value: { x: 0, y: 1, z: 0 } } };
+    const mat = new MeshPhysicalMaterial({
+      color: 0xffffff, metalness: 0, roughness: 0.04,
+      transmission: 1, thickness: 1.4, ior: 1.38,
+      clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.1,
+    });
+    mat.dispersion = 0.35;   // tách màu ở rìa kính (three r163+, bản cũ sẽ bỏ qua)
+    mat.onBeforeCompile = (s) => {
+      Object.assign(s.uniforms, U);
+      s.vertexShader = s.vertexShader
+        .replace('#include <common>', `#include <common>
+          uniform float uTime; uniform float uAmp; uniform float uOsc; uniform vec3 uAx;
+          float fld(vec3 p){
+            float t = uTime;
+            float w = sin(p.y*1.7 + t*0.55) * 0.6 + sin(p.z*1.4 - t*0.42) * 0.4;
+            float a = sin(p.x*1.9 + t*0.70 + w*1.2);
+            float b = sin(p.y*1.6 - t*0.60 + sin(p.z*1.5 + t*0.35)*1.1);
+            float c = sin(p.z*1.8 + t*0.50 + sin(p.x*1.3 - t*0.40)*1.0);
+            return uAmp * (a + b + c) * 0.3333;
+          }
+          vec3 dsp(vec3 p){
+            p = normalize(p);
+            float d = dot(p, normalize(uAx));
+            float r = 1.0 + fld(p) + uOsc * 0.5 * (3.0*d*d - 1.0);   // mode l=2: giọt nước dài ra / dẹt lại
+            return p * r;
+          }`)
+        .replace('#include <beginnormal_vertex>', `
+          vec3 n0 = normalize(position);
+          vec3 t0 = normalize(cross(n0, abs(n0.y) > 0.99 ? vec3(1.0,0.0,0.0) : vec3(0.0,1.0,0.0)));
+          vec3 b0 = cross(n0, t0);
+          vec3 p0 = dsp(n0), p1 = dsp(n0 + t0*0.01), p2 = dsp(n0 + b0*0.01);
+          vec3 objectNormal = normalize(cross(p1 - p0, p2 - p0));
+          #ifdef USE_TANGENT
+            vec3 objectTangent = vec3(tangent.xyz);
+          #endif`)
+        .replace('#include <begin_vertex>', 'vec3 transformed = p0;');
+    };
+    mat.customProgramCacheKey = () => 'pl-liquid-glass';
+
+    const orb = new Group();
+    const glass = new Mesh(new IcosahedronGeometry(1, 16), mat);
+    const blobGeo = new SphereGeometry(0.3, 24, 16);
+    const blobs = COLORS.map((c) => new Mesh(blobGeo, new MeshBasicMaterial({ color: c })));
+    orb.add(...blobs, glass);
+    scene.add(orb);
+
+    /* ----- Trạng thái animation ----- */
+    const st = { y: 0, sq: 0, bs: 0.001, conv: 0, grow: 1, kick: 0, pulse: 0 };   // st.y tính bằng px (dương = phía trên tâm)
+    const prog = { v: 0 };
+    let step = -1, finishing = false, glassOn = true;
+    let lastK = -1, lastNear = -1, ema = 16, lvl = 0, lastCut = 0, perfOn = false;
+    let tx = 0, ty = 0, px = 0, py = 0;
+    let amp = 0.07;                  // biên độ liquid đã làm mượt
+    let osc = 0, vosc = 0, t0 = -1;  // lò xo dao động của giọt nước (osc = độ dài/dẹt, vosc = vận tốc)
+    let wave = null;                 // sóng sáng chạy qua chữ CoreSpark
+    let curV = null, curChars = [];  // dòng trạng thái hiện tại (để lăn chữ khi đổi bước)
+    let veilC = null, vctx = null, VW = 0, VH = 0, VDPR = 1, vr = 0, va = 1;
+    const onMove = (e) => { tx = e.clientX / W - 0.5; ty = e.clientY / H - 0.5; };
+    addEventListener('pointermove', onMove, { passive: true });
+
+    bar.setAttribute('stroke-dasharray', C);
+    glow.setAttribute('stroke-dasharray', C);
+
+    /* Dòng trạng thái: từng ký tự lăn lên như đồng hồ cơ khi đổi bước */
+    function setStatus(txt, first) {
+      const v = document.createElement('span');
+      v.className = 'pl-sv';
+      const chars = [...txt].map((ch) => {
+        const w = document.createElement('span'); w.className = 'pl-sw';
+        const c = document.createElement('span'); c.className = 'pl-sc'; c.textContent = ch;
+        w.appendChild(c); v.appendChild(w);
+        return c;
+      });
+      status.appendChild(v);
+      gsap.set(chars, { yPercent: 130 });
+      gsap.to(chars, { yPercent: 0, duration: 0.55, stagger: 0.025, ease: 'power3.out', delay: first ? 1.0 : 0.14 });
+      if (curV) {
+        const old = curV;
+        gsap.killTweensOf(curChars);
+        gsap.to(curChars, { yPercent: -130, duration: 0.35, stagger: 0.015, ease: 'power2.in', onComplete: () => old.remove() });
       }
+      curV = v; curChars = chars;
+    }
 
-      /* ----- Giọt kính biến dạng như chất lỏng ----- */
-      const rr = () => gsap.utils.random(43, 57, 1);
-      const shape = () => `${rr()}% ${rr()}% ${rr()}% ${rr()}% / ${rr()}% ${rr()}% ${rr()}% ${rr()}%`;
-      let morph;
-      gsap.set(orb, { borderRadius: shape(), scale: 0.2 });
-      const wobble = () => { morph = gsap.to(orb, { borderRadius: shape(), duration: 1.4, ease: 'sine.inOut', onComplete: wobble }); };
-      wobble();
+    const render = () => {
+      const k = Math.round(prog.v * 4);
+      if (k !== lastK) {
+        lastK = k;
+        const off = C * (1 - k / 400);
+        bar.setAttribute('stroke-dashoffset', off);
+        glow.setAttribute('stroke-dashoffset', off);
+      }
+      const s = Math.min(3, Math.floor(prog.v / 25));
+      if (s !== step) {
+        const first = step < 0;
+        step = s;
+        setStatus(STEPS[s], first);
+        if (!first) gsap.fromTo(st, { pulse: 0.1 }, { pulse: 0, duration: 1, ease: 'power2.out', overwrite: 'auto' });
+      }
+    };
 
-      gsap.set(letters, { yPercent: 110 });
-      gsap.set(inners, { scale: 0.3 });
+    function tick(time, dt = 16) {
+      if (!lenisStopped && window.__lenis) { window.__lenis.stop(); lenisStopped = true; }
+      if (!glassOn) return;
+      const kp = 1 - Math.exp(-Math.min(dt, 100) / 260);
+      px += (tx - px) * kp; py += (ty - py) * kp;
+      if (perfOn && !finishing) {   // tự hạ chất lượng nếu máy yếu (giữ look, chỉ giảm độ phân giải)
+        ema += (Math.min(dt, 50) - ema) * 0.08;          // bỏ qua các frame khựng đơn lẻ
+        if (ema > 30 && lvl < 2 && time - lastCut > 1.5) degrade(time);
+      }
+      U.uTime.value = time;
+      if (t0 < 0) t0 = time;
+      const lt = time - t0;
+      const kk = 1 - Math.exp(-Math.min(dt, 100) / 140);  // làm mượt biên độ như chất lỏng nhớt
+      amp += ((0.07 + 0.05 * (prog.v / 100) + st.kick + st.pulse) - amp) * kk;
+      U.uAmp.value = amp;
+
+      /* Lò xo dưới-giảm-chấn: giọt nước tự lắc nhẹ, dài ra rồi dẹt lại, trục dao động xoay chậm */
+      const h = Math.min(dt, 50) / 1000;
+      const otgt = 0.03 * Math.sin(lt * 2.1) + 0.012 * Math.sin(lt * 3.3 + 1);
+      vosc += (-38 * (osc - otgt) - 3.2 * vosc) * h;
+      osc += vosc * h;
+      U.uOsc.value = osc;
+      const k2 = Math.min(1, Math.max(0, (lt - 1.6) / 1.5)), s2 = k2 * k2 * (3 - 2 * k2);
+      const ang = Math.PI / 2 + s2 * lt * 0.32;            // lúc chạm đất dẹt theo chiều dọc, sau đó trục xoay dần
+      const ax = U.uAx.value; ax.x = Math.cos(ang); ax.y = Math.sin(ang); ax.z = 0.35 * Math.sin(lt * 0.2);
+
+      canvas.style.transform = `translate(-50%, -50%) translate3d(0, ${-st.y}px, 0)`;   // rơi bằng CSS
+      const base = (D / 2 / ppu7) * st.grow;
+      orb.scale.set(base * (1 + st.sq * 0.18), base * (1 - st.sq * 0.18), base);
+      glass.rotation.set(py * 0.5, px * 0.7 + time * 0.12, 0);
+
+      blobs.forEach((b, i) => {
+        const a = time * (0.7 + i * 0.19) + i * 1.571;
+        const r = 0.46 * (1 - st.conv) * (1 + 0.05 * Math.sin(time * 0.8 + i * 2));
+        b.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.85, Math.sin(a * 1.3 + i) * 0.28);
+        b.scale.setScalar(Math.max(st.bs, 0.001) * (1 + 0.05 * Math.sin(time * 1.0 + i)));
+      });
+
+      if (!finishing) {
+        const near = Math.round((1 - Math.min(1, Math.max(0, st.y / (H * 0.72)))) * 200) / 200;   // càng gần mặt đất bóng càng đậm
+        if (near !== lastNear) {
+          lastNear = near;
+          shadow.style.opacity = near * 0.9;
+          shadow.style.transform = `translateX(-50%) scaleX(${0.5 + 0.5 * near})`;
+        }
+      }
+      renderer.render(scene, cam);
+    }
+
+    /* ----- Màn che 2D: một canvas phẳng có "lỗ tròn" nở ra + viền kính, thay cho việc vẽ WebGL toàn màn ----- */
+    function sizeVeil() {
+      VDPR = Math.min(dpr, 1.25);
+      VW = Math.round(W * VDPR); VH = Math.round(H * VDPR);
+      veilC.width = VW; veilC.height = VH;
+    }
+    function drawVeil(r, a) {
+      vr = r; va = a;
+      const c = vctx, cx = VW / 2, cy = VH / 2, rr = r * VDPR;
+      c.globalAlpha = 1;
+      c.clearRect(0, 0, VW, VH);
+      c.fillStyle = bgCss;
+      c.beginPath();
+      c.rect(0, 0, VW, VH);
+      if (rr > 0) { c.moveTo(cx + rr, cy); c.arc(cx, cy, rr, 0, TAU); }
+      c.fill('evenodd');
+      if (rr <= 0 || a < 0.01) return;
+      c.globalAlpha = a;
+      /* bóng mềm ngoài mép (giả blur bằng vài nét mờ chồng nhau, không dùng shadowBlur) */
+      [[26, 0.03], [14, 0.045], [6, 0.06]].forEach(([w, al]) => {
+        c.lineWidth = w * VDPR; c.strokeStyle = 'rgba(20,30,70,' + al + ')';
+        c.beginPath(); c.arc(cx, cy, rr + (w / 2) * VDPR, 0, TAU); c.stroke();
+      });
+      c.lineWidth = 1 * VDPR; c.strokeStyle = 'rgba(60,60,67,.14)';
+      c.beginPath(); c.arc(cx, cy, rr + 0.5 * VDPR, 0, TAU); c.stroke();
+      c.lineWidth = 1.6 * VDPR; c.strokeStyle = 'rgba(255,255,255,.95)';       // mép sáng của thấu kính
+      c.beginPath(); c.arc(cx, cy, rr - 0.8 * VDPR, 0, TAU); c.stroke();
+      c.globalAlpha = a * 0.4;                                                  // vòng sóng nối đuôi bên trong
+      c.lineWidth = 1.2 * VDPR; c.strokeStyle = 'rgba(255,255,255,.9)';
+      c.beginPath(); c.arc(cx, cy, Math.max(1, rr * 0.9 - 18 * VDPR), 0, TAU); c.stroke();
+    }
+    function prepareVeil() {
+      if (veilC) return;
+      try {
+        veilC = document.createElement('canvas');
+        veilC.className = 'pl-veil';
+        vctx = veilC.getContext('2d');
+        if (!vctx) throw new Error('no 2d');
+        root.insertBefore(veilC, canvas);
+        sizeVeil();
+        drawVeil(0, 1);
+        root.classList.add('is-gl');   // veil đã che kín -> bỏ nền CSS để "lỗ" lộ trang thật
+      } catch (_) {
+        if (veilC) veilC.remove();
+        veilC = vctx = null;
+      }
+    }
+
+    /* Chỉ setSize / resize veil khi kích thước thật sự đổi -> không cấp phát lại buffer thừa */
+    let lCW = 0, lCH = 0, lW = 0, lH = 0;
+    const resize = () => {
+      measure();
+      if (CW !== lCW || CH !== lCH) {
+        lCW = CW; lCH = CH;
+        renderer.setSize(CW, CH, false);
+        cam.aspect = CW / CH;
+        cam.updateProjectionMatrix();
+      }
+      if (W !== lW || H !== lH) {
+        lW = W; lH = H;
+        if (veilC) { sizeVeil(); drawVeil(vr, va); }
+      }
+    };
+    const ro = new ResizeObserver(resize);
+    applyPR();
+    resize();
+    ro.observe(root);
+
+    function applyPR() { renderer.setPixelRatio(full ? Math.min(prFull, prSmall) : prSmall); }
+    function degrade(time) {
+      lvl++; lastCut = time;
+      prSmall = lvl === 1 ? Math.min(prSmall, 1.25) : 1;
+      prFull = Math.min(prFull, prSmall);
+      if ('transmissionResolutionScale' in renderer) renderer.transmissionResolutionScale = lvl === 1 ? 0.5 : 0.35;
+      if (lvl === 2) mat.dispersion = 0.02;   // giữ define shader, không needsUpdate => không recompile
+      applyPR();                               // setPixelRatio đã tự setSize
+    }
+
+    function done() {
+      gsap.ticker.remove(tick);
+      ro.disconnect();
+      removeEventListener('pointermove', onMove);
+      renderer.dispose();
+      renderer.forceContextLoss();   // trả context WebGL lại cho iOS
+      unlock();
+      root.remove();
+    }
+
+    /* ----- Kết thúc: chữ bị hút vào kính -> kính phồng lên -> vỡ thành vòng sóng quét lộ trang ----- */
+    function finish() {
+      finishing = true;
+      if (wave) wave.kill();
+      gsap.killTweensOf(curChars);
+      prepareVeil();   // phòng khi chưa kịp tạo
+
+      const R0 = D / 2, Rb = R0 * 1.5, Rmax = (Math.hypot(W, H) / 2) * 1.08;
+      const e = { r: Rb };
+
+      /* Toạ độ từng chữ so với tâm giọt kính để chữ bay vào đúng giữa kính */
+      const cr = root.getBoundingClientRect();
+      const ox = cr.left + cr.width / 2, oy = cr.top + cr.height / 2;
+      const tgt = letters.map((el) => {
+        const r = el.getBoundingClientRect();
+        return [ox - (r.left + r.width / 2), oy - (r.top + r.height / 2)];
+      });
+      gsap.set(letters, { clearProps: 'color', filter: 'blur(0px)' });
+
+      const tl = gsap.timeline({ onComplete: done });
+      tl.to([ringEl, shadow], { opacity: 0, duration: 0.45, ease: 'power2.in' }, 0)
+        .to(curChars, { yPercent: -130, duration: 0.4, stagger: 0.015, ease: 'power2.in' }, 0)
+        .to(letters, {
+          x: (i) => tgt[i][0], y: (i) => tgt[i][1], scale: 0.15, opacity: 0, filter: 'blur(6px)',
+          duration: 0.65, stagger: { each: 0.035, from: 'edges' }, ease: 'power3.in',
+        }, 0)
+        .to(st, { conv: 1, duration: 0.8, ease: 'power3.inOut' }, 0)
+        .to(st, { bs: 1.7, duration: 0.8, ease: 'power3.inOut' }, 0)
+        .to(st, { kick: 0.14, duration: 0.5, ease: 'power2.in' }, 0.3)
+        .call(() => { vosc += 0.6; }, null, 0.55)
+        .set(st, { pulse: 0.12 }, 0.55)                                   // kính "nuốt" xong chữ thì giật nhẹ
+        .to(st, { pulse: 0, duration: 0.6, ease: 'power2.out' }, 0.55)
+        .to(st, { sq: -0.6, duration: 0.25, yoyo: true, repeat: 1, ease: 'power2.out' }, 0.65)
+        .addLabel('expand', 1.05)
+        .to(st, { kick: 0, duration: 0.22 }, 'expand')
+        .to(st, { grow: 1.5, duration: 0.22, ease: 'power2.out' }, 'expand')   // kính phồng lên
+        .to(st, { bs: 0, duration: 0.22, ease: 'power2.in' }, 'expand');
+
+      if (vctx) {
+        tl.add(() => { glassOn = false; canvas.style.visibility = 'hidden'; }, 'expand+=0.22')   // kính vỡ
+          .to(e, {
+            r: Rmax, duration: 1.1, ease: 'power3.out',
+            onUpdate: () => {
+              const p = (e.r - Rb) / (Rmax - Rb);
+              drawVeil(e.r, 1 - p * p);
+            },
+          }, 'expand+=0.22');
+      } else {
+        tl.to(root, { opacity: 0, duration: 0.5, ease: 'power1.in' }, 'expand+=0.22');
+      }
+      tl.call(reveal, null, 'expand+=0.55');
+    }
+
+    async function run() {
+      st.y = H / 2 + D;   // px, bắt đầu ngoài mép trên màn hình
+      canvas.style.transform = `translate(-50%, -50%) translate3d(0, ${-st.y}px, 0)`;
+      /* Biên dịch shader + tạo sẵn render target TRƯỚC khi chạy, tránh khựng đúng lúc giọt kính xuất hiện */
+      try { await (renderer.compileAsync ? renderer.compileAsync(scene, cam) : renderer.compile(scene, cam)); } catch (_) {}
+      canvas.style.opacity = '0';
+      orb.position.y = 0;
+      orb.scale.setScalar(D / 2 / ppu7);
+      renderer.render(scene, cam);
+      canvas.style.opacity = '';
+      gsap.delayedCall(2.3, prepareVeil);                 // tạo màn che 2D sau khi kính nảy xong, tránh giật
+      gsap.delayedCall(1.8, () => { perfOn = true; });
+      gsap.set(letters, { yPercent: 120, opacity: 0, filter: 'blur(10px)' });
       gsap.set(textEl, { opacity: 1 });
-      gsap.ticker.add(orbitTick);
+      gsap.ticker.add(tick);
       render();
 
-      /* ----- Vào cảnh ----- */
+      /* Vào cảnh: rơi -> chạm đất squash -> nảy elastic, viên màu bật ra bên trong, chữ hiện từ giữa ra */
       gsap.timeline()
-        .to(orb, { opacity: 1, scale: 1, duration: 1.5, ease: 'elastic.out(1, 0.6)' }, 0)
-        .to(inners, { opacity: 1, scale: 1, duration: 0.9, stagger: 0.12, ease: 'back.out(2)' }, 0.1)
-        .to([ringEl, core], { opacity: 1, duration: 0.6 }, 0.35)
-        .to(letters, { yPercent: 0, duration: 0.9, stagger: 0.045, ease: 'power4.out' }, 0.4);
+        .to(st, { y: 0, duration: 0.62, ease: 'power2.in' }, 0.1)
+        .to(st, { sq: 1, duration: 0.09, ease: 'power2.out' }, 0.72)
+        .to(st, { sq: 0, duration: 1.8, ease: 'elastic.out(0.9, 0.5)' }, 0.81)
+        .call(() => { vosc -= 0.7; }, null, 0.72)   // đập xuống: nước dẹt lại rồi bật ra
+        .to(st, { kick: 0.16, duration: 0.08 }, 0.72)
+        .to(st, { kick: 0, duration: 1.6, ease: 'power2.out' }, 0.8)
+        .to(st, { bs: 1, duration: 0.9, ease: 'back.out(2)' }, 0.7)
+        .to(ringEl, { opacity: 1, duration: 0.6 }, 0.8)
+        .to(letters, {
+          yPercent: 0, opacity: 1, filter: 'blur(0px)', duration: 1.0,
+          stagger: { each: 0.055, from: 'center' }, ease: 'power4.out',
+        }, 0.85)
+        .call(() => {
+          gsap.set(letters, { clearProps: 'filter' });
+          root.querySelectorAll('.pl-chw').forEach((w) => { w.style.overflow = 'visible'; });
+          /* Sóng sáng: từng chữ nhấc lên và đổi sang màu nhấn rồi trả lại, chạy từ trái sang phải, lặp lại */
+          wave = gsap.timeline({ repeat: -1, repeatDelay: 1.6 })
+            .to(letters, { color: accent, y: -3, duration: 0.26, ease: 'sine.inOut', yoyo: true, repeat: 1, stagger: 0.07 });
+        }, null, 2.4);
 
-      /* ----- Chạy tiến độ: tối thiểu ~2.2s, chờ trang tải xong mới lên 100 ----- */
-      const minDone = new Promise((r) => gsap.to(prog, { v: 88, duration: 2.2, ease: 'power2.out', onUpdate: render, onComplete: r }));
+      /* Tiến độ: tối thiểu ~2.2s kể từ lúc kính chạm đất, chờ trang tải xong mới lên 100 */
+      const minDone = new Promise((r) => gsap.to(prog, { v: 88, duration: 2.2, delay: 0.7, ease: 'none', onUpdate: render, onComplete: r }));
       await Promise.all([minDone, waitReady()]);
       await new Promise((r) => gsap.to(prog, { v: 100, duration: 0.45, ease: 'power2.inOut', onUpdate: render, onComplete: r }));
-
-      /* ----- Kết thúc: hút màu vào tâm, rồi thấu kính nở ra để lộ trang ----- */
-      const R0 = orb.offsetWidth / 2;
-      const Rmax = Math.hypot(innerWidth, innerHeight) / 2 * 1.08;
-      const e = { r: R0 };
-      const full = '50% 50% 50% 50% / 50% 50% 50% 50%';
-      const tl = gsap.timeline({ onComplete: done });
-
-      tl.to([core, ringEl, textEl], { opacity: 0, duration: 0.45, ease: 'power2.in' }, 0)
-        .to(letters, { yPercent: -110, duration: 0.5, stagger: 0.03, ease: 'power3.in' }, 0)
-        .to(st, { conv: 1, duration: 0.8, ease: 'power3.inOut' }, 0)
-        .to(inners, { scale: 1.8, duration: 0.8, ease: 'power3.inOut' }, 0)
-        .to(orb, { scale: 1.08, duration: 0.25, yoyo: true, repeat: 1, ease: 'power2.out' }, 0.65)
-        .add(() => morph.kill(), 0.8)
-        .to(orb, { borderRadius: full, duration: 0.4, ease: 'power2.out' }, 0.8)
-        .to(orb, { '--spec': 0, duration: 0.5 }, 1.0)
-        .addLabel('expand', 1.05)
-        .set(hole, { attr: { r: R0 } }, 'expand')
-        .to(e, {
-          r: Rmax, duration: 1.25, ease: 'power4.inOut',
-          onUpdate: () => { hole.setAttribute('r', e.r); gsap.set(orb, { scale: e.r / R0 }); },
-        }, 'expand')
-        .to(inners, { opacity: 0, duration: 0.4 }, 'expand+=0.1')
-        .call(reveal, null, 'expand+=0.55')
-        .to(orb, { opacity: 0, duration: 0.55, ease: 'power1.in' }, 'expand+=0.85');
+      finish();
     }
     run();
   }

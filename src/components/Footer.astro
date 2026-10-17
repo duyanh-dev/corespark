@@ -1,27 +1,31 @@
 ---
 /* =========================================================
-   FOOTER.ASTRO - Chân trang coreSpark (nền sáng, phẳng, không gradient)
-   - Chữ "coreSpark" khổng lồ: từng chữ cái là một lò xo, né và nhảy theo con trỏ
-   - Bấm bất kỳ đâu: bắn tia lửa (canvas), chữ giật nảy; cứ 10 lần là pháo hoa
-   - Nút email "từ tính" hút theo chuột, đồng hồ Sài Gòn chạy thật
-   - duyanh.dev: dòng ghi công nhỏ, tinh tế ở thanh dưới (kiểu Apple), không còn tia lửa
+   FOOTER.ASTRO - coreSpark · Liquid Glass (phẳng, không gradient)
+   Cần cài:  npm i gsap
+
+   Ý tưởng:
+   - Nền sáng phẳng + vài quả cầu màu đặc trôi chậm phía sau (để kính có thứ để khúc xạ)
+   - Chữ "coreSpark" khổng lồ, hiện lên theo nhịp khi cuộn tới (GSAP + ScrollTrigger)
+   - THẤU KÍNH LỎNG đi theo con trỏ: kính thật sự bẻ cong chữ phía sau nó (SVG displacement
+     + backdrop-filter, Chromium). Trình duyệt khác tự rơi về kính mờ nhẹ.
+   - Các khối CTA / liên kết / thanh dưới đều là kính: blur + saturate + viền sáng bên trong
+   - Bấm: gợn sóng kính lan ra, các chữ nảy theo sóng (không pháo hoa)
    SỬA Ở ĐÂY: email, link mạng xã hội, câu mời gọi
    ========================================================= */
 const year = new Date().getFullYear();
-const email = 'hello@duyanh.dev';        // đổi thành email thật
-const site = 'https://duyanh.dev';
+const email = 'buiduyanh.17042001@gmail.com';
+const site = 'https://duyanh-dev.github.io/';
 
-// Điền link thật vào đây; để rỗng '' thì mục đó tự ẩn
+// Để h rỗng '' thì mục đó tự ẩn
 const socials = [
-  { t: 'GitHub',   h: '' },              // vd: 'https://github.com/ten-ban'
-  { t: 'Facebook', h: '' },
-  { t: 'Zalo',     h: '' },
+  { t: 'GitHub',   h: 'https://github.com/duyanh-dev' },
+  { t: 'Facebook', h: 'https://www.facebook.com/duy.anh.207927' },
+  { t: 'Zalo',     h: 'https://zalo.me/0842695949' },
 ];
 
 const explore = [
   { t: 'Quy trình', h: '#process' },
   { t: 'Studio',    h: '#studio' },
-  // Khi có thêm section thì mở dòng dưới:
   // { t: 'Dự án', h: '#showcase' }, { t: 'Liên hệ', h: '#contact' },
 ];
 const connect = [
@@ -29,22 +33,38 @@ const connect = [
   ...socials.filter((s) => s.h).map((s) => ({ t: s.t, h: s.h, ext: true })),
 ];
 const word = 'coreSpark'.split('');
+// Tách mỗi chữ thành một span làm mất kerning gốc của font, nên chỉnh tay ở đây (đơn vị em).
+// Mỗi số = khoảng đẩy chữ đó sang phải so với chữ liền trước. Số âm = sát lại, số dương = giãn ra.
+//          c     o     r     e     S      p      a     r     k
+const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
 ---
 
 <footer class="foot" id="footer">
-  <!-- Lớp tia lửa phủ toàn footer, không chặn chuột -->
-  <canvas class="foot__sparks" aria-hidden="true"></canvas>
+  <!-- Bộ lọc khúc xạ cho thấu kính (bản đồ dịch chuyển được tạo bằng JS) -->
+  <svg class="foot__defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="foot-lens" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feImage id="foot-lens-map" x="0" y="0" width="168" height="168" preserveAspectRatio="none" result="map" />
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="70" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
+  <!-- Những quả cầu màu đặc: chỉ để kính khúc xạ, không gradient -->
+  <div class="foot__orbs" aria-hidden="true">
+    <i class="orb orb--blue"></i>
+    <i class="orb orb--violet"></i>
+    <i class="orb orb--pink"></i>
+    <i class="orb orb--amber"></i>
+  </div>
 
   <div class="foot__top">
-    <div class="foot__cta">
-      <p class="foot__eyebrow"><span class="foot__live" aria-hidden="true"></span>Đang nhận dự án mới</p>
-      <h2 class="foot__ask">Có một ý tưởng?<br />Đốt tia lửa đầu tiên.</h2>
+    <div class="foot__cta glass">
+      <h2 class="foot__ask">Cần một Landing Page bứt phá?<br />Hay Portfolio đậm chất riêng?</h2>
       <a class="foot__mail" href={`mailto:${email}`}>
         <span>{email}</span><i aria-hidden="true">↗</i>
       </a>
     </div>
 
-    <nav class="foot__cols" aria-label="Chân trang">
+    <nav class="foot__cols glass" aria-label="Chân trang">
       <div class="foot__col">
         <h3>Khám phá</h3>
         <ul>
@@ -56,7 +76,9 @@ const word = 'coreSpark'.split('');
         <ul>
           {connect.map((l) => (
             <li>
-              <a class="foot__link" href={l.h} target={l.ext ? '_blank' : undefined} rel={l.ext ? 'noopener' : undefined}>{l.t}</a>
+              <a class="foot__link" href={l.h} target={l.ext ? '_blank' : undefined} rel={l.ext ? 'noopener' : undefined}>
+                {l.t}{l.ext && <i aria-hidden="true">↗</i>}
+              </a>
             </li>
           ))}
         </ul>
@@ -64,105 +86,189 @@ const word = 'coreSpark'.split('');
     </nav>
   </div>
 
-  <!-- Chữ khổng lồ: mỗi chữ cái là một span để JS cho chuyển động riêng -->
+  <!-- Chữ khổng lồ: mỗi chữ cái là một span để GSAP điều khiển riêng -->
   <div class="mark" role="img" aria-label="coreSpark">
-    {word.map((ch, i) => <span class="mark__l" style={`--i:${i}`} aria-hidden="true">{ch}</span>)}
+    {word.map((ch, i) => <span class="mark__l" style={`--k:${kern[i] ?? 0}`} aria-hidden="true">{ch}</span>)}
   </div>
 
-  <div class="foot__bar">
-    <p class="foot__copy">© {year} coreSpark. Mọi quyền được bảo lưu.</p>
+  <!-- Thấu kính lỏng + gợn sóng khi bấm -->
+  <div class="lens" aria-hidden="true"></div>
+  <div class="ripple" aria-hidden="true"></div>
 
-    <!-- Ghi công: nhỏ, xám, link đậm dần khi rê chuột, mũi tên trượt ra -->
-    <p class="foot__credit">
+  <!-- Thanh dưới: kính nổi kiểu Dock -->
+  <div class="dock glass">
+    <p class="dock__copy">© {year} coreSpark. Mọi quyền được bảo lưu.</p>
+
+    <p class="dock__clock">
+      <span>Sài Gòn</span>
+      <time class="dock__time">--:--:--</time>
+    </p>
+
+    <p class="dock__credit">
       Thiết kế &amp; lập trình bởi
       <a class="credit" href={site} target="_blank" rel="noopener">duyanh.dev<i aria-hidden="true">↗</i></a>
     </p>
 
-    <p class="foot__clock"><span>Sài Gòn</span><time class="foot__time">--:--:--</time></p>
-    <p class="foot__hint">
-      <span class="foot__hint--fine">Rê chuột qua chữ, bấm bất kỳ đâu để bắn tia lửa</span>
-      <span class="foot__hint--touch">Chạm vào chữ, chạm bất kỳ đâu để bắn tia lửa</span>
-      <b class="foot__count" aria-live="off">0</b>
-    </p>
-    <button class="foot__up" type="button" aria-label="Về đầu trang"><span aria-hidden="true">↑</span></button>
+    <button class="dock__up" type="button" aria-label="Về đầu trang"><span aria-hidden="true">↑</span></button>
   </div>
 </footer>
 
 <style>
   .foot {
-    position: relative; overflow: clip;
+    position: relative; overflow: clip; isolation: isolate;
     background: #f5f5f7; color: #1d1d1f;
-    padding-top: clamp(4rem, 9vw, 7rem);
+    padding-top: clamp(3.5rem, 8vw, 6.5rem);
   }
-  .foot__sparks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+  .foot, .foot *, .foot *::before, .foot *::after { box-sizing: border-box; }
+  .foot__defs { position: absolute; width: 0; height: 0; pointer-events: none; }
 
-  /* --- Phần trên: lời mời + cột link --- */
+  /* ---------- Bong bóng kính màu, chìm phía sau chữ khổng lồ ---------- */
+  .foot__orbs { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+  .orb {
+    position: absolute; display: block; border-radius: 50%; will-change: transform;
+    background: rgba(var(--c), .32);
+    -webkit-backdrop-filter: blur(1.5px) saturate(1.9);
+            backdrop-filter: blur(1.5px) saturate(1.9);
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, .78),               /* viền kính */
+      inset 0 14px 26px -6px rgba(255, 255, 255, .6),           /* ánh sáng trong, phía trên */
+      inset 0 -16px 30px -8px rgba(var(--c), .6),               /* màu dồn ở đáy bóng */
+      0 30px 60px -24px rgba(var(--c), .55);                    /* đổ bóng màu xuống dưới */
+  }
+  /* Điểm sáng phản chiếu: hai hình elip trắng đặc */
+  .orb::before, .orb::after { content: ''; position: absolute; border-radius: 50%; background: #fff; transform: rotate(-32deg); }
+  .orb::before { left: 15%; top: 9%; width: 34%; height: 17%; opacity: .9; filter: blur(1.5px); }
+  .orb::after  { right: 14%; bottom: 11%; width: 16%; height: 8%; opacity: .55; filter: blur(1px); }
+  .orb--blue   { --c: 10, 132, 255; width: 25vw; height: 25vw; left: -5vw; bottom: 6rem; }
+  .orb--violet { --c: 191, 90, 242; width: 17vw; height: 17vw; left: 30vw; bottom: 3rem; }
+  .orb--pink   { --c: 255, 55, 95;  width: 21vw; height: 21vw; right: 5vw; bottom: 9rem; }
+  .orb--amber  { --c: 255, 159, 10; width: 13vw; height: 13vw; left: 60vw; bottom: 4rem; }
+
+  /* ---------- Chất liệu kính ---------- */
+  .glass {
+    background: rgba(255, 255, 255, .46);
+    -webkit-backdrop-filter: blur(26px) saturate(185%);
+            backdrop-filter: blur(26px) saturate(185%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, .6),     /* viền sáng bên trong */
+      inset 0 1.5px 0 rgba(255, 255, 255, .95),    /* ánh sáng cạnh trên */
+      inset 0 -1px 0 rgba(0, 0, 0, .05),           /* bóng cạnh dưới */
+      0 18px 40px -12px rgba(0, 0, 0, .14),
+      0 1px 3px rgba(0, 0, 0, .06);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass { background: rgba(255, 255, 255, .88); }
+  }
+
+  /* ---------- Phần trên ---------- */
   .foot__top {
     position: relative; z-index: 2;
-    display: grid; grid-template-columns: 1.4fr 1fr; gap: 4vw; align-items: start;
-    padding: 0 var(--gutter, 1.5rem);
+    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: clamp(1rem, 2vw, 1.6rem); align-items: stretch;
+    padding: 0 max(var(--gutter, 1.5rem), 1rem);
   }
-  .foot__eyebrow { display: inline-flex; align-items: center; gap: .6rem; margin-bottom: 1.2rem; font-size: .9rem; font-weight: 600; color: #6e6e73; }
-  .foot__live { position: relative; width: .55rem; height: .55rem; border-radius: 50%; background: #30d158; }
-  .foot__live::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid #30d158; animation: ping 1.8s ease-out infinite; }
-  @keyframes ping { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+  .foot__cta, .foot__cols { min-width: 0; }
+  .foot__cta {
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 2rem;
+    padding: clamp(1.6rem, 3.6vw, 3rem); border-radius: clamp(1.6rem, 3vw, 2.4rem);
+  }
+  .foot__ask { margin: 0; font-size: clamp(1.9rem, 4.4vw, 3.7rem); line-height: 1.05; letter-spacing: -.035em; font-weight: 700; }
 
-  .foot__ask { font-size: clamp(2rem, 5.2vw, 4.2rem); line-height: 1.04; letter-spacing: -.035em; font-weight: 700; }
-
-  /* Nút email: --mx/--my do JS gán để nút "hút" theo chuột */
+  /* Nút email: x/y do GSAP gán để nút "hút" theo chuột */
   .foot__mail {
-    display: inline-flex; align-items: center; gap: .7rem; margin-top: 1.8rem;
-    padding: .95rem 1.6rem; border-radius: 999px;
-    background: #0a84ff; color: #fff; font-weight: 600; font-size: 1.05rem;
-    transform: translate(var(--mx, 0), var(--my, 0)) scale(var(--sc, 1));
-    transition: transform .25s ease-out, background .25s;
+    display: inline-flex; align-items: center; gap: .7rem;
+    max-width: 100%; padding: .95rem 1.6rem; border-radius: 999px;
+    background: rgba(10, 132, 255, .92); color: #fff; font-weight: 600; font-size: 1.05rem; text-decoration: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .5),
+      inset 0 0 0 1px rgba(255, 255, 255, .22),
+      0 12px 26px -6px rgba(10, 132, 255, .45);
+    transition: scale .3s cubic-bezier(.2, .9, .3, 1.3), background .25s;
+    will-change: transform;
   }
-  .foot__mail i { font-style: normal; display: inline-block; transition: transform .3s cubic-bezier(.2, .9, .3, 1.4); }
-  .foot__mail:hover { --sc: 1.05; background: #0071e3; }
+  .foot__mail span { min-width: 0; overflow-wrap: anywhere; }
+  .foot__mail i { flex: none; font-style: normal; display: inline-block; transition: transform .3s cubic-bezier(.2, .9, .3, 1.4); }
+  .foot__mail:hover { scale: 1.04; background: #0a84ff; }
   .foot__mail:hover i { transform: translate(3px, -3px) rotate(8deg); }
-  .foot__mail:active { --sc: .96; }
+  .foot__mail:active { scale: .96; }
+  .foot__mail:focus-visible { outline: 2px solid #fff; outline-offset: 3px; box-shadow: 0 0 0 5px #0a84ff; }
 
-  .foot__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; padding-top: .4rem; }
-  .foot__col h3 { margin-bottom: .9rem; font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #6e6e73; }
-  .foot__col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
-  .foot__link { position: relative; font-size: 1.15rem; font-weight: 500; color: #1d1d1f; transition: color .25s; }
-  .foot__link::after {
-    content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; background: currentColor;
-    transform: scaleX(0); transform-origin: left; transition: transform .35s cubic-bezier(.2, .9, .3, 1);
+  .foot__cols {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem;
+    padding: clamp(1.4rem, 3vw, 2.2rem); border-radius: clamp(1.6rem, 3vw, 2.4rem);
   }
-  .foot__link:hover { color: #0a84ff; }
-  .foot__link:hover::after { transform: scaleX(1); }
+  .foot__col h3 { margin: 0 0 .7rem; font-size: .85rem; font-weight: 600; color: #6e6e73; }
+  .foot__col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
+  .foot__link {
+    display: inline-flex; align-items: center; gap: .4rem;
+    margin-left: -.9rem; padding: .45rem .9rem; border-radius: 999px;
+    font-size: 1.1rem; font-weight: 500; color: #1d1d1f; text-decoration: none;
+    transition: background .25s, box-shadow .25s, transform .35s cubic-bezier(.2, .9, .3, 1.3);
+  }
+  .foot__link i { font-style: normal; font-size: .8em; color: #86868b; transition: transform .3s cubic-bezier(.2, .9, .3, 1.4), color .25s; }
+  .foot__link:hover, .foot__link:focus-visible {
+    background: rgba(255, 255, 255, .78); transform: translateX(4px);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .95), 0 6px 16px -6px rgba(0, 0, 0, .18);
+  }
+  .foot__link:hover i { color: #0a84ff; transform: translate(2px, -2px); }
+  .foot__link:focus-visible { outline: 2px solid #0a84ff; outline-offset: 2px; }
 
-  /* --- Chữ khổng lồ --- */
+  /* ---------- Chữ khổng lồ ---------- */
   .mark {
     position: relative; z-index: 2;
     display: flex; justify-content: center;
-    margin-top: clamp(2rem, 5vw, 4rem); padding: clamp(2.2rem, 6vw, 4.5rem) 0 1rem;
+    margin-top: clamp(1rem, 3vw, 2.5rem); padding: clamp(2.2rem, 6vw, 4.5rem) 0 clamp(1.6rem, 4vw, 3rem);
     font-size: clamp(3.4rem, 18.4vw, 19rem); font-weight: 800; letter-spacing: -.065em; line-height: .85;
     white-space: nowrap; user-select: none; -webkit-user-select: none;
     overflow-x: clip; touch-action: pan-y;
   }
   .mark__l {
-    display: inline-block; color: #1d1d1f; transform-origin: 50% 85%;
-    will-change: transform; transition: color .2s;
+    display: inline-block; color: #1d1d1f; transform-origin: 50% 85%; will-change: transform;
+    margin-left: calc(var(--k, 0) * 1em);
+    padding-bottom: .18em; margin-bottom: -.18em;   /* chừa chỗ cho đuôi chữ p, không bị cắt */
+    font-kerning: normal;
   }
-  .mark__l.hot { color: var(--lc); }
 
-  /* --- Thanh dưới cùng --- */
-  .foot__bar {
-    position: relative; z-index: 2;
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem 1.5rem;
-    margin: 0 var(--gutter, 1.5rem); padding: 1.3rem 0 1.8rem;
-    border-top: 1px solid #d2d2d7; font-size: .88rem; color: #6e6e73;
+  /* ---------- Thấu kính lỏng ---------- */
+  .lens {
+    position: absolute; left: 0; top: 0; z-index: 4;
+    width: 168px; height: 168px; margin: -84px 0 0 -84px; border-radius: 50%;
+    pointer-events: none; opacity: 0; transform: scale(0);
+    -webkit-backdrop-filter: blur(1.5px) saturate(1.5);
+            backdrop-filter: blur(1.5px) saturate(1.5);   /* JS nâng cấp lên khúc xạ trên Chromium */
+    box-shadow:
+      inset 0 0 0 1.5px rgba(255, 255, 255, .75),
+      inset 0 3px 8px rgba(255, 255, 255, .85),
+      inset 0 -4px 10px rgba(0, 0, 0, .07),
+      0 16px 36px -8px rgba(0, 0, 0, .22);
+    will-change: transform;
   }
-  .foot__bar p { margin: 0; }
 
-  /* Ghi công duyanh.dev: kiểu dòng bản quyền của Apple, nhỏ, xám, không nhãn dán */
-  .foot__credit { display: inline-flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; }
+  /* ---------- Gợn sóng khi bấm ---------- */
+  .ripple {
+    position: absolute; left: 0; top: 0; z-index: 3;
+    width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
+    pointer-events: none; opacity: 0;
+    background: rgba(255, 255, 255, .14);
+    -webkit-backdrop-filter: blur(3px) saturate(1.6);
+            backdrop-filter: blur(3px) saturate(1.6);
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .9), 0 0 0 1px rgba(0, 0, 0, .03);
+  }
+
+  /* ---------- Thanh Dock dưới cùng ---------- */
+  .dock {
+    position: relative; z-index: 5;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1.6rem;
+    margin: 0 max(var(--gutter, 1.5rem), 1rem) 1.5rem; padding: .65rem .65rem .65rem 1.6rem;
+    border-radius: 999px; font-size: .88rem; color: #6e6e73;
+  }
+  .dock p { margin: 0; }
+  .dock__clock { display: inline-flex; gap: .5rem; align-items: baseline; }
+  .dock__time { font-variant-numeric: tabular-nums; color: #1d1d1f; font-weight: 600; }
+
+  .dock__credit { display: inline-flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; }
   .credit {
-    position: relative; display: inline-flex; align-items: baseline; gap: .2rem;
-    color: #1d1d1f; font-weight: 500; letter-spacing: -.005em;
-    text-decoration: underline; text-decoration-color: transparent;
+    display: inline-flex; align-items: baseline; gap: .2rem;
+    color: #1d1d1f; font-weight: 500; text-decoration: underline; text-decoration-color: transparent;
     text-underline-offset: .22em; text-decoration-thickness: 1px;
     transition: color .25s, text-decoration-color .25s;
   }
@@ -175,229 +281,234 @@ const word = 'coreSpark'.split('');
   .credit:hover i, .credit:focus-visible i { opacity: 1; transform: none; }
   .credit:focus-visible { outline: 2px solid #0071e3; outline-offset: 3px; border-radius: 4px; }
 
-  .foot__clock { display: inline-flex; gap: .5rem; align-items: baseline; }
-  .foot__time { font-variant-numeric: tabular-nums; color: #1d1d1f; font-weight: 600; }
-
-  .foot__hint { display: inline-flex; gap: .6rem; align-items: center; }
-  .foot__hint--touch { display: none; }
-  @media (hover: none) { .foot__hint--fine { display: none; } .foot__hint--touch { display: inline; } }
-  .foot__count {
-    min-width: 1.8rem; padding: .1rem .55rem; border-radius: 999px; text-align: center;
-    background: #1d1d1f; color: #fff; font-variant-numeric: tabular-nums; font-size: .8rem;
-  }
-
-  .foot__up {
-    width: 2.7rem; height: 2.7rem; border: 0; border-radius: 50%; padding: 0;
-    background: #1d1d1f; color: #fff; font-size: 1.15rem; cursor: pointer;
+  .dock__up {
+    width: 2.7rem; height: 2.7rem; border: 0; border-radius: 50%; padding: 0; cursor: pointer;
+    background: rgba(29, 29, 31, .92); color: #fff; font-size: 1.15rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 6px 14px -4px rgba(0, 0, 0, .35);
     transition: transform .3s cubic-bezier(.2, .9, .3, 1.4), background .25s;
   }
-  .foot__up:hover { transform: translateY(-4px); background: #0a84ff; }
-  .foot__up:active { transform: scale(.92); }
+  .dock__up:hover { transform: translateY(-3px); background: #0a84ff; }
+  .dock__up:active { transform: scale(.92); }
+  .dock__up:focus-visible { outline: 2px solid #0a84ff; outline-offset: 3px; }
 
-  /* --- Điện thoại và tablet --- */
+  /* ---------- Điện thoại và tablet ---------- */
   @media (max-width: 800px) {
-    .foot__top { grid-template-columns: 1fr; gap: 2.4rem; }
-    .foot__bar { flex-direction: column; align-items: flex-start; }
-    .foot__up { align-self: flex-end; margin-top: -3.4rem; }
-    .mark { letter-spacing: -.07em; }
+    .foot__top { grid-template-columns: minmax(0, 1fr); }
+    .foot__cta { gap: 1.4rem; }
+    .foot__mail { padding: .8rem 1.2rem; font-size: .95rem; }
+    .foot__cols { gap: 1rem; }
+    .foot__link { font-size: 1rem; }
+    .mark { font-size: 14vw; letter-spacing: -.07em; padding-inline: 1rem; }
+    .dock { border-radius: 1.6rem; padding: 1rem 1.2rem; }
+    .dock__up { margin-left: auto; }
+    .orb--blue { width: 30vw; height: 30vw; bottom: 5rem; }
+    .orb--violet { width: 22vw; height: 22vw; bottom: 3.5rem; }
+    .orb--pink { width: 26vw; height: 26vw; bottom: 6.5rem; }
+    .orb--amber { width: 17vw; height: 17vw; bottom: 4rem; }
+  }
+
+  @media (max-width: 480px) {
+    .mark { font-size: 12.6vw; }
+    .foot__ask { font-size: 1.75rem; }
+    .foot__cta, .foot__cols { padding: 1.25rem; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .foot__live::after { animation: none; }
-    .foot__mail, .credit, .credit i, .foot__up { transition: none; }
+    .lens, .ripple { display: none; }
+    .foot__mail, .foot__link, .foot__link i, .credit, .credit i, .dock__up { transition: none; }
   }
 </style>
 
 <script>
-  const foot = document.querySelector('.foot');
-  const cv = foot.querySelector('.foot__sparks');
-  const ctx = cv.getContext('2d');
-  const mark = foot.querySelector('.mark');
-  const letters = Array.from(mark.querySelectorAll('.mark__l'));
-  const countEl = foot.querySelector('.foot__count');
-  const timeEl = foot.querySelector('.foot__time');
-  const mail = foot.querySelector('.foot__mail');
-  const upBtn = foot.querySelector('.foot__up');
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+  gsap.registerPlugin(ScrollTrigger);
+
+  const foot = document.querySelector<HTMLElement>('.foot')!;
+  const mark = foot.querySelector<HTMLElement>('.mark')!;
+  const letters = Array.from(mark.querySelectorAll<HTMLElement>('.mark__l'));
+  const lens = foot.querySelector<HTMLElement>('.lens')!;
+  const ripple = foot.querySelector<HTMLElement>('.ripple')!;
+  const mail = foot.querySelector<HTMLElement>('.foot__mail')!;
+  const upBtn = foot.querySelector<HTMLElement>('.dock__up')!;
+  const timeEl = foot.querySelector<HTMLElement>('.dock__time')!;
+  const orbs = Array.from(foot.querySelectorAll<HTMLElement>('.orb'));
+
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  // Màu hệ thống phẳng (cùng bảng màu với toàn trang)
-  const PAL = ['#0a84ff', '#bf5af2', '#ff375f', '#ff9f0a', '#30d158'];
-
-  /* ---------- Kích thước canvas + vị trí gốc của từng chữ ---------- */
-  let W = 0, H = 0, dpr = 1;
-  let base = [];
-  function measure() {
-    const r = foot.getBoundingClientRect();
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = r.width; H = r.height;
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // offsetLeft/Top không bị ảnh hưởng bởi transform nên đo được vị trí gốc
-    base = letters.map((l) => ({ cx: l.offsetLeft + l.offsetWidth / 2, cy: l.offsetTop + l.offsetHeight / 2 }));
-  }
-  measure();
-  new ResizeObserver(measure).observe(foot);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-
-  /* ---------- Trạng thái lò xo của từng chữ ---------- */
-  const L = letters.map(() => ({ x: 0, y: 0, vx: 0, vy: 0, r: 0, vr: 0, s: 1, hot: false }));
-  let ptr = null;                  // vị trí con trỏ (toạ độ viewport) khi đang ở trong footer
-  const particles = [];
-  let raf = 0, visible = false, count = 0;
-
-  /* ---------- Tia lửa ---------- */
-  function burst(x, y, n, power) {
-    if (reduce) return;
-    for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const sp = (2 + Math.random() * 6) * power;
-      particles.push({
-        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2 * power,
-        t: 0, life: 38 + Math.random() * 38,
-        c: PAL[(Math.random() * PAL.length) | 0],
-        line: Math.random() < 0.45,
-        r: 3 + Math.random() * 4,
-      });
-    }
-    kick();
-  }
-
-  /* ---------- Vòng lặp: chỉ chạy khi footer đang hiện và còn gì đó để cử động ---------- */
-  function tick() {
-    raf = 0;
-    const mr = mark.getBoundingClientRect();
-    const R = Math.max(120, mr.height * 1.15);   // bán kính ảnh hưởng của con trỏ
-    let moving = false;
-
-    letters.forEach((el, i) => {
-      const s = L[i], b = base[i];
-      let tx = 0, ty = 0, tr = 0, ts = 1, f = 0;
-      if (ptr && !reduce && b) {
-        const dx = mr.left + b.cx - ptr.x;
-        const dy = mr.top + b.cy - ptr.y;
-        const d = Math.hypot(dx, dy) || 1;
-        if (d < R) {
-          f = (1 - d / R); f *= f;
-          tx = (dx / d) * f * R * 0.28;      // đẩy ra xa con trỏ
-          ty = -f * mr.height * 0.32;        // nhấc lên
-          tr = (dx / R) * f * 18;            // nghiêng
-          ts = 1 + f * 0.22;                 // phình ra
-        }
-      }
-      // Lò xo: gia tốc về đích, ma sát giữ độ nảy
-      s.vx += (tx - s.x) * 0.14; s.vx *= 0.76; s.x += s.vx;
-      s.vy += (ty - s.y) * 0.14; s.vy *= 0.76; s.y += s.vy;
-      s.vr += (tr - s.r) * 0.14; s.vr *= 0.76; s.r += s.vr;
-      s.s += (ts - s.s) * 0.2;
-      el.style.transform = `translate(${s.x.toFixed(2)}px, ${s.y.toFixed(2)}px) rotate(${s.r.toFixed(2)}deg) scale(${s.s.toFixed(3)})`;
-
-      const hot = f > 0.12;
-      if (hot) el.style.setProperty('--lc', PAL[i % PAL.length]);
-      if (hot !== s.hot) { s.hot = hot; el.classList.toggle('hot', hot); }
-      if (f > 0 || Math.abs(s.x) + Math.abs(s.y) + Math.abs(s.r) + Math.abs(s.vx) + Math.abs(s.vy) + Math.abs(s.vr) > 0.05) moving = true;
-    });
-
-    // Vẽ tia lửa: chấm tròn và vạch ngắn, màu đặc, mờ dần
-    ctx.clearRect(0, 0, W, H);
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.vy += 0.14; p.vx *= 0.985; p.vy *= 0.985;
-      p.x += p.vx; p.y += p.vy; p.t++;
-      const k = p.t / p.life;
-      if (k >= 1) { particles.splice(i, 1); continue; }
-      ctx.globalAlpha = 1 - k;
-      ctx.fillStyle = p.c; ctx.strokeStyle = p.c;
-      if (p.line) {
-        ctx.lineWidth = 3; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 2.2, p.y - p.vy * 2.2); ctx.stroke();
-      } else {
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 - k * 0.6), 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    ctx.globalAlpha = 1;
-
-    if (visible && (moving || particles.length || ptr)) raf = requestAnimationFrame(tick);
-  }
-  function kick() { if (!raf && visible) raf = requestAnimationFrame(tick); }
-
-  new IntersectionObserver((entries) => {
-    visible = entries[0].isIntersecting;
-    if (visible) kick(); else if (raf) { cancelAnimationFrame(raf); raf = 0; }
-  }).observe(foot);
-
-  /* ---------- Con trỏ ---------- */
-  let last = null;
-  foot.addEventListener('pointermove', (e) => {
-    // Đang rê trên link / nút (kể cả dòng duyanh.dev): không bắn tia lửa, chữ khổng lồ cũng đứng yên
-    if (e.target.closest('a, button')) { ptr = null; last = null; kick(); return; }
-    ptr = { x: e.clientX, y: e.clientY };
-    // Rê nhanh qua chữ thì rơi vài tia lửa nhỏ
-    const mr = mark.getBoundingClientRect();
-    const over = e.clientY > mr.top && e.clientY < mr.bottom;
-    if (over && last && Math.hypot(e.clientX - last.x, e.clientY - last.y) > 14 && Math.random() < 0.5) {
-      const fr = foot.getBoundingClientRect();
-      burst(e.clientX - fr.left, e.clientY - fr.top, 1, 0.35);
-    }
-    last = { x: e.clientX, y: e.clientY };
-    kick();
-  });
-  foot.addEventListener('pointerleave', () => { ptr = null; last = null; kick(); });
-  foot.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') setTimeout(() => { ptr = null; kick(); }, 450); });
-
-  /* ---------- Bấm: tia lửa + chữ giật nảy ---------- */
-  foot.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('a, button')) return;
-    const fr = foot.getBoundingClientRect();
-    ptr = { x: e.clientX, y: e.clientY };
-    burst(e.clientX - fr.left, e.clientY - fr.top, 22, 1);
-
-    const mr = mark.getBoundingClientRect();
-    const R = Math.max(120, mr.height * 1.15) * 1.6;
-    letters.forEach((el, i) => {
-      const b = base[i]; if (!b) return;
-      const dx = mr.left + b.cx - e.clientX, dy = mr.top + b.cy - e.clientY;
-      const f = 1 - Math.min(1, Math.hypot(dx, dy) / R);
-      if (f > 0 && !reduce) { L[i].vy -= f * 30; L[i].vr += (dx >= 0 ? 1 : -1) * f * 6; }
-    });
-
-    count++;
-    countEl.textContent = String(count);
-    // Cứ 10 lần là một trận pháo hoa trên chữ
-    if (count % 10 === 0) {
-      for (let k = 0; k < 5; k++) {
-        setTimeout(() => burst(Math.random() * W, mark.offsetTop + Math.random() * mark.offsetHeight, 26, 1.2), k * 140);
-      }
-    }
-    kick();
-  });
-
-  /* ---------- Nút email "từ tính": hút nhẹ về phía con trỏ khi lại gần ---------- */
-  if (window.matchMedia('(pointer: fine)').matches && !reduce) {
-    foot.addEventListener('pointermove', (e) => {
-      const r = mail.getBoundingClientRect();
-      const dx = e.clientX - (r.left + r.width / 2);
-      const dy = e.clientY - (r.top + r.height / 2);
-      if (Math.hypot(dx, dy) < 130) {
-        mail.style.setProperty('--mx', `${(dx * 0.25).toFixed(1)}px`);
-        mail.style.setProperty('--my', `${(dy * 0.35).toFixed(1)}px`);
-      } else {
-        mail.style.removeProperty('--mx'); mail.style.removeProperty('--my');
-      }
-    });
-    foot.addEventListener('pointerleave', () => { mail.style.removeProperty('--mx'); mail.style.removeProperty('--my'); });
-  }
-
-  /* ---------- Về đầu trang (dùng Lenis nếu có) ---------- */
-  upBtn.addEventListener('click', () => {
-    const fr = foot.getBoundingClientRect(), br = upBtn.getBoundingClientRect();
-    burst(br.left - fr.left + br.width / 2, br.top - fr.top + br.height / 2, 26, 1.1);
-    if (window.__lenis) window.__lenis.scrollTo(0, { duration: 1.4 });
-    else window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
+  const fine = window.matchMedia('(pointer: fine)').matches;
+  const LS = 168; // kích thước thấu kính (px), khớp với CSS
 
   /* ---------- Đồng hồ Sài Gòn ---------- */
-  const fmt = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const fmt = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
   const tickClock = () => { timeEl.textContent = fmt.format(new Date()); };
   tickClock();
   setInterval(tickClock, 1000);
+
+  /* ---------- Về đầu trang (dùng Lenis nếu có) ---------- */
+  upBtn.addEventListener('click', () => {
+    const w = window as any;
+    if (w.__lenis) w.__lenis.scrollTo(0, { duration: 1.4 });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  if (!reduce) {
+    /* ---------- Vị trí gốc của từng chữ ---------- */
+    let base: { cx: number; cy: number }[] = [];
+    const measure = () => {
+      base = letters.map((l) => ({ cx: l.offsetLeft + l.offsetWidth / 2, cy: l.offsetTop + l.offsetHeight / 2 }));
+    };
+    measure();
+    new ResizeObserver(measure).observe(foot);
+    document.fonts?.ready.then(measure);
+
+    /* ---------- Chữ hiện lên một lần khi cuộn tới ---------- */
+    gsap.from(letters, {
+      yPercent: 70, opacity: 0, rotate: () => gsap.utils.random(-9, 9),
+      duration: 1.25, ease: 'expo.out', stagger: 0.07,
+      scrollTrigger: { trigger: mark, start: 'top 88%', once: true },
+    });
+
+    /* ---------- Quả cầu trôi chậm, dừng khi footer ra khỏi màn hình ---------- */
+    const drift = gsap.timeline({ paused: true });
+    orbs.forEach((o, i) => {
+      drift.to(o, {
+        x: () => gsap.utils.random(-60, 60), y: () => gsap.utils.random(-40, 40),
+        duration: gsap.utils.random(7, 11), ease: 'sine.inOut', yoyo: true, repeat: -1,
+      }, i * 0.4);
+    });
+    ScrollTrigger.create({
+      trigger: foot, start: 'top bottom', end: 'bottom top',
+      onToggle: (s) => (s.isActive ? drift.play() : drift.pause()),
+    });
+
+    /* ---------- Tạo bản đồ khúc xạ cho thấu kính (tính từng điểm ảnh, không gradient) ---------- */
+    const canRefract = !!(navigator as any).userAgentData?.brands?.some((b: any) => /Chromium/i.test(b.brand));
+    if (canRefract) {
+      const c = document.createElement('canvas');
+      c.width = c.height = LS;
+      const g = c.getContext('2d')!;
+      const img = g.createImageData(LS, LS);
+      const R = LS / 2;
+      for (let y = 0; y < LS; y++) {
+        for (let x = 0; x < LS; x++) {
+          const dx = x + 0.5 - R, dy = y + 0.5 - R;
+          const d = Math.hypot(dx, dy), r = d / R;
+          let cr = 128, cg = 128;
+          if (r < 1 && d > 0) {
+            const s = Math.min(1, Math.max(0, (r - 0.55) / 0.45));
+            const sm = s * s * (3 - 2 * s);
+            const m = 0.35 * r + 0.65 * sm * sm;   // phóng đại nhẹ ở giữa, bẻ mạnh ở rìa
+            cr = 128 - (dx / d) * m * 127;
+            cg = 128 - (dy / d) * m * 127;
+          }
+          const i = (y * LS + x) * 4;
+          img.data[i] = cr; img.data[i + 1] = cg; img.data[i + 2] = 128; img.data[i + 3] = 255;
+        }
+      }
+      g.putImageData(img, 0, 0);
+      const mapUrl = c.toDataURL();
+      document.getElementById('foot-lens-map')?.setAttribute('href', mapUrl);
+      lens.style.backdropFilter = 'url(#foot-lens) blur(0.6px) saturate(1.6) brightness(1.05)';
+
+    }
+
+    /* ---------- Chữ nhấc lên nhẹ khi con trỏ lại gần ---------- */
+    const qy = letters.map((l) => gsap.quickTo(l, 'y', { duration: 0.5, ease: 'power3' }));
+    const qx = letters.map((l) => gsap.quickTo(l, 'x', { duration: 0.5, ease: 'power3' }));
+    const qr = letters.map((l) => gsap.quickTo(l, 'rotation', { duration: 0.6, ease: 'power3' }));
+    const qs = letters.map((l) => gsap.quickTo(l, 'scale', { duration: 0.5, ease: 'power3' }));
+
+    const lift = (px: number | null, py = 0) => {
+      const mr = mark.getBoundingClientRect();
+      const R = Math.max(120, mr.height * 1.1);
+      letters.forEach((_, i) => {
+        let tx = 0, ty = 0, tr = 0, ts = 1;
+        const b = base[i];
+        if (px !== null && b) {
+          const dx = mr.left + b.cx - px, dy = mr.top + b.cy - py;
+          const d = Math.hypot(dx, dy) || 1;
+          if (d < R) {
+            let f = 1 - d / R; f *= f;
+            tx = (dx / d) * f * R * 0.16;
+            ty = -f * mr.height * 0.16;
+            tr = (dx / R) * f * 10;
+            ts = 1 + f * 0.1;
+          }
+        }
+        qx[i](tx); qy[i](ty); qr[i](tr); qs[i](ts);
+      });
+    };
+
+    /* ---------- Thấu kính đi theo con trỏ ---------- */
+    const lensX = gsap.quickTo(lens, 'x', { duration: 0.55, ease: 'power3' });
+    const lensY = gsap.quickTo(lens, 'y', { duration: 0.55, ease: 'power3' });
+    let lensOn = false;
+    const setLens = (on: boolean, x = 0, y = 0) => {
+      if (on === lensOn) return;
+      lensOn = on;
+      if (on) gsap.set(lens, { x, y });
+      gsap.to(lens, {
+        scale: on ? 1 : 0, opacity: on ? 1 : 0,
+        duration: on ? 0.6 : 0.3, ease: on ? 'back.out(1.7)' : 'power2.in', overwrite: 'auto',
+      });
+    };
+
+    /* ---------- Nút email "từ tính" ---------- */
+    const mx = gsap.quickTo(mail, 'x', { duration: 0.5, ease: 'power3' });
+    const my = gsap.quickTo(mail, 'y', { duration: 0.5, ease: 'power3' });
+
+    const onMove = (e: PointerEvent) => {
+      const onLink = !!(e.target as Element).closest('a, button');
+      const fr = foot.getBoundingClientRect();
+      const mr = mark.getBoundingClientRect();
+
+      // Lens chỉ xuất hiện trên vùng chữ khổng lồ
+      const inMark = !onLink && e.clientY > mr.top - 30 && e.clientY < mr.bottom + 30;
+      const lx = e.clientX - fr.left;
+      const ly = e.clientY - fr.top + (e.pointerType === 'touch' ? -100 : 0);
+      if (inMark) { setLens(true, lx, ly); lensX(lx); lensY(ly); } else setLens(false);
+
+      onLink ? lift(null) : lift(e.clientX, e.clientY);
+
+      if (fine) {
+        const r = mail.getBoundingClientRect();
+        const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+        if (Math.hypot(dx, dy) < 140) { mx(dx * 0.25); my(dy * 0.35); } else { mx(0); my(0); }
+      }
+    };
+    const onLeave = () => { setLens(false); lift(null); mx(0); my(0); };
+
+    foot.addEventListener('pointermove', onMove);
+    foot.addEventListener('pointerleave', onLeave);
+    foot.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') setTimeout(onLeave, 450); });
+
+    /* ---------- Bấm: gợn sóng kính + chữ nảy theo sóng ---------- */
+    const wave = (x: number, y: number, cx: number, cy: number) => {
+      gsap.killTweensOf(ripple);
+      gsap.fromTo(ripple, { x, y, scale: 0.2, opacity: 1 }, { scale: 5, opacity: 0, duration: 1.2, ease: 'expo.out' });
+      const mr = mark.getBoundingClientRect();
+      letters.forEach((el, i) => {
+        const b = base[i]; if (!b) return;
+        const d = Math.hypot(mr.left + b.cx - cx, mr.top + b.cy - cy);
+        const f = Math.max(0, 1 - d / (mr.width * 0.7));
+        if (f <= 0) return;
+        gsap.fromTo(el, { yPercent: -22 * f }, {
+          yPercent: 0, duration: 1.3, ease: 'elastic.out(1, 0.45)', delay: d / 2200, overwrite: 'auto',
+        });
+      });
+    };
+
+    foot.addEventListener('pointerdown', (e) => {
+      if ((e.target as Element).closest('a, button')) return;
+      const fr = foot.getBoundingClientRect();
+      wave(e.clientX - fr.left, e.clientY - fr.top, e.clientX, e.clientY);
+    });
+
+    upBtn.addEventListener('click', () => {
+      const fr = foot.getBoundingClientRect(), br = upBtn.getBoundingClientRect();
+      wave(br.left - fr.left + br.width / 2, br.top - fr.top + br.height / 2, br.left + br.width / 2, br.top + br.height / 2);
+    });
+  }
 </script>
