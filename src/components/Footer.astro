@@ -6,10 +6,11 @@
    Ý tưởng:
    - Nền sáng phẳng + vài quả cầu màu đặc trôi chậm phía sau (để kính có thứ để khúc xạ)
    - Chữ "coreSpark" khổng lồ, hiện lên theo nhịp khi cuộn tới (GSAP + ScrollTrigger)
-   - THẤU KÍNH LỎNG đi theo con trỏ: kính thật sự bẻ cong chữ phía sau nó (SVG displacement
-     + backdrop-filter, Chromium). Trình duyệt khác tự rơi về kính mờ nhẹ.
-   - Các khối CTA / liên kết / thanh dưới đều là kính: blur + saturate + viền sáng bên trong
-   - Bấm: gợn sóng kính lan ra, các chữ nảy theo sóng (không pháo hoa)
+   - MÁY TÍNH (có chuột): thấu kính lỏng đi theo con trỏ, kéo giãn theo tốc độ như giọt chất lỏng,
+     bẻ cong chữ phía sau (SVG displacement + backdrop-filter, Chromium)
+   - ĐIỆN THOẠI (cảm ứng): KHÔNG có thấu kính, không phản ứng khi nhấn giữ / vuốt.
+     Thay bằng: chữ nghiêng đàn hồi theo tốc độ cuộn, và chạm nhanh (tap) để gợn sóng
+   - Các khối CTA / liên kết / thanh dưới đều là kính
    SỬA Ở ĐÂY: email, link mạng xã hội, câu mời gọi
    ========================================================= */
 const year = new Date().getFullYear();
@@ -34,13 +35,12 @@ const connect = [
 ];
 const word = 'coreSpark'.split('');
 // Tách mỗi chữ thành một span làm mất kerning gốc của font, nên chỉnh tay ở đây (đơn vị em).
-// Mỗi số = khoảng đẩy chữ đó sang phải so với chữ liền trước. Số âm = sát lại, số dương = giãn ra.
 //          c     o     r     e     S      p      a     r     k
 const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
 ---
 
 <footer class="foot" id="footer">
-  <!-- Bộ lọc khúc xạ cho thấu kính (bản đồ dịch chuyển được tạo bằng JS) -->
+  <!-- Bộ lọc khúc xạ cho thấu kính (bản đồ dịch chuyển được tạo bằng JS, chỉ trên máy có chuột) -->
   <svg class="foot__defs" width="0" height="0" aria-hidden="true" focusable="false">
     <filter id="foot-lens" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
       <feImage id="foot-lens-map" x="0" y="0" width="168" height="168" preserveAspectRatio="none" result="map" />
@@ -91,7 +91,7 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     {word.map((ch, i) => <span class="mark__l" style={`--k:${kern[i] ?? 0}`} aria-hidden="true">{ch}</span>)}
   </div>
 
-  <!-- Thấu kính lỏng + gợn sóng khi bấm -->
+  <!-- Thấu kính lỏng (chỉ máy có chuột) + gợn sóng khi bấm -->
   <div class="lens" aria-hidden="true"></div>
   <div class="ripple" aria-hidden="true"></div>
 
@@ -118,6 +118,7 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     position: relative; overflow: clip; isolation: isolate;
     background: #f5f5f7; color: #1d1d1f;
     padding-top: clamp(3.5rem, 8vw, 6.5rem);
+    -webkit-tap-highlight-color: transparent;
   }
   .foot, .foot *, .foot *::before, .foot *::after { box-sizing: border-box; }
   .foot__defs { position: absolute; width: 0; height: 0; pointer-events: none; }
@@ -130,12 +131,11 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     -webkit-backdrop-filter: blur(1.5px) saturate(1.9);
             backdrop-filter: blur(1.5px) saturate(1.9);
     box-shadow:
-      inset 0 0 0 1.5px rgba(255, 255, 255, .78),               /* viền kính */
-      inset 0 14px 26px -6px rgba(255, 255, 255, .6),           /* ánh sáng trong, phía trên */
-      inset 0 -16px 30px -8px rgba(var(--c), .6),               /* màu dồn ở đáy bóng */
-      0 30px 60px -24px rgba(var(--c), .55);                    /* đổ bóng màu xuống dưới */
+      inset 0 0 0 1.5px rgba(255, 255, 255, .78),
+      inset 0 14px 26px -6px rgba(255, 255, 255, .6),
+      inset 0 -16px 30px -8px rgba(var(--c), .6),
+      0 30px 60px -24px rgba(var(--c), .55);
   }
-  /* Điểm sáng phản chiếu: hai hình elip trắng đặc */
   .orb::before, .orb::after { content: ''; position: absolute; border-radius: 50%; background: #fff; transform: rotate(-32deg); }
   .orb::before { left: 15%; top: 9%; width: 34%; height: 17%; opacity: .9; filter: blur(1.5px); }
   .orb::after  { right: 14%; bottom: 11%; width: 16%; height: 8%; opacity: .55; filter: blur(1px); }
@@ -150,9 +150,9 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     -webkit-backdrop-filter: blur(26px) saturate(185%);
             backdrop-filter: blur(26px) saturate(185%);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, .6),     /* viền sáng bên trong */
-      inset 0 1.5px 0 rgba(255, 255, 255, .95),    /* ánh sáng cạnh trên */
-      inset 0 -1px 0 rgba(0, 0, 0, .05),           /* bóng cạnh dưới */
+      inset 0 0 0 1px rgba(255, 255, 255, .6),
+      inset 0 1.5px 0 rgba(255, 255, 255, .95),
+      inset 0 -1px 0 rgba(0, 0, 0, .05),
       0 18px 40px -12px rgba(0, 0, 0, .14),
       0 1px 3px rgba(0, 0, 0, .06);
   }
@@ -173,7 +173,7 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
   }
   .foot__ask { margin: 0; font-size: clamp(1.9rem, 4.4vw, 3.7rem); line-height: 1.05; letter-spacing: -.035em; font-weight: 700; }
 
-  /* Nút email: x/y do GSAP gán để nút "hút" theo chuột */
+  /* Nút email: x/y do GSAP gán để nút "hút" theo chuột (chỉ máy có chuột) */
   .foot__mail {
     display: inline-flex; align-items: center; gap: .7rem;
     max-width: 100%; padding: .95rem 1.6rem; border-radius: 999px;
@@ -187,9 +187,7 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
   }
   .foot__mail span { min-width: 0; overflow-wrap: anywhere; }
   .foot__mail i { flex: none; font-style: normal; display: inline-block; transition: transform .3s cubic-bezier(.2, .9, .3, 1.4); }
-  .foot__mail:hover { scale: 1.04; background: #0a84ff; }
-  .foot__mail:hover i { transform: translate(3px, -3px) rotate(8deg); }
-  .foot__mail:active { scale: .96; }
+  .foot__mail:active { scale: .95; }
   .foot__mail:focus-visible { outline: 2px solid #fff; outline-offset: 3px; box-shadow: 0 0 0 5px #0a84ff; }
 
   .foot__cols {
@@ -205,12 +203,22 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     transition: background .25s, box-shadow .25s, transform .35s cubic-bezier(.2, .9, .3, 1.3);
   }
   .foot__link i { font-style: normal; font-size: .8em; color: #86868b; transition: transform .3s cubic-bezier(.2, .9, .3, 1.4), color .25s; }
-  .foot__link:hover, .foot__link:focus-visible {
-    background: rgba(255, 255, 255, .78); transform: translateX(4px);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .95), 0 6px 16px -6px rgba(0, 0, 0, .18);
-  }
-  .foot__link:hover i { color: #0a84ff; transform: translate(2px, -2px); }
+  .foot__link:active { transform: scale(.96); background: rgba(255, 255, 255, .78); }
   .foot__link:focus-visible { outline: 2px solid #0a84ff; outline-offset: 2px; }
+
+  /* Hover chỉ áp cho máy có chuột: tránh lỗi "hover dính" trên điện thoại */
+  @media (hover: hover) and (pointer: fine) {
+    .foot__mail:hover { scale: 1.04; background: #0a84ff; }
+    .foot__mail:hover i { transform: translate(3px, -3px) rotate(8deg); }
+    .foot__link:hover, .foot__link:focus-visible {
+      background: rgba(255, 255, 255, .78); transform: translateX(4px);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .95), 0 6px 16px -6px rgba(0, 0, 0, .18);
+    }
+    .foot__link:hover i { color: #0a84ff; transform: translate(2px, -2px); }
+    .credit:hover, .credit:focus-visible { color: #0071e3; text-decoration-color: currentColor; }
+    .credit:hover i, .credit:focus-visible i { opacity: 1; transform: none; }
+    .dock__up:hover { transform: translateY(-3px); background: #0a84ff; }
+  }
 
   /* ---------- Chữ khổng lồ ---------- */
   .mark {
@@ -218,29 +226,31 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     display: flex; justify-content: center;
     margin-top: clamp(1rem, 3vw, 2.5rem); padding: clamp(2.2rem, 6vw, 4.5rem) 0 clamp(1.6rem, 4vw, 3rem);
     font-size: clamp(3.4rem, 18.4vw, 19rem); font-weight: 800; letter-spacing: -.065em; line-height: .85;
-    white-space: nowrap; user-select: none; -webkit-user-select: none;
-    overflow-x: clip; touch-action: pan-y;
+    white-space: nowrap; overflow-x: clip; touch-action: pan-y;
+    /* Chặn hẳn việc nhấn giữ bôi đen chữ / hiện kính lúp & menu của iOS, Android */
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
   }
   .mark__l {
     display: inline-block; color: #1d1d1f; transform-origin: 50% 85%; will-change: transform;
     margin-left: calc(var(--k, 0) * 1em);
-    padding-bottom: .18em; margin-bottom: -.18em;   /* chừa chỗ cho đuôi chữ p, không bị cắt */
+    padding-bottom: .18em; margin-bottom: -.18em;   /* chừa chỗ cho đuôi chữ p */
     font-kerning: normal;
   }
 
-  /* ---------- Thấu kính lỏng ---------- */
+  /* ---------- Thấu kính lỏng (JS bật, chỉ máy có chuột; mặc định ẩn hẳn) ---------- */
   .lens {
     position: absolute; left: 0; top: 0; z-index: 4;
     width: 168px; height: 168px; margin: -84px 0 0 -84px; border-radius: 50%;
-    pointer-events: none; opacity: 0; transform: scale(0);
+    pointer-events: none; opacity: 0; visibility: hidden; transform: scale(0);
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     -webkit-backdrop-filter: blur(1.5px) saturate(1.5);
-            backdrop-filter: blur(1.5px) saturate(1.5);   /* JS nâng cấp lên khúc xạ trên Chromium */
+            backdrop-filter: blur(1.5px) saturate(1.5);
     box-shadow:
       inset 0 0 0 1.5px rgba(255, 255, 255, .75),
       inset 0 3px 8px rgba(255, 255, 255, .85),
       inset 0 -4px 10px rgba(0, 0, 0, .07),
       0 16px 36px -8px rgba(0, 0, 0, .22);
-    will-change: transform;
+    will-change: transform, opacity;
   }
 
   /* ---------- Gợn sóng khi bấm ---------- */
@@ -252,13 +262,14 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     -webkit-backdrop-filter: blur(3px) saturate(1.6);
             backdrop-filter: blur(3px) saturate(1.6);
     box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .9), 0 0 0 1px rgba(0, 0, 0, .03);
+    will-change: transform, opacity;
   }
 
   /* ---------- Thanh Dock dưới cùng ---------- */
   .dock {
     position: relative; z-index: 5;
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1.6rem;
-    margin: 0 max(var(--gutter, 1.5rem), 1rem) 1.5rem; padding: .65rem .65rem .65rem 1.6rem;
+    margin: 0 max(var(--gutter, 1.5rem), 1rem) calc(1.5rem + env(safe-area-inset-bottom, 0px)); padding: .65rem .65rem .65rem 1.6rem;
     border-radius: 999px; font-size: .88rem; color: #6e6e73;
   }
   .dock p { margin: 0; }
@@ -277,9 +288,8 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     opacity: 0; transform: translate(-3px, 3px);
     transition: opacity .25s, transform .3s cubic-bezier(.2, .9, .3, 1);
   }
-  .credit:hover, .credit:focus-visible { color: #0071e3; text-decoration-color: currentColor; }
-  .credit:hover i, .credit:focus-visible i { opacity: 1; transform: none; }
-  .credit:focus-visible { outline: 2px solid #0071e3; outline-offset: 3px; border-radius: 4px; }
+  .credit:focus-visible { outline: 2px solid #0071e3; outline-offset: 3px; border-radius: 4px; color: #0071e3; text-decoration-color: currentColor; }
+  .credit:focus-visible i { opacity: 1; transform: none; }
 
   .dock__up {
     width: 2.7rem; height: 2.7rem; border: 0; border-radius: 50%; padding: 0; cursor: pointer;
@@ -287,11 +297,10 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 6px 14px -4px rgba(0, 0, 0, .35);
     transition: transform .3s cubic-bezier(.2, .9, .3, 1.4), background .25s;
   }
-  .dock__up:hover { transform: translateY(-3px); background: #0a84ff; }
-  .dock__up:active { transform: scale(.92); }
+  .dock__up:active { transform: scale(.9); }
   .dock__up:focus-visible { outline: 2px solid #0a84ff; outline-offset: 3px; }
 
-  /* ---------- Điện thoại và tablet ---------- */
+  /* ---------- Điện thoại và tablet: nhẹ GPU hơn ---------- */
   @media (max-width: 800px) {
     .foot__top { grid-template-columns: minmax(0, 1fr); }
     .foot__cta { gap: 1.4rem; }
@@ -305,6 +314,11 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     .orb--violet { width: 22vw; height: 22vw; bottom: 3.5rem; }
     .orb--pink { width: 26vw; height: 26vw; bottom: 6.5rem; }
     .orb--amber { width: 17vw; height: 17vw; bottom: 4rem; }
+
+    /* Bỏ blur nền ở bóng và gợn sóng (vùng rộng, tốn GPU), giảm blur của các khối kính */
+    .orb { -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .ripple { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(255, 255, 255, .28); }
+    .glass { -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%); }
   }
 
   @media (max-width: 480px) {
@@ -335,15 +349,17 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
   const orbs = Array.from(foot.querySelectorAll<HTMLElement>('.orb'));
 
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const fine = window.matchMedia('(pointer: fine)').matches;
+  /* CHỈ máy có chuột thật mới có thấu kính, lực hút, quả cầu trôi. Điện thoại / máy tính bảng cảm ứng thì không */
+  const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   const LS = 168; // kích thước thấu kính (px), khớp với CSS
 
-  /* ---------- Đồng hồ Sài Gòn ---------- */
+  /* ---------- Đồng hồ Sài Gòn: chỉ chạy khi footer đang nhìn thấy và tab đang mở ---------- */
   const fmt = new Intl.DateTimeFormat('vi-VN', {
     timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   });
-  const tickClock = () => { timeEl.textContent = fmt.format(new Date()); };
-  tickClock();
+  let inView = false;
+  const tickClock = () => { if (inView && !document.hidden) timeEl.textContent = fmt.format(new Date()); };
+  new IntersectionObserver(([e]) => { inView = e.isIntersecting; tickClock(); }, { rootMargin: '100px' }).observe(foot);
   setInterval(tickClock, 1000);
 
   /* ---------- Về đầu trang (dùng Lenis nếu có) ---------- */
@@ -353,14 +369,19 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
     else window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
+  /* Chặn menu ngữ cảnh khi nhấn giữ trên chữ khổng lồ (Android) */
+  mark.addEventListener('contextmenu', (e) => e.preventDefault());
+
   if (!reduce) {
-    /* ---------- Vị trí gốc của từng chữ ---------- */
+    /* ---------- Vị trí gốc của từng chữ (đo lại gọn trong 1 khung hình) ---------- */
     let base: { cx: number; cy: number }[] = [];
     const measure = () => {
       base = letters.map((l) => ({ cx: l.offsetLeft + l.offsetWidth / 2, cy: l.offsetTop + l.offsetHeight / 2 }));
     };
+    let measureRaf = 0;
+    const measureSoon = () => { if (!measureRaf) measureRaf = requestAnimationFrame(() => { measureRaf = 0; measure(); }); };
     measure();
-    new ResizeObserver(measure).observe(foot);
+    new ResizeObserver(measureSoon).observe(foot);
     document.fonts?.ready.then(measure);
 
     /* ---------- Chữ hiện lên một lần khi cuộn tới ---------- */
@@ -370,128 +391,26 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
       scrollTrigger: { trigger: mark, start: 'top 88%', once: true },
     });
 
-    /* ---------- Quả cầu trôi chậm, dừng khi footer ra khỏi màn hình ---------- */
-    const drift = gsap.timeline({ paused: true });
-    orbs.forEach((o, i) => {
-      drift.to(o, {
-        x: () => gsap.utils.random(-60, 60), y: () => gsap.utils.random(-40, 40),
-        duration: gsap.utils.random(7, 11), ease: 'sine.inOut', yoyo: true, repeat: -1,
-      }, i * 0.4);
-    });
+    /* ---------- Cuộn: chữ nghiêng đàn hồi theo tốc độ cuộn (chạy được cả trên điện thoại) ---------- */
+    const skewQ = gsap.quickTo(mark, 'skewX', { duration: 0.7, ease: 'power3' });
+    let skewT = 0;
     ScrollTrigger.create({
       trigger: foot, start: 'top bottom', end: 'bottom top',
-      onToggle: (s) => (s.isActive ? drift.play() : drift.pause()),
+      onUpdate: (self) => {
+        skewQ(gsap.utils.clamp(-5, 5, self.getVelocity() / -350));
+        clearTimeout(skewT);
+        skewT = window.setTimeout(() => skewQ(0), 90);   // ngừng cuộn thì bật về thẳng
+      },
     });
 
-    /* ---------- Tạo bản đồ khúc xạ cho thấu kính (tính từng điểm ảnh, không gradient) ---------- */
-    const canRefract = !!(navigator as any).userAgentData?.brands?.some((b: any) => /Chromium/i.test(b.brand));
-    if (canRefract) {
-      const c = document.createElement('canvas');
-      c.width = c.height = LS;
-      const g = c.getContext('2d')!;
-      const img = g.createImageData(LS, LS);
-      const R = LS / 2;
-      for (let y = 0; y < LS; y++) {
-        for (let x = 0; x < LS; x++) {
-          const dx = x + 0.5 - R, dy = y + 0.5 - R;
-          const d = Math.hypot(dx, dy), r = d / R;
-          let cr = 128, cg = 128;
-          if (r < 1 && d > 0) {
-            const s = Math.min(1, Math.max(0, (r - 0.55) / 0.45));
-            const sm = s * s * (3 - 2 * s);
-            const m = 0.35 * r + 0.65 * sm * sm;   // phóng đại nhẹ ở giữa, bẻ mạnh ở rìa
-            cr = 128 - (dx / d) * m * 127;
-            cg = 128 - (dy / d) * m * 127;
-          }
-          const i = (y * LS + x) * 4;
-          img.data[i] = cr; img.data[i + 1] = cg; img.data[i + 2] = 128; img.data[i + 3] = 255;
-        }
-      }
-      g.putImageData(img, 0, 0);
-      const mapUrl = c.toDataURL();
-      document.getElementById('foot-lens-map')?.setAttribute('href', mapUrl);
-      lens.style.backdropFilter = 'url(#foot-lens) blur(0.6px) saturate(1.6) brightness(1.05)';
-
-    }
-
-    /* ---------- Chữ nhấc lên nhẹ khi con trỏ lại gần ---------- */
-    const qy = letters.map((l) => gsap.quickTo(l, 'y', { duration: 0.5, ease: 'power3' }));
-    const qx = letters.map((l) => gsap.quickTo(l, 'x', { duration: 0.5, ease: 'power3' }));
-    const qr = letters.map((l) => gsap.quickTo(l, 'rotation', { duration: 0.6, ease: 'power3' }));
-    const qs = letters.map((l) => gsap.quickTo(l, 'scale', { duration: 0.5, ease: 'power3' }));
-
-    const lift = (px: number | null, py = 0) => {
-      const mr = mark.getBoundingClientRect();
-      const R = Math.max(120, mr.height * 1.1);
-      letters.forEach((_, i) => {
-        let tx = 0, ty = 0, tr = 0, ts = 1;
-        const b = base[i];
-        if (px !== null && b) {
-          const dx = mr.left + b.cx - px, dy = mr.top + b.cy - py;
-          const d = Math.hypot(dx, dy) || 1;
-          if (d < R) {
-            let f = 1 - d / R; f *= f;
-            tx = (dx / d) * f * R * 0.16;
-            ty = -f * mr.height * 0.16;
-            tr = (dx / R) * f * 10;
-            ts = 1 + f * 0.1;
-          }
-        }
-        qx[i](tx); qy[i](ty); qr[i](tr); qs[i](ts);
-      });
-    };
-
-    /* ---------- Thấu kính đi theo con trỏ ---------- */
-    const lensX = gsap.quickTo(lens, 'x', { duration: 0.55, ease: 'power3' });
-    const lensY = gsap.quickTo(lens, 'y', { duration: 0.55, ease: 'power3' });
-    let lensOn = false;
-    const setLens = (on: boolean, x = 0, y = 0) => {
-      if (on === lensOn) return;
-      lensOn = on;
-      if (on) gsap.set(lens, { x, y });
-      gsap.to(lens, {
-        scale: on ? 1 : 0, opacity: on ? 1 : 0,
-        duration: on ? 0.6 : 0.3, ease: on ? 'back.out(1.7)' : 'power2.in', overwrite: 'auto',
-      });
-    };
-
-    /* ---------- Nút email "từ tính" ---------- */
-    const mx = gsap.quickTo(mail, 'x', { duration: 0.5, ease: 'power3' });
-    const my = gsap.quickTo(mail, 'y', { duration: 0.5, ease: 'power3' });
-
-    const onMove = (e: PointerEvent) => {
-      const onLink = !!(e.target as Element).closest('a, button');
-      const fr = foot.getBoundingClientRect();
-      const mr = mark.getBoundingClientRect();
-
-      // Lens chỉ xuất hiện trên vùng chữ khổng lồ
-      const inMark = !onLink && e.clientY > mr.top - 30 && e.clientY < mr.bottom + 30;
-      const lx = e.clientX - fr.left;
-      const ly = e.clientY - fr.top + (e.pointerType === 'touch' ? -100 : 0);
-      if (inMark) { setLens(true, lx, ly); lensX(lx); lensY(ly); } else setLens(false);
-
-      onLink ? lift(null) : lift(e.clientX, e.clientY);
-
-      if (fine) {
-        const r = mail.getBoundingClientRect();
-        const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
-        if (Math.hypot(dx, dy) < 140) { mx(dx * 0.25); my(dy * 0.35); } else { mx(0); my(0); }
-      }
-    };
-    const onLeave = () => { setLens(false); lift(null); mx(0); my(0); };
-
-    foot.addEventListener('pointermove', onMove);
-    foot.addEventListener('pointerleave', onLeave);
-    foot.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') setTimeout(onLeave, 450); });
-
-    /* ---------- Bấm: gợn sóng kính + chữ nảy theo sóng ---------- */
-    const wave = (x: number, y: number, cx: number, cy: number) => {
+    /* ---------- Gợn sóng kính + chữ nảy theo sóng ---------- */
+    const wave = (x: number, y: number, clientX: number, clientY: number) => {
       gsap.killTweensOf(ripple);
       gsap.fromTo(ripple, { x, y, scale: 0.2, opacity: 1 }, { scale: 5, opacity: 0, duration: 1.2, ease: 'expo.out' });
       const mr = mark.getBoundingClientRect();
       letters.forEach((el, i) => {
         const b = base[i]; if (!b) return;
-        const d = Math.hypot(mr.left + b.cx - cx, mr.top + b.cy - cy);
+        const d = Math.hypot(mr.left + b.cx - clientX, mr.top + b.cy - clientY);
         const f = Math.max(0, 1 - d / (mr.width * 0.7));
         if (f <= 0) return;
         gsap.fromTo(el, { yPercent: -22 * f }, {
@@ -499,16 +418,170 @@ const kern = [0,    0,    0,    0,    0.012, 0.03,  0,    0,    0];
         });
       });
     };
+    const fire = (clientX: number, clientY: number) => {
+      const fr = foot.getBoundingClientRect();
+      wave(clientX - fr.left, clientY - fr.top, clientX, clientY);
+    };
 
+    /* Chuột: bấm là gợn sóng. Cảm ứng: chỉ khi CHẠM NHANH (dưới 260ms, gần như không xê dịch).
+       Nhấn giữ, vuốt cuộn (trình duyệt gửi pointercancel) đều bị bỏ qua. */
+    let down: { x: number; y: number; t: number } | null = null;
     foot.addEventListener('pointerdown', (e) => {
       if ((e.target as Element).closest('a, button')) return;
-      const fr = foot.getBoundingClientRect();
-      wave(e.clientX - fr.left, e.clientY - fr.top, e.clientX, e.clientY);
+      if (e.pointerType === 'touch') { down = { x: e.clientX, y: e.clientY, t: performance.now() }; return; }
+      fire(e.clientX, e.clientY);
     });
+    foot.addEventListener('pointerup', (e) => {
+      if (e.pointerType !== 'touch' || !down) return;
+      const quick = performance.now() - down.t < 260 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 10;
+      down = null;
+      if (quick) fire(e.clientX, e.clientY);
+    });
+    foot.addEventListener('pointercancel', () => { down = null; });
 
     upBtn.addEventListener('click', () => {
       const fr = foot.getBoundingClientRect(), br = upBtn.getBoundingClientRect();
       wave(br.left - fr.left + br.width / 2, br.top - fr.top + br.height / 2, br.left + br.width / 2, br.top + br.height / 2);
     });
+
+    /* =====================================================
+       CHỈ MÁY CÓ CHUỘT: quả cầu trôi, thấu kính lỏng, chữ nhấc lên, nút email từ tính
+       ===================================================== */
+    if (canHover) {
+      /* ---------- Quả cầu trôi chậm, dừng khi footer ra khỏi màn hình ---------- */
+      const drift = gsap.timeline({ paused: true });
+      orbs.forEach((o, i) => {
+        drift.to(o, {
+          x: () => gsap.utils.random(-60, 60), y: () => gsap.utils.random(-40, 40), force3D: true,
+          duration: gsap.utils.random(7, 11), ease: 'sine.inOut', yoyo: true, repeat: -1,
+        }, i * 0.4);
+      });
+      ScrollTrigger.create({
+        trigger: foot, start: 'top bottom', end: 'bottom top',
+        onToggle: (s) => (s.isActive ? drift.play() : drift.pause()),
+      });
+
+      /* ---------- Bản đồ khúc xạ cho thấu kính (Chromium) ---------- */
+      const canRefract = !!(navigator as any).userAgentData?.brands?.some((b: any) => /Chromium/i.test(b.brand));
+      if (canRefract) {
+        const c = document.createElement('canvas');
+        c.width = c.height = LS;
+        const g = c.getContext('2d')!;
+        const img = g.createImageData(LS, LS);
+        const R = LS / 2;
+        for (let y = 0; y < LS; y++) {
+          for (let x = 0; x < LS; x++) {
+            const dx = x + 0.5 - R, dy = y + 0.5 - R;
+            const d = Math.hypot(dx, dy), r = d / R;
+            let cr = 128, cg = 128;
+            if (r < 1 && d > 0) {
+              const s = Math.min(1, Math.max(0, (r - 0.55) / 0.45));
+              const sm = s * s * (3 - 2 * s);
+              const m = 0.35 * r + 0.65 * sm * sm;
+              cr = 128 - (dx / d) * m * 127;
+              cg = 128 - (dy / d) * m * 127;
+            }
+            const i = (y * LS + x) * 4;
+            img.data[i] = cr; img.data[i + 1] = cg; img.data[i + 2] = 128; img.data[i + 3] = 255;
+          }
+        }
+        g.putImageData(img, 0, 0);
+        document.getElementById('foot-lens-map')?.setAttribute('href', c.toDataURL());
+        lens.style.backdropFilter = 'url(#foot-lens) blur(0.6px) saturate(1.6) brightness(1.05)';
+      }
+
+      /* ---------- Thấu kính lỏng: bám theo con trỏ bằng lò xo, kéo giãn theo tốc độ ----------
+         Không xoay thấu kính (xoay sẽ làm lệch bản đồ khúc xạ), chỉ giãn theo trục X / Y */
+      const S = { k: 0 };                         // mức hiện của kính: 0 ẩn, 1 hiện đủ
+      let tx = 0, ty = 0, cx = 0, cy = 0, lensWant = false, ticking = false;
+
+      const renderLens = (_t: number, dtMs: number) => {
+        const dt = Math.min(dtMs, 50) / 1000;
+        const f = 1 - Math.exp(-dt * 14);         // lò xo không phụ thuộc tốc độ khung hình
+        const ddx = tx - cx, ddy = ty - cy;
+        cx += ddx * f; cy += ddy * f;
+        const ax = Math.min(0.16, Math.abs(ddx) / 600), ay = Math.min(0.16, Math.abs(ddy) / 600);
+        const sx = 1 + ax - ay * 0.4, sy = 1 + ay - ax * 0.4;
+        const k = S.k;
+        lens.style.opacity = String(Math.min(1, k * 1.6));
+        lens.style.transform = `translate3d(${cx}px,${cy}px,0) scale(${k * sx},${k * sy})`;
+        if (!lensWant && k < 0.01) {              // đã ẩn xong: tắt hẳn vòng lặp, không tốn CPU/GPU
+          lens.style.visibility = 'hidden';
+          gsap.ticker.remove(renderLens);
+          ticking = false;
+        }
+      };
+      const showLens = (on: boolean) => {
+        if (on === lensWant) return;
+        lensWant = on;
+        if (on && !ticking) {
+          lens.style.visibility = 'visible';
+          ticking = true;
+          gsap.ticker.add(renderLens);
+        }
+        gsap.to(S, { k: on ? 1 : 0, duration: on ? 0.6 : 0.3, ease: on ? 'back.out(1.7)' : 'power2.in', overwrite: true });
+      };
+
+      /* ---------- Chữ nhấc lên nhẹ khi con trỏ lại gần ---------- */
+      const qy = letters.map((l) => gsap.quickTo(l, 'y', { duration: 0.5, ease: 'power3' }));
+      const qx = letters.map((l) => gsap.quickTo(l, 'x', { duration: 0.5, ease: 'power3' }));
+      const qr = letters.map((l) => gsap.quickTo(l, 'rotation', { duration: 0.6, ease: 'power3' }));
+      const qs = letters.map((l) => gsap.quickTo(l, 'scale', { duration: 0.5, ease: 'power3' }));
+
+      const lift = (px: number | null, py: number, mr: DOMRect) => {
+        const R = Math.max(120, mr.height * 1.1);
+        letters.forEach((_, i) => {
+          let tX = 0, tY = 0, tR = 0, tS = 1;
+          const b = base[i];
+          if (px !== null && b) {
+            const dx = mr.left + b.cx - px, dy = mr.top + b.cy - py;
+            const d = Math.hypot(dx, dy) || 1;
+            if (d < R) {
+              let f = 1 - d / R; f *= f;
+              tX = (dx / d) * f * R * 0.16;
+              tY = -f * mr.height * 0.16;
+              tR = (dx / R) * f * 10;
+              tS = 1 + f * 0.1;
+            }
+          }
+          qx[i](tX); qy[i](tY); qr[i](tR); qs[i](tS);
+        });
+      };
+
+      /* ---------- Nút email "từ tính" ---------- */
+      const mx = gsap.quickTo(mail, 'x', { duration: 0.5, ease: 'power3' });
+      const my = gsap.quickTo(mail, 'y', { duration: 0.5, ease: 'power3' });
+
+      /* ---------- Gom mọi xử lý con trỏ vào đúng 1 lần mỗi khung hình ---------- */
+      let px = 0, py = 0, onLink = false, raf = 0;
+      const frame = () => {
+        raf = 0;
+        const fr = foot.getBoundingClientRect();
+        const mr = mark.getBoundingClientRect();
+
+        const inMark = !onLink && py > mr.top - 30 && py < mr.bottom + 30;
+        if (inMark) {
+          tx = px - fr.left; ty = py - fr.top;
+          if (!lensWant) { cx = tx; cy = ty; }    // lần đầu hiện: đặt ngay tại con trỏ, không bay từ chỗ cũ
+          showLens(true);
+        } else showLens(false);
+
+        onLink ? lift(null, 0, mr) : lift(px, py, mr);
+
+        const r = mail.getBoundingClientRect();
+        const dx = px - (r.left + r.width / 2), dy = py - (r.top + r.height / 2);
+        if (Math.hypot(dx, dy) < 140) { mx(dx * 0.25); my(dy * 0.35); } else { mx(0); my(0); }
+      };
+      foot.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+        px = e.clientX; py = e.clientY;
+        onLink = !!(e.target as Element).closest('a, button');
+        if (!raf) raf = requestAnimationFrame(frame);
+      });
+      foot.addEventListener('pointerleave', () => {
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        showLens(false); lift(null, 0, mark.getBoundingClientRect()); mx(0); my(0);
+      });
+    }
   }
 </script>

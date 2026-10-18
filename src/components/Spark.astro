@@ -1,165 +1,302 @@
 ---
 /* =========================================================
    SPARK.ASTRO - Section ghim màn hình, nền ĐEN (class "dark")
-   Cuộn trang -> hạt 3D biến hình + chữ chương đổi theo
-   Mobile: chữ ở trên, 3D ở dưới (cùng 1 màn hình ghim)
+   Cuộn trang -> một khối KÍNH LỎNG / NƯỚC biến hình qua 4 chương
+   (giọt nước -> tấm kính -> chữ </> bằng chất lỏng -> vòng ôm giọt)
+   Giọt nước bám theo con trỏ và hoà vào khối. Không viền, không gạch chân, không gradient.
+   Mobile: chữ ở trên, khối kính ở dưới (cùng 1 màn hình ghim)
    ========================================================= */
 
-// 4 chương: khớp thứ tự 4 hình trong hero3d.js (NỘI DUNG LÀ MẪU, sửa theo ý bạn)
+// 4 chương: khớp thứ tự 4 hình trong liquid.js (NỘI DUNG LÀ MẪU, sửa theo ý bạn)
 const chapters = [
-  { kicker: '1 · Ý tưởng',  title: 'Bắt đầu từ một câu hỏi.', desc: 'Bạn muốn người xem cảm thấy gì? Mình lắng nghe, rồi gom mọi thứ thành một lõi ý tưởng rõ ràng.' },
-  { kicker: '2 · Thiết kế', title: 'Phác thành hình thật.',   desc: 'Khung, nhịp chữ, màu sắc, chuyển động. Mỗi chi tiết đều có lý do để tồn tại.' },
-  { kicker: '3 · Code',     title: 'Viết cho thật mượt.',     desc: 'HTML, CSS, JavaScript cùng GSAP và Three.js. Nhẹ, nhanh, mượt từ điện thoại tới màn hình lớn.' },
-  { kicker: '4 · Ra mắt',   title: 'Lên sóng. Bấm là chạy.',  desc: 'Website có link để gửi cho khách, đo được, sửa được. Tia lửa thành thứ người ta muốn bấm vào.' },
+  { kicker: '1 · Ý tưởng',  title: 'Bắt đầu từ một câu hỏi.', desc: 'Bạn muốn người xem cảm thấy gì? Mình lắng nghe, rồi gom mọi thứ thành một lõi ý tưởng rõ ràng.', tags: ['Brief', 'Mục tiêu', 'Đối tượng'] },
+  { kicker: '2 · Thiết kế', title: 'Phác thành hình thật.',   desc: 'Khung, nhịp chữ, màu sắc, chuyển động. Mỗi chi tiết đều có lý do để tồn tại.', tags: ['Bố cục', 'Màu và chữ', 'Chuyển động'] },
+  { kicker: '3 · Code',     title: 'Viết cho thật mượt.',     desc: 'HTML, CSS, JavaScript cùng GSAP và Three.js. Nhẹ, nhanh, mượt từ điện thoại tới màn hình lớn.', tags: ['GSAP', 'Three.js', '60 fps'] },
+  { kicker: '4 · Ra mắt',   title: 'Lên sóng. Bấm là chạy.',  desc: 'Website có link để gửi cho khách, đo được, sửa được. Tia lửa thành thứ người ta muốn bấm vào.', tags: ['Link demo', 'Tốc độ', 'Đo lường'] },
 ];
 ---
 
 <section class="spark dark" id="spark">
-  <!-- Toàn bộ khối này sẽ bị ghim trong lúc cuộn -->
   <div class="spark__pin">
+
+    <!-- Canvas kính lỏng phủ kín vùng ghim, nằm phía sau chữ -->
+    <div class="spark__stage" id="spark-stage" aria-hidden="true"></div>
 
     <!-- ===== Cột chữ ===== -->
     <div class="spark__text">
-      <p class="label spark__eyebrow">Câu chuyện · cuộn để thắp lửa</p>
-
-      <!-- Các chương xếp chồng, chỉ 1 chương hiện tại một thời điểm -->
-      <div class="spark__chapters">
-        {chapters.map((c) => (
-          <article class="chapter">
-            <span class="chapter__kicker">{c.kicker}</span>
-            <h2 class="chapter__title">{c.title}</h2>
-            <p class="chapter__desc">{c.desc}</p>
-          </article>
-        ))}
+      <!-- Bộ đếm kiểu đồng hồ cơ: chữ số lăn lên xuống khi đổi chương -->
+      <div class="spark__top">
+        <div class="count" aria-hidden="true">
+          <span class="count__fix">0</span>
+          <span class="count__roll"><span class="count__col">{chapters.map((_, i) => <span>{i + 1}</span>)}</span></span>
+          <span class="count__of">/ 04</span>
+        </div>
+        <p class="label spark__eyebrow">Câu chuyện · cuộn để thắp lửa</p>
       </div>
 
-      <!-- Chấm chọn chương + thanh tiến độ -->
-      <div class="spark__nav">
+      <!-- Các chương xếp chồng trong cùng 1 ô lưới. Tiêu đề tách từng từ, mỗi từ nằm trong một mặt nạ -->
+      <div class="spark__chapters">
+        {chapters.map((c) => {
+          const words = c.title.split(' ');
+          return (
+            <article class="chapter">
+              <span class="chapter__kicker">{c.kicker}</span>
+              <h2 class="chapter__title" aria-label={c.title}>
+                {words.map((w, i) => (
+                  <Fragment><span class="w" aria-hidden="true"><span class="wi">{w}</span></span>{i < words.length - 1 && ' '}</Fragment>
+                ))}
+              </h2>
+              <p class="chapter__desc">{c.desc}</p>
+              <p class="tags">{c.tags.map((t) => <span>{t}</span>)}</p>
+            </article>
+          );
+        })}
+      </div>
+
+      <!-- Chọn chương kiểu iOS: chấm nhỏ, chương đang xem giãn thành viên thuốc và tự đầy lên theo tiến độ -->
+      <div class="pg" id="spark-pg" role="group" aria-label="Chọn chương">
         {chapters.map((c, i) => (
-          <button class="dot" data-i={i} aria-label={`Tới chương ${c.kicker}`}>{i + 1}</button>
+          <button class="pg__b" type="button" data-i={i} aria-label={`Tới chương ${c.kicker}`}>
+            <span class="pg__i"><i class="pg__f"></i></span>
+          </button>
         ))}
-        <span class="spark__track"><span class="spark__bar"></span></span>
       </div>
     </div>
 
-    <!-- ===== Cột 3D ===== -->
-    <div class="spark__stage" id="spark-stage" aria-label="Khối hạt 3D biến hình theo lúc cuộn trang"></div>
+    <!-- ===== Vị trí của khối kính (chỉ là chỗ giữ chỗ: cho JS biết khối nằm đâu và to cỡ nào) ===== -->
+    <div class="spark__wrap">
+      <p class="spark__hint" aria-hidden="true">
+        <span class="hint--fine">Rê chuột để kéo giọt nước · Kéo để xoay · Bấm để tạo sóng</span>
+        <span class="hint--touch">Chạm và kéo để khuấy · Kéo ngang để xoay</span>
+      </p>
+      <p class="spark__hud" aria-hidden="true"><b id="hud-fps">60</b> fps · <b id="hud-res">60</b>% nét</p>
+    </div>
   </div>
 </section>
 
-<!-- ============ CSS riêng của Spark ============ -->
 <style>
-  /* Khung ghim: đúng 1 màn hình, 2 cột */
+  .spark { --sa: 10 132 255; position: relative; }   /* màu chính theo chương (r g b), JS cập nhật khi cuộn */
+
   .spark__pin {
+    position: relative; overflow: hidden;
     height: 100svh;
-    display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 2rem;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 2rem;
     padding: 5rem var(--gutter) 2rem;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;   /* kéo chuột / nhấn giữ không bôi đen chữ */
+    touch-action: pan-y;
   }
-  .spark__text { min-width: 0; }
+
+  /* Canvas kính lỏng: phủ kín, nằm dưới chữ */
+  .spark__stage { position: absolute; inset: 0; z-index: 0; }
+
+  .spark__text { position: relative; z-index: 1; min-width: 0; align-self: center; display: flex; flex-direction: column; }
+
+  /* --- Bộ đếm --- */
+  .spark__top { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: clamp(1rem, 3vh, 2rem); }
+  .spark__eyebrow { margin: 0; padding-bottom: .7rem; }
+  .count {
+    display: flex; align-items: flex-end; gap: .04em;
+    font-size: clamp(3rem, 10vh, 6.5rem); font-weight: 700; line-height: 1; letter-spacing: -.04em;
+    font-variant-numeric: tabular-nums;
+  }
+  .count__fix { color: rgba(255, 255, 255, .22); }
+  .count__roll { display: block; height: 1em; overflow: hidden; }
+  .count__col { display: block; color: rgb(var(--sa)); will-change: transform; }
+  .count__col span { display: block; height: 1em; line-height: 1; }
+  .count__of { margin-left: .5em; padding-bottom: .5em; font-size: .22em; font-weight: 500; letter-spacing: 0; color: var(--text-dim); }
 
   /* --- Chữ --- */
-  .spark__eyebrow { margin-bottom: 1.4rem; }
-  /* Các chương xếp chồng trong CÙNG 1 ô lưới: khung tự cao bằng chương dài nhất, không bao giờ tràn */
   .spark__chapters { display: grid; }
-  .chapter { grid-area: 1 / 1; opacity: 0; visibility: hidden; }   /* ẩn sẵn, GSAP bật lên */
-  .chapter__kicker { display: block; font-weight: 600; color: var(--accent); margin-bottom: .8rem; }
+  .chapter { grid-area: 1 / 1; opacity: 0; visibility: hidden; }
+  .chapter__kicker { display: block; font-weight: 600; color: rgb(var(--sa)); margin-bottom: .8rem; }
   .chapter__title { font-size: var(--fs-h2); line-height: 1.04; margin-bottom: 1rem; max-width: 14ch; }
+  /* Mặt nạ cho từng từ (đệm trên/dưới để dấu tiếng Việt và đuôi chữ không bị cắt) */
+  .w { display: inline-block; overflow: hidden; vertical-align: top; padding: .16em 0 .14em; margin: -.16em 0 -.14em; }
+  .wi { display: inline-block; will-change: transform; }
   .chapter__desc { color: var(--text-dim); max-width: 38ch; font-size: clamp(1.05rem, 1.4vw, 1.25rem); line-height: 1.5; }
-
-  /* --- Chấm chương + thanh tiến độ --- */
-  .spark__nav { display: flex; align-items: center; gap: .5rem; margin-top: 2rem; flex-wrap: wrap; }
-  .dot {
-    width: 2.4rem; height: 2.4rem; border-radius: 50%;
-    background: var(--surface); color: var(--text-dim); font-size: .85rem; font-weight: 600;
-    transition: background .25s, color .25s;
+  .tags { display: flex; flex-wrap: wrap; gap: .45rem; margin: 1.2rem 0 0; }
+  .tags span {
+    display: inline-flex; align-items: center; padding: .34rem .85rem; border-radius: 999px;
+    background: rgba(255, 255, 255, .07); color: var(--text-dim); font-size: .82rem;
   }
-  .dot:hover { color: var(--text); }
-  .dot.is-active { background: var(--accent); color: var(--on-accent); }
-  .spark__track { flex: 1; min-width: 80px; height: 3px; border-radius: 2px; background: var(--line); margin-left: .8rem; overflow: hidden; }
-  .spark__bar { display: block; height: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; }
 
-  /* --- Khung 3D --- */
-  .spark__stage { width: 100%; height: 100%; min-height: 0; cursor: crosshair; touch-action: pan-y; }
+  /* --- Chọn chương: chấm, chương đang xem giãn thành viên thuốc đầy dần --- */
+  .pg { display: flex; align-items: center; margin: clamp(1rem, 3.5vh, 2rem) 0 0 -.3rem; }
+  .pg__b { padding: .8rem .3rem; border-radius: 999px; }              /* vùng chạm rộng, phần nhìn thấy chỉ là chấm nhỏ */
+  .pg__i {
+    position: relative; display: block; width: .5rem; height: .5rem; border-radius: 999px; overflow: hidden;
+    background: rgba(255, 255, 255, .28);
+    transition: width .6s cubic-bezier(.2, .9, .3, 1.25), background .3s;
+  }
+  .pg__b.is-active .pg__i { width: 2.9rem; background: rgba(255, 255, 255, .16); }
+  .pg__f { position: absolute; inset: 0; background: rgb(var(--sa)); transform: scaleX(0); transform-origin: left; }
+  .pg__b:active .pg__i { transform: scale(.92); }
+  .pg__b:focus-visible { outline: 2px solid rgb(var(--sa)); outline-offset: 0; }
+  @media (hover: hover) and (pointer: fine) {
+    .pg__b:not(.is-active):hover .pg__i { background: rgba(255, 255, 255, .5); }
+  }
 
-  /* --- Tablet và điện thoại (<=1000px): chữ trên, 3D dưới, vẫn trong 1 màn hình ghim --- */
+  /* --- Vị trí khối kính + lớp phủ --- */
+  .spark__wrap { position: relative; z-index: 1; align-self: stretch; min-height: 0; pointer-events: none; }
+
+  .spark__hint {
+    position: absolute; left: 50%; bottom: .2rem; transform: translateX(-50%); margin: 0;
+    padding: .42rem .95rem; border-radius: 999px; white-space: nowrap;
+    background: rgba(255, 255, 255, .08); color: var(--text-dim); font-size: .78rem; transition: opacity .5s;
+  }
+  .hint--fine { display: none; }
+  @media (hover: hover) and (pointer: fine) { .hint--fine { display: inline; } .hint--touch { display: none; } }
+  .spark.has-touched .spark__hint { opacity: 0; }
+
+  .spark__hud {
+    position: absolute; top: .2rem; right: .2rem; margin: 0;
+    font: 500 .75rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-dim);
+  }
+  .spark__hud b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* --- Tablet và điện thoại (<=1000px): chữ trên, khối kính dưới, vẫn trong 1 màn hình ghim --- */
   @media (max-width: 1000px) {
     .spark__pin { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: .8rem; padding: 4.2rem var(--gutter) 1rem; }
-    .spark__eyebrow { display: none; }                          /* tiết kiệm chỗ cho khối 3D */
+    .spark__eyebrow, .tags, .spark__hud { display: none; }
+    .spark__top { margin-bottom: .5rem; }
+    .count { font-size: 2.2rem; }
     .chapter__title { max-width: none; font-size: clamp(1.7rem, 6.4vw, 2.6rem); margin-bottom: .6rem; }
     .chapter__desc { max-width: none; font-size: .95rem; }
-    .spark__nav { margin-top: .8rem; }
-    .spark__stage { min-height: 30svh; }                        /* khối 3D không bao giờ bị ép về 0 */
+    .pg { margin-top: .4rem; }
+    .spark__wrap { min-height: 30svh; }
   }
 
-  /* --- Điện thoại thấp (iPhone SE...): thu nhỏ chữ thêm --- */
+  /* --- Điện thoại thấp (iPhone SE...) --- */
   @media (max-width: 1000px) and (max-height: 680px) {
+    .count { display: none; }
     .chapter__kicker { margin-bottom: .3rem; }
     .chapter__desc { font-size: .85rem; line-height: 1.4; }
-    .dot { width: 2.1rem; height: 2.1rem; }
   }
 
   /* --- Điện thoại xoay ngang: quay lại 2 cột --- */
   @media (max-height: 560px) and (orientation: landscape) {
     .spark__pin { grid-template-columns: 1fr 1fr; grid-template-rows: none; padding: 3.8rem var(--gutter) 1rem; gap: 1.5rem; }
+    .count { display: none; }
     .chapter__title { font-size: clamp(1.6rem, 4.5vw, 2.4rem); max-width: none; }
     .chapter__desc { font-size: .9rem; max-width: none; }
-    .spark__nav { margin-top: .8rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pg__i, .spark__hint { transition: none; }
   }
 </style>
 
-<!-- Giữ nguyên khối <script> cũ của Spark ở đây (chỉ sửa 1 dòng initHero3D như mục 4d) -->
-
-<!-- ============ JS riêng của Spark ============ -->
 <script>
   import gsap from 'gsap';
   import { ScrollTrigger } from 'gsap/ScrollTrigger';
-  import { initHero3D } from '../scripts/hero3d.js';
+  import { initLiquid } from '../scripts/liquid.js';
 
   gsap.registerPlugin(ScrollTrigger);
 
-  const stage = document.querySelector('#spark-stage');
-  const chapters = gsap.utils.toArray('.chapter');
-  const dots = gsap.utils.toArray('.dot');
-  const bar = document.querySelector('.spark__bar');
+  const root = document.querySelector('.spark');
+  const holder = document.querySelector('#spark-stage');
 
-  if (stage) {
-    // 1) Tạo cảnh 3D, tắt "click đổi hình" vì hình do cuộn trang quyết định
-        const api = initHero3D(stage, { clickCycles: false, neutral: [0.96, 0.96, 0.97] });  // hạt trung tính màu trắng trên nền đen
+  if (root && holder) {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const T = (s) => (reduce ? 0.01 : s);          // thời lượng: gần như tức thì nếu người dùng tắt hiệu ứng
 
-    // 2) HÀM show(i): chỉ đổi CHỮ chương + chấm. Hình 3D do api.setScrub lo
+    /* ---------- Màu: chỉ MỘT màu chính (xanh Apple) + trắng ngà, dùng cho mọi chương ----------
+       a = màu chính (vệt màu trong kính, màu hấp thụ của kính, màu chữ), c = trắng ngà (vệt mảnh + ký hiệu)
+       Muốn đổi tông: sửa 0x0a84ff (vd 0xbf5af2 tím, 0x30d158 xanh lá, 0xff9f0a cam) */
+    const hex = (h) => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];
+    const MAIN = hex(0x0a84ff), WHITE = hex(0xf5f5f7);
+    const PALETTE = [0, 1, 2, 3].map(() => ({ a: MAIN, c: WHITE }));
+
+    /* 1) Khối kính lỏng: hình do cuộn trang quyết định, giọt nước bám theo con trỏ */
+    const pin = root.querySelector('.spark__pin');
+    const wrap = root.querySelector('.spark__wrap');
+    const api = initLiquid(holder, { palette: PALETTE, focus: wrap, pointerTarget: pin, calm: reduce });
+
+    // Màu chính của kính cũng là màu của chữ, thanh tiến độ, số đếm: cập nhật 1 biến CSS cho cả section
+    let lastAcc = '';
+    api.onScrubFrame = (r, g, b) => {
+      const s = `${(r * 255) | 0} ${(g * 255) | 0} ${(b * 255) | 0}`;
+      if (s !== lastAcc) { lastAcc = s; root.style.setProperty('--sa', s); }
+    };
+
+    /* 2) Các chương: mỗi từ của tiêu đề trượt lên từ mặt nạ, phần còn lại hiện nối theo */
+    const chs = gsap.utils.toArray('.chapter').map((el) => ({
+      el,
+      w: [...el.querySelectorAll('.wi')],
+      r: [...el.querySelectorAll('.chapter__kicker, .chapter__desc, .tags span')],
+      tl: null,
+    }));
+    chs.forEach((c) => { gsap.set(c.w, { yPercent: 115 }); gsap.set(c.r, { autoAlpha: 0 }); });
+
+    const enter = (c, dir) => {
+      c.tl?.kill();
+      gsap.set(c.el, { autoAlpha: 1 });
+      c.tl = gsap.timeline()
+        .fromTo(c.w, { yPercent: 115 * dir }, { yPercent: 0, duration: T(1), ease: 'expo.out', stagger: T(0.05) }, 0)
+        .fromTo(c.r, { autoAlpha: 0, y: 18 * dir }, { autoAlpha: 1, y: 0, duration: T(0.8), ease: 'power3.out', stagger: T(0.07) }, T(0.28));
+    };
+    const leave = (c, dir) => {
+      c.tl?.kill();
+      c.tl = gsap.timeline({ onComplete: () => gsap.set(c.el, { autoAlpha: 0 }) })
+        .to(c.w, { yPercent: -115 * dir, duration: T(0.5), ease: 'power3.in', stagger: T(0.025) }, 0)
+        .to(c.r, { autoAlpha: 0, y: -14 * dir, duration: T(0.35), ease: 'power2.in' }, 0);
+    };
+
+    /* 3) Bộ đếm cơ + chọn chương */
+    const col = root.querySelector('.count__col');
+    const pgs = [...root.querySelectorAll('.pg__b')];
+    const fills = pgs.map((b) => b.querySelector('.pg__f'));
+
     let active = -1;
     function show(i) {
       if (i === active) return;
+      const dir = i > active ? 1 : -1;               // lần đầu (active = -1) coi như đi tới
+      const prev = active;
       active = i;
-      chapters.forEach((c, k) => {
-        gsap.to(c, {
-          autoAlpha: k === i ? 1 : 0,
-          y: k === i ? 0 : (k < i ? -40 : 40),
-          duration: 0.6, overwrite: true,
-        });
+      chs.forEach((c, k) => {
+        if (k === i) enter(c, dir);
+        else if (k === prev) leave(c, dir);
+        else { c.tl?.kill(); gsap.set(c.el, { autoAlpha: 0 }); }
       });
-      dots.forEach((d, k) => d.classList.toggle('is-active', k === i));
+      gsap.to(col, { yPercent: -25 * i, duration: T(0.8), ease: 'expo.out', overwrite: true });
+      pgs.forEach((b, k) => b.classList.toggle('is-active', k === i));
+      if (prev !== -1) api.pulse();                  // đổi chương: mặt nước sánh lên, sóng gợn lan khắp khối
     }
     show(0);
 
-    // 3) Ghim section, cuộn 300% chiều cao màn hình = 4 chương
+    /* 4) Ghim section: cuộn 400% chiều cao màn hình = 4 chương */
     const st = ScrollTrigger.create({
-      trigger: '.spark',
+      trigger: root,
       start: 'top top',
-      end: '+=300%',
+      end: '+=400%',
       pin: true,
+      anticipatePin: 1,
       onUpdate: (self) => {
-        const p = self.progress;                                    // 0..1
-        show(Math.min(3, Math.floor(p * 4)));                       // chữ: đổi ở ranh giới chương
-        api.setScrub(Math.min(3, Math.max(0, p * 4 - 0.5)));        // hình: tâm mỗi chương = 1 hình trọn vẹn
-        gsap.set(bar, { scaleX: p });                               // thanh tiến độ
+        const p = self.progress;
+        const i = Math.min(3, Math.floor(p * 4));
+        show(i);
+        api.setScrub(gsap.utils.clamp(0, 3, p * 4 - 0.5));     // hình: tâm mỗi chương = 1 hình trọn vẹn
+        fills.forEach((f, k) => { f.style.transform = `scaleX(${k < i ? 1 : k === i ? p * 4 - i : 0})`; });
       },
     });
 
-    // 4) Bấm chấm: cuộn mượt tới giữa chương đó
-    dots.forEach((d, i) => d.addEventListener('click', () => {
+    // Bấm chấm: cuộn mượt tới giữa chương đó
+    pgs.forEach((b, i) => b.addEventListener('click', () => {
       const y = st.start + ((i + 0.5) / 4) * (st.end - st.start);
       window.__lenis ? window.__lenis.scrollTo(y, { duration: 1.4 }) : window.scrollTo({ top: y, behavior: 'smooth' });
     }));
+
+    // Gợi ý biến mất sau lần tương tác đầu tiên
+    pin.addEventListener('pointerdown', () => root.classList.add('has-touched'), { once: true });
+
+    /* 5) Bảng thông số: fps thật và độ nét hiện tại (tự hạ khi máy yếu), chỉ cập nhật khi section đang ghim */
+    const hudF = root.querySelector('#hud-fps');
+    const hudR = root.querySelector('#hud-res');
+    setInterval(() => {
+      if (!st.isActive || document.hidden) return;
+      const s = api.stats();
+      hudF.textContent = String(Math.min(144, Math.round(s.fps)));
+      hudR.textContent = String(s.res);
+    }, 600);
   }
 </script>

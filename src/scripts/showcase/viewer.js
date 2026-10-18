@@ -1,9 +1,11 @@
 /* =========================================================
    VIEWER.JS - Khung xem demo toàn màn hình
    - Thẻ phóng to thành khung xem (clip-path), đóng thì thu về đúng thẻ
-   - iframe chỉ nạp khi mở, gỡ hẳn khi đóng
+   - iframe chỉ nạp khi mở xong animation, gỡ hẳn khi đóng
    - Đổi thiết bị: trang hiển thị đúng kích thước thật rồi thu nhỏ vừa khung
    - Link riêng #demo=slug, nút Back đóng khung, phím tắt
+   - Tối ưu: dừng Lenis khi mở, debounce khi bấm ←/→, gom layout vào rAF,
+     đặt kích thước iframe TRƯỚC khi gán src
    Trả về: { open(slug, cardEl), openFromHash() }
    ========================================================= */
 import gsap from 'gsap';
@@ -36,28 +38,29 @@ export function initViewer({ demos, getList }) {
   /* ----- Trạng thái ----- */
   let cur = null, isOpen = false, device = 'desktop', deviceChosen = false;
   let iframe = null, origin = null, returnFocus = null, hintTimer, toastTimer, pendingCb = null;
+  let loadTimer = 0, rafL = 0;
 
   /* ---------- HÀM 1: tiện ích nhỏ ---------- */
-  const parseHash = () => (location.hash.match(/^#demo=([\w-]+)/) || [])[1] || null;   // lấy slug từ #demo=slug
-  const absUrl = (u) => new URL(u, location.href).href;                               // đổi đường dẫn nội bộ thành link đầy đủ
+  const parseHash = () => (location.hash.match(/^#demo=([\w-]+)/) || [])[1] || null;
+  const absUrl = (u) => new URL(u, location.href).href;
   const defaultDevice = () => (innerWidth < 1000 ? 'mobile' : 'desktop');
+
   /* ---------- HÀM 2: điền thông tin demo lên thanh trên ---------- */
-    /* ---------- HÀM 2: điền thông tin demo lên thanh trên ---------- */
   function fillUI(d) {
     titleEl.textContent = d.title;
     metaEl.textContent = [d.type, d.topic, d.styles.join(', '), d.tech.join(', ')].join(' · ');
-    visit.href = absUrl(d.siteUrl || d.url);                      // nút Visit site: mở đúng trang demo ở tab mới
+    visit.href = absUrl(d.siteUrl || d.url);
     visit.setAttribute('aria-label', `Mở ${d.title} ở tab mới`);
-    viewer.style.setProperty('--glow', d.color);                                                // màu quầng sáng phía sau khung (cho kính có màu để nhòe)
-    loader.style.setProperty('--thumb', d.thumb ? `url("${absUrl(d.thumb)}")` : 'none');        // ảnh thumbnail làm màn hình chờ
+    loader.style.setProperty('--thumb', d.thumb ? `url("${absUrl(d.thumb)}")` : 'none');
     const many = getList().length > 1;
     prevBtn.disabled = nextBtn.disabled = !many;
     hint.classList.remove('is-warn');
   }
 
-  /* ---------- HÀM 3: gỡ iframe (giải phóng bộ nhớ) ---------- */
+  /* ---------- HÀM 3: gỡ iframe (giải phóng bộ nhớ, dừng WebGL) ---------- */
   function killIframe() {
     clearTimeout(hintTimer);
+    clearTimeout(loadTimer);
     if (!iframe) return;
     iframe.src = 'about:blank';
     iframe.remove();
@@ -74,22 +77,18 @@ export function initViewer({ demos, getList }) {
     iframe.allow = 'fullscreen; autoplay';
     iframe.addEventListener('load', () => {
       clearTimeout(hintTimer);
-      loader.classList.add('is-done');          // tắt màn hình chờ
+      loader.classList.add('is-done');
       iframe.classList.add('is-loaded');
     });
-    iframe.src = absUrl(cur.url);
     screen.appendChild(iframe);
-    layoutFrame();
-    // Quá 7 giây chưa tải xong: nhắc người dùng dùng nút Visit site (trang có thể chặn nhúng)
+    layoutFrame();                          // có kích thước đúng rồi mới nạp (demo WebGL khỏi phải resize lại)
+    iframe.src = absUrl(cur.url);
     hintTimer = setTimeout(() => hint.classList.add('is-warn'), 7000);
   }
 
-  /* ---------- HÀM 5: tính kích thước khung + tỉ lệ thu nhỏ theo thiết bị đang chọn ----------
-     Trang trong iframe luôn có kích thước thật (vd 1280px) rồi bị thu nhỏ bằng transform: scale,
-     nên trên màn hình nhỏ vẫn thấy ĐÚNG giao diện máy tính */
+  /* ---------- HÀM 5: tính kích thước khung + tỉ lệ thu nhỏ theo thiết bị đang chọn ---------- */
   function layoutFrame() {
-        const d = DEVICES[device];
-    // Hai thanh kính nổi nằm đè lên sân khấu: chừa chỗ phía trên và phía dưới cho chúng
+    const d = DEVICES[device];
     stage.style.paddingTop = bar.offsetHeight + 22 + 'px';
     stage.style.paddingBottom = (foot.offsetHeight ? foot.offsetHeight + 22 : 12) + 'px';
     const cs = getComputedStyle(stage);
@@ -98,9 +97,9 @@ export function initViewer({ demos, getList }) {
     if (availW <= 0 || availH <= 0) return;
 
     const b = d.b;
-    let scale = Math.min(1, (availW - 2 * b) / d.w);                                   // vừa chiều rộng
-    if (isFinite(d.maxH)) scale = Math.min(scale, (availH - 2 * b) / d.maxH);          // máy cầm tay: vừa cả chiều cao
-    let innerH = (availH - 2 * b) / scale;                                             // chiều cao ảo lấp đầy khung
+    let scale = Math.min(1, (availW - 2 * b) / d.w);
+    if (isFinite(d.maxH)) scale = Math.min(scale, (availH - 2 * b) / d.maxH);
+    let innerH = (availH - 2 * b) / scale;
     if (isFinite(d.maxH)) innerH = Math.min(innerH, d.maxH);
 
     frame.style.width = d.w * scale + 2 * b + 'px';
@@ -118,7 +117,7 @@ export function initViewer({ demos, getList }) {
   /* ---------- HÀM 6: đổi thiết bị ---------- */
   function setDevice(dev, chosen) {
     device = dev;
-    if (chosen) deviceChosen = true;           // người dùng đã tự chọn: lần mở sau giữ nguyên
+    if (chosen) deviceChosen = true;
     devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
     frame.dataset.device = dev;
     layoutFrame();
@@ -126,17 +125,17 @@ export function initViewer({ demos, getList }) {
 
   /* ---------- HÀM 7: hiệu ứng mở (thẻ phóng to ra toàn màn hình) ---------- */
   function animateIn(onDone) {
-  gsap.killTweensOf(viewer);
-  const r = origin?.getBoundingClientRect();
-  const ok = r && r.width > 0 && r.bottom > 0 && r.top < innerHeight;
-  const from = ok
-    ? `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round 26px)`
-    : 'inset(50% 50% 50% 50% round 26px)';
-  gsap.fromTo(viewer, { clipPath: from, opacity: 1 },
-    { clipPath: 'inset(0px 0px 0px 0px round 0px)', duration: reduce ? 0 : 0.7, ease: 'power4.inOut',
-      onComplete: () => { viewer.style.clipPath = 'none'; layoutFrame(); onDone?.(); } });
-  gsap.from([bar, foot], { opacity: 0, y: (i) => (i ? 12 : -12), duration: 0.5, delay: reduce ? 0 : 0.4, clearProps: 'all' });
-}
+    gsap.killTweensOf(viewer);
+    const r = origin?.getBoundingClientRect();
+    const ok = r && r.width > 0 && r.bottom > 0 && r.top < innerHeight;
+    const from = ok
+      ? `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round 26px)`
+      : 'inset(50% 50% 50% 50% round 26px)';
+    gsap.fromTo(viewer, { clipPath: from, opacity: 1 },
+      { clipPath: 'inset(0px 0px 0px 0px round 0px)', duration: reduce ? 0 : 0.5, ease: 'power3.inOut',
+        onComplete: () => { viewer.style.clipPath = 'none'; layoutFrame(); onDone?.(); } });
+    gsap.from([bar, foot], { opacity: 0, y: (i) => (i ? 12 : -12), duration: 0.4, delay: reduce ? 0 : 0.25, clearProps: 'all' });
+  }
 
   /* ---------- HÀM 8: MỞ khung xem demo (hoặc chuyển sang demo khác nếu đang mở) ---------- */
   function open(slug, originEl = null, { push = true } = {}) {
@@ -148,18 +147,21 @@ export function initViewer({ demos, getList }) {
     fillUI(d);
 
     if (!wasOpen) {
-  isOpen = true;
-  if (!deviceChosen) setDevice(defaultDevice(), false);
-  returnFocus = document.activeElement;
-  viewer.hidden = false;
-  lockScroll();
-  if (push) history.pushState({ scDemo: slug }, '', '#demo=' + slug);
-  animateIn(() => { if (isOpen && !iframe) loadIframe(); });   // đợi mở xong mới nạp demo
-  closeBtn.focus({ preventScroll: true });
-} else {
-  history.replaceState(history.state?.scDemo ? { scDemo: slug } : null, '', '#demo=' + slug);
-  loadIframe();                                                  // đang mở mà đổi demo: nạp ngay
-}
+      isOpen = true;
+      if (!deviceChosen) setDevice(defaultDevice(), false);
+      returnFocus = document.activeElement;
+      viewer.hidden = false;
+      lockScroll();
+      window.__lenis?.stop();                    // trang chính ngừng render ngầm khi xem demo
+      if (push) history.pushState({ scDemo: slug }, '', '#demo=' + slug);
+      animateIn(() => { if (isOpen && !iframe) loadIframe(); });   // đợi mở xong mới nạp demo
+      closeBtn.focus({ preventScroll: true });
+    } else {
+      history.replaceState(history.state?.scDemo ? { scDemo: slug } : null, '', '#demo=' + slug);
+      killIframe();                              // gỡ demo cũ ngay
+      loader.classList.remove('is-done');
+      loadTimer = setTimeout(loadIframe, 200);   // debounce: bấm ←/→ liên tục chỉ nạp demo cuối
+    }
   }
 
   /* ---------- HÀM 9: ĐÓNG (thu khung về đúng thẻ) ---------- */
@@ -167,13 +169,14 @@ export function initViewer({ demos, getList }) {
     if (!isOpen) return;
     isOpen = false;
     gsap.killTweensOf(viewer);
-    if (parseHash()) history.replaceState(null, '', location.pathname + location.search);   // gỡ #demo=... khỏi link
+    if (parseHash()) history.replaceState(null, '', location.pathname + location.search);
 
     const finish = () => {
       killIframe();
       viewer.hidden = true;
       viewer.style.clipPath = ''; viewer.style.opacity = '';
       unlockScroll();
+      window.__lenis?.start();
       returnFocus?.focus?.({ preventScroll: true });
       cb?.();
     };
@@ -184,10 +187,10 @@ export function initViewer({ demos, getList }) {
       gsap.set(viewer, { clipPath: 'inset(0px 0px 0px 0px round 0px)' });
       gsap.to(viewer, {
         clipPath: `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round 26px)`,
-        duration: reduce ? 0 : 0.55, ease: 'power3.inOut', onComplete: finish,
+        duration: reduce ? 0 : 0.5, ease: 'power3.inOut', onComplete: finish,
       });
     } else {
-      gsap.to(viewer, { opacity: 0, duration: reduce ? 0 : 0.3, onComplete: finish });   // thẻ gốc không còn trên màn hình: mờ dần
+      gsap.to(viewer, { opacity: 0, duration: reduce ? 0 : 0.3, onComplete: finish });
     }
   }
 
@@ -235,7 +238,7 @@ export function initViewer({ demos, getList }) {
   copyBtn.addEventListener('click', copyLink);
   devBtns.forEach((b) => b.addEventListener('click', () => setDevice(b.dataset.d, true)));
 
-  // "Tôi muốn web như này": đóng khung, lưu tên demo, báo cho phần Liên hệ (làm ở bước sau) rồi cuộn xuống
+  // "Tôi muốn web như này": đóng khung, lưu tên demo, báo cho phần Liên hệ rồi cuộn xuống
   wantBtn.addEventListener('click', () => {
     const detail = { slug: cur.slug, title: cur.title };
     try { sessionStorage.setItem('corespark:inquiry', JSON.stringify(detail)); } catch {}
@@ -252,7 +255,7 @@ export function initViewer({ demos, getList }) {
     if (e.key === 'Escape') { e.preventDefault(); requestClose(); }
     else if (e.key === 'ArrowLeft') step(-1);
     else if (e.key === 'ArrowRight') step(1);
-        else if (['1', '2'].includes(e.key)) setDevice(ORDER[Number(e.key) - 1], true);
+    else if (['1', '2'].includes(e.key)) setDevice(ORDER[Number(e.key) - 1], true);
     else if (e.key === 'Tab') trapFocus(e);
   });
 
@@ -263,7 +266,11 @@ export function initViewer({ demos, getList }) {
     else if (isOpen) { const cb = pendingCb; pendingCb = null; closeNow(cb); }
   });
 
-  new ResizeObserver(() => { if (isOpen) layoutFrame(); }).observe(stage);   // đổi cỡ cửa sổ / xoay điện thoại
+  // Đổi cỡ cửa sổ / xoay điện thoại: quan sát viewer (không phải stage, tránh vòng lặp) và gom vào 1 khung hình
+  new ResizeObserver(() => {
+    if (!isOpen || rafL) return;
+    rafL = requestAnimationFrame(() => { rafL = 0; layoutFrame(); });
+  }).observe(viewer);
 
   return {
     open: (slug, el) => open(slug, el),

@@ -10,9 +10,9 @@
     "date": "2026-10-14",
     "featured": true,
     "mobile": true,
-    "color": "#dbeafe",
-    "thumb": "/thumbs/schedule-planner.jpg",
-    "url": "https://duyanh-dev.github.io/schedule-planing/"
+    "thumb": "/thumbs/schedule-planner.png",
+    "url": "https://duyanh-dev.github.io/schedule-planing/",
+    "localUrl": "/demos/schedule-planing/index.html"
   },
   {
     "slug": "tripplanner-landing",
@@ -25,9 +25,9 @@
     "date": "2026-10-15",
     "featured": true,
     "mobile": true,
-    "color": "#e0f2fe",
-    "thumb": "/thumbs/tripplanner-landing.jpg",
-    "url": "/demos/sample/index.html?t=TripPlanner&c=0a84ff&m=light&s=glass"
+    "thumb": "/thumbs/tripplanner-landing.png",
+    "url": "https://duyanh-dev.github.io/tripPlanner-landingpage/",
+    "localUrl": "/demos/tripPlanner-landingpage/index.html"
   },
   {
     "slug": "aurora-landing",
@@ -40,9 +40,9 @@
     "date": "2026-09-28",
     "featured": true,
     "mobile": true,
-    "color": "#ede9fe",
     "thumb": "/thumbs/aurora-landing.jpg",
-    "url": "/demos/sample/index.html?t=Aurora&c=5e5ce6&m=light&s=plain"
+    "url": "/demos/sample/index.html?t=Aurora&c=5e5ce6&m=light&s=plain",
+    "localUrl": "/demos/aurora-landing/index.html"
   },
   {
     "slug": "folio-studio",
@@ -55,9 +55,9 @@
     "date": "2026-09-12",
     "featured": true,
     "mobile": true,
-    "color": "#ffedd5",
     "thumb": "/thumbs/folio-studio.jpg",
-    "url": "/demos/sample/index.html?t=Folio&c=ff9f0a&m=dark&s=brutal"
+    "url": "/demos/sample/index.html?t=Folio&c=ff9f0a&m=dark&s=brutal",
+    "localUrl": "/demos/folio-studio/index.html"
   },
   {
     "slug": "brand-portfolio",
@@ -70,9 +70,9 @@
     "date": "2026-09-02",
     "featured": false,
     "mobile": true,
-    "color": "#fce7f3",
     "thumb": "/thumbs/brand-portfolio.jpg",
-    "url": "/demos/sample/index.html?t=Brand&c=ff375f&m=light&s=plain"
+    "url": "/demos/sample/index.html?t=Brand&c=ff375f&m=light&s=plain",
+    "localUrl": "/demos/brand-portfolio/index.html"
   },
   {
     "slug": "orbit-shop",
@@ -85,10 +85,10 @@
     "date": "2026-08-30",
     "featured": true,
     "mobile": true,
-    "color": "#dcfce7",
     "preview": false,
     "thumb": "/thumbs/orbit-shop.jpg",
-    "url": "/demos/sample/index.html?t=Orbit&c=30d158&m=dark&s=plain"
+    "url": "/demos/sample/index.html?t=Orbit&c=30d158&m=dark&s=plain",
+    "localUrl": "/demos/orbit-shop/index.html"
   },
   {
     "slug": "pulse-dashboard",
@@ -101,9 +101,9 @@
     "date": "2026-08-02",
     "featured": false,
     "mobile": false,
-    "color": "#dbeafe",
     "thumb": "/thumbs/pulse-dashboard.jpg",
-    "url": "/demos/sample/index.html?t=Pulse&c=0a84ff&m=dark&s=plain"
+    "url": "/demos/sample/index.html?t=Pulse&c=0a84ff&m=dark&s=plain",
+    "localUrl": "/demos/pulse-dashboard/index.html"
   },
   {
     "slug": "coffee-corner",
@@ -116,9 +116,9 @@
     "date": "2026-07-18",
     "featured": false,
     "mobile": true,
-    "color": "#ffedd5",
     "thumb": "/thumbs/coffee-corner.jpg",
-    "url": "/demos/sample/index.html?t=Coffee%20Corner&c=c47a2c&m=light&s=plain"
+    "url": "/demos/sample/index.html?t=Coffee%20Corner&c=c47a2c&m=light&s=plain",
+    "localUrl": "/demos/coffee-corner/index.html"
   },
   {
     "slug": "nebula",
@@ -131,11 +131,11 @@
     "date": "2026-07-01",
     "featured": true,
     "mobile": true,
-    "color": "#ede9fe",
     "preview": false,
     "thumb": "/thumbs/nebula.jpg",
     "thumbWait": 3000,
-    "url": "/demos/sample/index.html?t=Nebula&c=bf5af2&m=dark&s=glass"
+    "url": "/demos/sample/index.html?t=Nebula&c=bf5af2&m=dark&s=glass",
+    "localUrl": "/demos/nebula/index.html"
   },
   {
     "slug": "glass-bank",
@@ -148,10 +148,10 @@
     "date": "2026-06-10",
     "featured": false,
     "mobile": false,
-    "color": "#cffafe",
     "preview": false,
     "thumb": "/thumbs/glass-bank.jpg",
-    "url": "/demos/sample/index.html?t=Glass%20Bank&c=40c8e0&m=dark&s=glass"
+    "url": "/demos/sample/index.html?t=Glass%20Bank&c=40c8e0&m=dark&s=glass",
+    "localUrl": "/demos/glass-bank/index.html"
   },
   {
     "slug": "paper-blog",
@@ -164,9 +164,9 @@
     "date": "2026-05-22",
     "featured": false,
     "mobile": true,
-    "color": "#ffe4e6",
     "thumb": "/thumbs/paper-blog.jpg",
-    "url": "/demos/sample/index.html?t=Paper&c=ff375f&m=light&s=plain"
+    "url": "/demos/sample/index.html?t=Paper&c=ff375f&m=light&s=plain",
+    "localUrl": "/demos/paper-blog/index.html"
   },
   {
     "slug": "brutal-agency",
@@ -179,8 +179,8 @@
     "date": "2026-05-02",
     "featured": false,
     "mobile": true,
-    "color": "#fef9c3",
     "thumb": "/thumbs/brutal-agency.jpg",
-    "url": "/demos/sample/index.html?t=Brutal&c=ffd60a&m=dark&s=brutal"
+    "url": "/demos/sample/index.html?t=Brutal&c=ffd60a&m=dark&s=brutal",
+    "localUrl": "/demos/brutal-agency/index.html"
   }
 ]

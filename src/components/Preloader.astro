@@ -1,6 +1,6 @@
 ---
 /* =========================================================
-   PRELOADER.ASTRO v3.1 - Giọt kính lỏng WebGL (Three.js), không gradient
+   PRELOADER.ASTRO v3.2 - Giọt kính lỏng WebGL (Three.js), không gradient
    - Kính thật: khúc xạ + tách màu (transmission), biến dạng như chất lỏng bằng vertex shader
    - 4 viên màu phẳng quay BÊN TRONG giọt kính, chỉ thấy qua khúc xạ
    - Rơi xuống -> squash & stretch -> lắc mạnh dần theo tiến độ
@@ -9,6 +9,8 @@
    - An toàn Safari iOS: không CSS filter trên SVG, không backdrop-filter
    - v3.1: canvas luôn nhỏ (rơi bằng CSS transform), làm mượt biên độ liquid,
            degrade() không recompile shader, resize() chỉ setSize khi thật sự đổi
+   - v3.2: giọt nước thực tế hơn: 2 mode l=2 + mode l=3 + xoắn thân giọt (4 lò xo độc lập),
+           squash/stretch bảo toàn thể tích, kéo thon theo vận tốc rơi
    Cần:  npm i three gsap
    ========================================================= */
 const brand = [...'CoreSpark'];
@@ -87,6 +89,8 @@ const brand = [...'CoreSpark'];
   .pl-sv { grid-area: 1 / 1; white-space: pre; }
   .pl-sw { display: inline-block; overflow: hidden; vertical-align: top; padding: .55em 0 .15em; margin: -.55em 0 -.15em; }   /* mask từng ký tự, chừa chỗ cho dấu tiếng Việt */
   .pl-sc { display: inline-block; }
+
+  @media (pointer: coarse) { .pl-ring { display: none !important; } }
 </style>
 
 <script>
@@ -177,8 +181,13 @@ const brand = [...'CoreSpark'];
     backdrop.position.z = -3;
     scene.add(backdrop);
 
-    /* Giọt kính: transmission + biến dạng liquid trong vertex shader (có tính lại normal) */
-    const U = { uTime: { value: 0 }, uAmp: { value: 0.07 }, uOsc: { value: 0 }, uAx: { value: { x: 0, y: 1, z: 0 } } };
+    /* Giọt kính: transmission + biến dạng liquid trong vertex shader (có tính lại normal)
+       v3.2: 3 mode dao động (l=2 trục chính, l=2 trục phụ, l=3 lệch quả lê) + xoắn quanh trục chính */
+    const U = {
+      uTime: { value: 0 }, uAmp: { value: 0.07 },
+      uOsc: { value: 0 }, uOsc2: { value: 0 }, uOsc3: { value: 0 }, uTw: { value: 0 },
+      uAx: { value: { x: 0, y: 1, z: 0 } }, uAx2: { value: { x: 0, y: 0, z: 1 } },
+    };
     const mat = new MeshPhysicalMaterial({
       color: 0xffffff, metalness: 0, roughness: 0.04,
       transmission: 1, thickness: 1.4, ior: 1.38,
@@ -189,7 +198,9 @@ const brand = [...'CoreSpark'];
       Object.assign(s.uniforms, U);
       s.vertexShader = s.vertexShader
         .replace('#include <common>', `#include <common>
-          uniform float uTime; uniform float uAmp; uniform float uOsc; uniform vec3 uAx;
+          uniform float uTime; uniform float uAmp;
+          uniform float uOsc; uniform float uOsc2; uniform float uOsc3; uniform float uTw;
+          uniform vec3 uAx; uniform vec3 uAx2;
           float fld(vec3 p){
             float t = uTime;
             float w = sin(p.y*1.7 + t*0.55) * 0.6 + sin(p.z*1.4 - t*0.42) * 0.4;
@@ -198,10 +209,19 @@ const brand = [...'CoreSpark'];
             float c = sin(p.z*1.8 + t*0.50 + sin(p.x*1.3 - t*0.40)*1.0);
             return uAmp * (a + b + c) * 0.3333;
           }
+          vec3 twist(vec3 p, vec3 a, float ang){
+            float c = cos(ang), s = sin(ang);
+            return p*c + cross(a,p)*s + a*dot(a,p)*(1.0-c);   // Rodrigues
+          }
           vec3 dsp(vec3 p){
             p = normalize(p);
-            float d = dot(p, normalize(uAx));
-            float r = 1.0 + fld(p) + uOsc * 0.5 * (3.0*d*d - 1.0);   // mode l=2: giọt nước dài ra / dẹt lại
+            vec3 a1 = normalize(uAx), a2 = normalize(uAx2);
+            float d1 = dot(p, a1), d2 = dot(p, a2);
+            vec3 q = twist(p, a1, uTw * d1);                         // uốn xoắn thân giọt
+            float r = 1.0 + fld(q)
+                    + uOsc  * 0.5 * (3.0*d1*d1 - 1.0)                // l=2 trục chính: dài ra / dẹt lại
+                    + uOsc2 * 0.5 * (3.0*d2*d2 - 1.0)                // l=2 trục phụ: lắc theo hướng thứ hai
+                    + uOsc3 * 0.5 * (5.0*d1*d1*d1 - 3.0*d1);         // l=3: lệch như giọt / quả lê
             return p * r;
           }`)
         .replace('#include <beginnormal_vertex>', `
@@ -215,7 +235,7 @@ const brand = [...'CoreSpark'];
           #endif`)
         .replace('#include <begin_vertex>', 'vec3 transformed = p0;');
     };
-    mat.customProgramCacheKey = () => 'pl-liquid-glass';
+    mat.customProgramCacheKey = () => 'pl-liquid-glass-v2';
 
     const orb = new Group();
     const glass = new Mesh(new IcosahedronGeometry(1, 16), mat);
@@ -232,6 +252,8 @@ const brand = [...'CoreSpark'];
     let tx = 0, ty = 0, px = 0, py = 0;
     let amp = 0.07;                  // biên độ liquid đã làm mượt
     let osc = 0, vosc = 0, t0 = -1;  // lò xo dao động của giọt nước (osc = độ dài/dẹt, vosc = vận tốc)
+    let osc2 = 0, vosc2 = 0, osc3 = 0, vosc3 = 0, tw = 0, vtw = 0;   // mode l=2 phụ, l=3, xoắn
+    let lastY = 0, stretch = 0;      // kéo thon theo vận tốc rơi
     let wave = null;                 // sóng sáng chạy qua chữ CoreSpark
     let curV = null, curChars = [];  // dòng trạng thái hiện tại (để lăn chữ khi đổi bước)
     let veilC = null, vctx = null, VW = 0, VH = 0, VDPR = 1, vr = 0, va = 1;
@@ -295,19 +317,30 @@ const brand = [...'CoreSpark'];
       amp += ((0.07 + 0.05 * (prog.v / 100) + st.kick + st.pulse) - amp) * kk;
       U.uAmp.value = amp;
 
-      /* Lò xo dưới-giảm-chấn: giọt nước tự lắc nhẹ, dài ra rồi dẹt lại, trục dao động xoay chậm */
+      /* 4 lò xo dưới-giảm-chấn độc lập, tần số khác nhau -> chuyển động hữu cơ, không lặp */
       const h = Math.min(dt, 50) / 1000;
-      const otgt = 0.03 * Math.sin(lt * 2.1) + 0.012 * Math.sin(lt * 3.3 + 1);
-      vosc += (-38 * (osc - otgt) - 3.2 * vosc) * h;
-      osc += vosc * h;
-      U.uOsc.value = osc;
+      const live = 0.6 + 0.8 * (prog.v / 100);   // càng gần xong càng lắc mạnh
+      vosc  += (-38 * (osc  - live * (0.045 * Math.sin(lt * 2.1) + 0.02 * Math.sin(lt * 3.3 + 1))) - 3.2 * vosc ) * h; osc  += vosc  * h;
+      vosc2 += (-30 * (osc2 - live *  0.035 * Math.sin(lt * 2.7 + 0.8)) - 2.6 * vosc2) * h; osc2 += vosc2 * h;
+      vosc3 += (-22 * (osc3 - live *  0.030 * Math.sin(lt * 1.7 + 2.0)) - 2.2 * vosc3) * h; osc3 += vosc3 * h;
+      vtw   += (-14 * (tw   - live *  0.50  * Math.sin(lt * 0.9))       - 1.8 * vtw  ) * h; tw   += vtw   * h;
+      U.uOsc.value = osc; U.uOsc2.value = osc2; U.uOsc3.value = osc3; U.uTw.value = tw;
+
       const k2 = Math.min(1, Math.max(0, (lt - 1.6) / 1.5)), s2 = k2 * k2 * (3 - 2 * k2);
       const ang = Math.PI / 2 + s2 * lt * 0.32;            // lúc chạm đất dẹt theo chiều dọc, sau đó trục xoay dần
-      const ax = U.uAx.value; ax.x = Math.cos(ang); ax.y = Math.sin(ang); ax.z = 0.35 * Math.sin(lt * 0.2);
+      const ax = U.uAx.value;   ax.x = Math.cos(ang); ax.y = Math.sin(ang); ax.z = 0.35 * Math.sin(lt * 0.2);
+      const ax2 = U.uAx2.value; ax2.x = 0; ax2.y = Math.cos(lt * 0.4); ax2.z = Math.sin(lt * 0.4);
+
+      /* Kéo dài theo vận tốc rơi (giọt nước rơi thì bị kéo thon, chạm đất mới dẹt) */
+      const vy = lastY ? (lastY - st.y) / Math.max(h, 0.001) : 0; lastY = st.y;   // px/s, dương = đang rơi xuống
+      stretch += (Math.min(Math.max(vy / 6000, 0), 0.25) - stretch) * (1 - Math.exp(-h / 0.06));
 
       canvas.style.transform = `translate(-50%, -50%) translate3d(0, ${-st.y}px, 0)`;   // rơi bằng CSS
       const base = (D / 2 / ppu7) * st.grow;
-      orb.scale.set(base * (1 + st.sq * 0.18), base * (1 - st.sq * 0.18), base);
+      /* Squash/stretch bảo toàn thể tích: sx * sy * sx = 1 */
+      const qq = Math.max(st.sq * 0.3 - stretch, -0.6);   // qq>0: dẹt, qq<0: kéo dài theo chiều dọc
+      const sx = Math.sqrt(1 + qq), sy = 1 / (1 + qq);
+      orb.scale.set(base * sx, base * sy, base * sx);
       glass.rotation.set(py * 0.5, px * 0.7 + time * 0.12, 0);
 
       blobs.forEach((b, i) => {
@@ -445,7 +478,7 @@ const brand = [...'CoreSpark'];
         .to(st, { conv: 1, duration: 0.8, ease: 'power3.inOut' }, 0)
         .to(st, { bs: 1.7, duration: 0.8, ease: 'power3.inOut' }, 0)
         .to(st, { kick: 0.14, duration: 0.5, ease: 'power2.in' }, 0.3)
-        .call(() => { vosc += 0.6; }, null, 0.55)
+        .call(() => { vosc += 0.6; vosc2 -= 0.4; vtw -= 2; }, null, 0.55)
         .set(st, { pulse: 0.12 }, 0.55)                                   // kính "nuốt" xong chữ thì giật nhẹ
         .to(st, { pulse: 0, duration: 0.6, ease: 'power2.out' }, 0.55)
         .to(st, { sq: -0.6, duration: 0.25, yoyo: true, repeat: 1, ease: 'power2.out' }, 0.65)
@@ -491,7 +524,7 @@ const brand = [...'CoreSpark'];
         .to(st, { y: 0, duration: 0.62, ease: 'power2.in' }, 0.1)
         .to(st, { sq: 1, duration: 0.09, ease: 'power2.out' }, 0.72)
         .to(st, { sq: 0, duration: 1.8, ease: 'elastic.out(0.9, 0.5)' }, 0.81)
-        .call(() => { vosc -= 0.7; }, null, 0.72)   // đập xuống: nước dẹt lại rồi bật ra
+        .call(() => { vosc -= 0.7; vosc2 += 0.5; vosc3 += 0.4; vtw += 2.5; }, null, 0.72)   // đập xuống: nước dẹt, lệch, xoắn rồi bật ra
         .to(st, { kick: 0.16, duration: 0.08 }, 0.72)
         .to(st, { kick: 0, duration: 1.6, ease: 'power2.out' }, 0.8)
         .to(st, { bs: 1, duration: 0.9, ease: 'back.out(2)' }, 0.7)
