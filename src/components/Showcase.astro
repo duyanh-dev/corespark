@@ -488,8 +488,9 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   .sc-toast { position: absolute; left: 50%; bottom: 5.8rem; z-index: 5; padding: .5rem 1rem; border-radius: 999px; background: rgba(255, 255, 255, .92); color: #1d1d1f; font-size: .85rem; font-weight: 600; opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: opacity .25s, transform .25s; }
   .sc-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
 
-  html.sc-viewing .sc { visibility: hidden; }
-
+/* Khi xem demo: gỡ hẳn trang cha khỏi render để nhường RAM cho iframe (cùng tiến trình trên iOS) */
+html.sc-viewing .sc { box-sizing: border-box; overflow: hidden; }
+html.sc-viewing .sc > *:not(.sc-viewer) { display: none; }
 
   /* ---------- 6. RESPONSIVE ---------- */
   @media (max-width: 1000px) {

@@ -44,6 +44,19 @@ export function initViewer({ demos, getList }) {
   const parseHash = () => (location.hash.match(/^#demo=([\w-]+)/) || [])[1] || null;
   const absUrl = (u) => new URL(u, location.href).href;
   const defaultDevice = () => (innerWidth < 1000 ? 'mobile' : 'desktop');
+
+const scRoot = document.getElementById('showcase');
+function freezeParent() {
+  if (!scRoot) return;
+  const h = scRoot.getBoundingClientRect().height;   // đo TRƯỚC khi ẩn
+  document.documentElement.classList.add('sc-viewing');
+  scRoot.style.height = h + 'px';
+}
+function unfreezeParent() {
+  document.documentElement.classList.remove('sc-viewing');
+  if (scRoot) scRoot.style.height = '';
+}
+
   /* Điện thoại xem "Máy tính": giới hạn chiều cao ảo 800px (tỉ lệ 16:10) để iframe không phình to gây tràn RAM iOS */
 const deviceCfg = () =>
   device === 'desktop' && innerWidth < 1000 ? { ...DEVICES.desktop, maxH: 800 } : DEVICES[device];
@@ -141,9 +154,10 @@ const deviceCfg = () =>
       { clipPath: 'inset(0px 0px 0px 0px round 0px)', duration: reduce ? 0 : 0.5, ease: 'power3.inOut',
         onComplete: () => {
   viewer.style.clipPath = 'none';
-  if (isOpen) document.documentElement.classList.add('sc-viewing');
+  if (isOpen) freezeParent();
   layoutFrame(); onDone?.();
-}});
+}
+    });
     gsap.from([bar, foot], { opacity: 0, y: (i) => (i ? 12 : -12), duration: 0.4, delay: reduce ? 0 : 0.25, clearProps: 'all' });
   }
 
@@ -178,7 +192,8 @@ const deviceCfg = () =>
   function closeNow(cb) {
     if (!isOpen) return;
     isOpen = false;
-    document.documentElement.classList.remove('sc-viewing');
+    // document.documentElement.classList.remove('sc-viewing');
+    unfreezeParent();
     gsap.killTweensOf(viewer);
     if (parseHash()) history.replaceState(null, '', location.pathname + location.search);
 
