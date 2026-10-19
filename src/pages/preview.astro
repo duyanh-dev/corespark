@@ -1,45 +1,451 @@
 ---
+/* =========================================================
+   PREVIEW.ASTRO - Trang xem demo đầy đủ (dùng khi khung xem ở trang chính dễ crash trên điện thoại)
+   - Thanh kính nổi (liquid glass) giống khung xem ở Showcase: Máy tính / Điện thoại, trước / sau, tải lại, copy link, Visit site
+   - Chỉ có DUY NHẤT một iframe tại một thời điểm; đổi tab / đổi demo là gỡ iframe cũ trước khi nạp cái mới
+   - Trên điện thoại: đổi tab = nạp lại cả trang với viewport tương ứng (giải phóng toàn bộ RAM, an toàn nhất)
+   - Có "chốt chống crash": nếu lần trước nạp demo mà trang bị iOS kill, lần mở lại sẽ chờ bấm mới nạp
+   Đặt tại src/pages/preview.astro (nếu để src/pages/preview/index.astro thì đổi import thành ../../data/demos.json)
+   ========================================================= */
+import raw from '../data/demos.json';
+import fs from 'node:fs';
+import path from 'node:path';
+
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const withBase = (u) => (u && u.startsWith('/') && !u.startsWith('//') ? base + u : u);
+
+/* Cùng quy tắc chọn nguồn như Showcase.astro: localUrl (có file thật trong public/) được ưu tiên */
+const PUBLIC_DIR = path.join(process.cwd(), 'public');
+function localExists(localUrl) {
+  if (!localUrl || /^https?:/i.test(localUrl)) return false;
+  let p = localUrl.split(/[?#]/)[0];
+  try { p = decodeURI(p); } catch {}
+  if (p.endsWith('/')) p += 'index.html';
+  const file = path.normalize(path.join(PUBLIC_DIR, p));
+  try { return file.startsWith(PUBLIC_DIR) && fs.statSync(file).isFile(); }
+  catch { return false; }
+}
+
+const demos = raw
+  .map((d) => {
+    const url = localExists(d.localUrl) ? d.localUrl : (d.url ?? d.localUrl);
+    return {
+      slug: d.slug, title: d.title, type: d.type, topic: d.topic, date: d.date,
+      thumb: withBase(d.thumb),
+      url: withBase(url),
+      siteUrl: withBase(d.siteUrl ?? d.url ?? d.localUrl),
+    };
+  })
+  .sort((a, b) => b.date.localeCompare(a.date));
+
+const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
 ---
 <!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-<meta name="viewport" content="width=1200, minimum-scale=0.2, maximum-scale=3" />
+  <meta name="viewport" content="width=1024, minimum-scale=0.2, maximum-scale=3" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0b0b0d" />
   <meta name="robots" content="noindex" />
-  <title>Xem bản máy tính</title>
+  <title>Xem demo</title>
+
+  <!-- Chọn viewport TRƯỚC khi vẽ: điện thoại + tab Máy tính = trang rộng 1024 (có thể zoom). Tab Điện thoại = viewport thật -->
+  <script is:inline>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var phone = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 700;
+      if (phone && q.get('d') === 'mobile') {
+        document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1');
+      }
+    })();
+  </script>
+
   <style is:global>
-    html, body { margin: 0; height: 100%; background: #0b0b0d; color: #f5f5f7; font-family: system-ui, sans-serif; }
-body { display: flex; flex-direction: column; }
-.bar { flex: none; display: flex; align-items: center; gap: 28px; height: 120px; padding: 0 28px; }
-.bar button { height: 76px; padding: 0 36px; border: 0; border-radius: 999px; background: #fff; color: #1d1d1f; font: 600 34px system-ui; }
-.bar span { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 34px; }
-iframe { flex: 1; min-height: 0; width: 1200px; border: 0; background: #fff; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0b0d; color: #f5f5f7;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; }
+    button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+    svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ---------- Khung tổng: cột dọc [thanh trên] [sân khấu] [thanh dưới] ---------- */
+    .pv { --k: 1; position: fixed; inset: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden;
+      padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom)); }
+    .pv::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(60vmax 40vmax at 12% 0%, rgba(41, 151, 255, .30), transparent 60%),
+        radial-gradient(50vmax 40vmax at 92% 100%, rgba(94, 92, 230, .22), transparent 60%); }
+    .pv > * { position: relative; z-index: 1; }
+
+    /* ---------- Vật liệu kính ----------
+       Thanh KHÔNG nằm đè lên iframe (sân khấu nằm riêng giữa 2 thanh) nên backdrop-filter chỉ làm nhòe
+       nền tĩnh, không tốn GPU như khi đè lên một demo đang chuyển động */
+    .glass { border-radius: 26px; background: rgba(255, 255, 255, .08);
+      -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, .16);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 -1px 0 rgba(255, 255, 255, .05), inset 0 0 24px rgba(255, 255, 255, .03); }
+    .glass::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 48%); }
+    .glass > * { position: relative; }
+
+    /* ---------- Thanh trên ---------- */
+    .bar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 12px; padding: 8px 10px; zoom: var(--k); }
+    .ibtn { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
+      background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3); transition: background .2s, transform .2s, opacity .2s; }
+    .ibtn:hover { background: rgba(255, 255, 255, .24); }
+    .ibtn:active { transform: scale(.92); }
+    .ibtn:disabled { opacity: .3; cursor: default; transform: none; }
+    .ibtn svg { width: 18px; height: 18px; }
+    .bk { grid-area: bk; }
+
+    .ttl { grid-area: ttl; min-width: 0; line-height: 1.25; }
+    .ttl strong, .ttl span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ttl strong { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+    .ttl span { font-size: 12.5px; color: #c7c7cc; }
+
+    /* Công tắc thiết bị: viên trắng trượt qua lại */
+    .seg { grid-area: seg; position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: 999px;
+      background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18); }
+    .seg i { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 2); border-radius: 999px;
+      background: rgba(255, 255, 255, .94); box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+      transition: transform .38s cubic-bezier(.3, 1.25, .5, 1); }
+    .seg[data-d="mobile"] i { transform: translateX(100%); }
+    .seg button { position: relative; padding: 7px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 500; color: #d1d1d6; white-space: nowrap; transition: color .25s; }
+    .seg button.is-active { color: #1d1d1f; }
+
+    .tools { grid-area: tools; display: flex; gap: 6px; }
+    .visit { grid-area: visit; display: inline-flex; align-items: center; gap: 5px; padding: 9px 18px; border-radius: 999px; white-space: nowrap;
+      background: rgba(41, 151, 255, .88); border: 1px solid rgba(255, 255, 255, .38);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 6px 20px rgba(41, 151, 255, .35);
+      font-size: 14px; font-weight: 500; transition: transform .2s; }
+    .visit:hover { transform: scale(1.04); }
+
+    /* ---------- Sân khấu + khung thiết bị ---------- */
+    .stage { flex: 1; min-height: 0; display: grid; place-items: center; }
+    .frame { position: relative; width: 100%; height: 100%; overflow: hidden; background: #000; border-radius: 16px;
+      box-shadow: 0 40px 100px -30px rgba(0, 0, 0, .85), 0 0 0 1px rgba(255, 255, 255, .12); contain: layout paint; }
+    .frame.pop { animation: pv-pop .4s cubic-bezier(.2, .8, .2, 1); }
+    @keyframes pv-pop { from { opacity: 0; transform: scale(.97); } }
+    .scr { position: absolute; inset: 0; overflow: hidden; background: #fff; border-radius: inherit; }
+    .scr iframe { position: absolute; left: 0; top: 0; border: 0; background: #fff; transform-origin: 0 0; opacity: 0; transition: opacity .4s; }
+    .scr iframe.is-loaded { opacity: 1; }
+
+    /* Tab Điện thoại trên máy tính: khung máy 390 x 844 có viền */
+    .pv[data-device="mobile"] .frame { width: min(414px, 100%); height: min(868px, 100%); padding: 12px; border-radius: 52px; background: #050506;
+      box-shadow: 0 40px 100px -30px rgba(0, 0, 0, .85), 0 0 0 1px rgba(255, 255, 255, .16), inset 0 0 0 2px #2a2a2e; }
+    .pv[data-device="mobile"] .scr { inset: 12px; border-radius: 40px; }
+    /* Tab Điện thoại trên chính điện thoại: không cần khung giả, dùng nguyên màn hình thật */
+    .pv.is-native .frame { width: 100%; height: 100%; padding: 0; border-radius: 22px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .12); }
+    .pv.is-native .scr { inset: 0; border-radius: 22px; }
+
+    /* Màn hình chờ */
+    .loader { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: #1c1c1e var(--thumb, none) center top / cover no-repeat; transition: opacity .4s, visibility 0s; }
+    .loader::before { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, .5); }
+    .loader.is-done { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .4s, visibility 0s .4s; }
+    .spin { position: relative; width: 32px; height: 32px; border: 3px solid rgba(255, 255, 255, .22); border-top-color: #fff; border-radius: 50%; animation: pv-rot .8s linear infinite; zoom: var(--k); }
+    @keyframes pv-rot { to { transform: rotate(360deg); } }
+    .wait { display: none; position: relative; padding: 11px 22px; border-radius: 999px; background: rgba(255, 255, 255, .94); color: #1d1d1f; font-size: 15px; font-weight: 600; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); zoom: var(--k); }
+    .loader.is-wait .spin { display: none; }
+    .loader.is-wait .wait { display: block; }
+
+    /* ---------- Thanh dưới ---------- */
+    .foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 8px 8px 20px; zoom: var(--k); }
+    .hint { font-size: 13px; color: #d1d1d6; }
+    .hint.is-warn { color: #ffd60a; }
+    .want { padding: 10px 20px; border-radius: 999px; background: rgba(255, 255, 255, .94); color: #1d1d1f; font-size: 14.5px; font-weight: 600; white-space: nowrap;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, .25); transition: transform .2s; }
+    .want:hover { transform: scale(1.04); }
+
+    .toast { position: absolute; left: 50%; bottom: 84px; z-index: 5; padding: 8px 16px; border-radius: 999px; background: rgba(255, 255, 255, .94); color: #1d1d1f;
+      font-size: 13.5px; font-weight: 600; opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: opacity .25s, transform .25s; zoom: var(--k); }
+    .toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+    /* ---------- Màn hình hẹp (viewport thật, tức tab Điện thoại trên điện thoại) ---------- */
+    @media (max-width: 700px) {
+      .bar { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "bk ttl visit" "seg seg tools"; row-gap: 8px; column-gap: 10px; }
+      .seg { justify-self: start; }
+      .tools { justify-self: end; }
+      .ttl strong { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; font-size: 15px; }
+      .ttl span { display: none; }
+      .visit { padding: 8px 14px; font-size: 13px; }
+      .foot { display: block; padding: 6px; }
+      .hint { display: none; }
+      .want { width: 100%; }
+    }
+    @media (max-height: 520px) and (orientation: landscape) {
+      .foot { display: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="bar">
-    <button id="back" type="button">← Quay lại</button>
-    <span id="t"></span>
+  <div class="pv" id="pv" data-device="desktop">
+    <header class="bar glass" id="bar">
+      <button class="ibtn bk" id="back" type="button" aria-label="Quay lại (Esc)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg></button>
+
+      <div class="ttl"><strong id="title"></strong><span id="meta"></span></div>
+
+      <div class="seg" id="seg" data-d="desktop" role="group" aria-label="Chọn thiết bị">
+        <i aria-hidden="true"></i>
+        <button type="button" data-d="desktop" class="is-active">Máy tính</button>
+        <button type="button" data-d="mobile">Điện thoại</button>
+      </div>
+
+      <div class="tools">
+        <button class="ibtn" id="prev" type="button" aria-label="Demo trước (←)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg></button>
+        <button class="ibtn" id="next" type="button" aria-label="Demo sau (→)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg></button>
+        <button class="ibtn" id="reload" type="button" aria-label="Tải lại"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" /></svg></button>
+        <button class="ibtn" id="copy" type="button" aria-label="Sao chép link demo"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg></button>
+      </div>
+
+      <a class="visit" id="visit" href="#" target="_blank" rel="noopener noreferrer">Visit site ↗</a>
+    </header>
+
+    <main class="stage" id="stage">
+      <div class="frame" id="frame">
+        <div class="scr" id="scr">
+          <div class="loader" id="loader">
+            <span class="spin"></span>
+            <button class="wait" id="wait" type="button">Nhấn để tải demo</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="foot glass" id="foot">
+      <p class="hint" id="hint">Demo không hiện? Một số trang không cho nhúng. Bấm <b>Visit site</b> để mở ở tab mới.</p>
+      <button class="want" id="want" type="button">Tôi muốn web như này</button>
+    </footer>
+
+    <div class="toast" id="toast" role="status"></div>
   </div>
-  <iframe id="f" title="Demo"
-    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-    allow="fullscreen; autoplay"></iframe>
+
+  <script is:inline type="application/json" id="pv-data" set:html={dataJson}></script>
 
   <script is:inline define:vars={{ base }}>
-    const q = new URLSearchParams(location.search);
-    const u = q.get('u') || '';
-    document.getElementById('t').textContent = q.get('t') || '';
-    document.getElementById('back').onclick = () => {
-      if (history.length > 1 && document.referrer.startsWith(location.origin)) history.back();
-      else location.href = base + '/';
-    };
-    // Chỉ nhận đường dẫn nội bộ (tránh bị lợi dụng để nhúng trang lạ)
-    if (/^\/(?!\/)[^\\]*$/.test(u)) {
-      const x = new URL(u, location.origin);
-      x.searchParams.set('embed', '1');
-      document.getElementById('f').src = x.href;
-    }
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var root = $('pv'), scr = $('scr'), frame = $('frame'), stage = $('stage'), loader = $('loader');
+      var hint = $('hint'), toast = $('toast'), seg = $('seg'), waitBtn = $('wait');
+      var prevBtn = $('prev'), nextBtn = $('next');
+      var devBtns = Array.prototype.slice.call(seg.querySelectorAll('button'));
+
+      var SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals';
+      var demos = JSON.parse($('pv-data').textContent);
+      var q = new URLSearchParams(location.search);
+      var u = q.get('u') || '';
+      var validU = /^\/(?!\/)[^\\]*$/.test(u);                       // chỉ nhận đường dẫn nội bộ
+      var phone = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 700;
+      var device = q.get('d') === 'mobile' ? 'mobile' : 'desktop';
+
+      var iframe = null, hintT = 0, loadT = 0, toastT = 0, rafL = 0, waitMode = 'load';
+
+      var abs = function (x) { return new URL(x, location.href).href; };
+      var norm = function (s) { return (s || '').replace(/\/$/, ''); };
+      var keyOf = function (x) {
+        try { var a = new URL(x, location.origin); return a.origin === location.origin ? a.pathname + a.search : null; }
+        catch (e) { return null; }
+      };
+
+      /* ----- Demo hiện tại: khớp theo đường dẫn ?u= với danh sách để có trước/sau, thumbnail, loại... ----- */
+      var idx = demos.findIndex(function (d) { var k = keyOf(d.url); return k !== null && norm(k) === norm(u); });
+      var cur = idx >= 0 ? demos[idx]
+        : (validU ? { slug: '', title: q.get('t') || 'Demo', type: '', topic: '', thumb: '', url: u, siteUrl: u } : null);
+
+      /* ---------- Hệ số bù khi điện thoại hiện trang rộng 1024: phóng thanh công cụ lên cho bấm được ---------- */
+      function calcK() {
+        if (!(phone && device === 'desktop')) return 1;
+        var portrait = matchMedia('(orientation: portrait)').matches;
+        var w = portrait ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+        return Math.max(1, 1024 / w);
+      }
+      function applyMode() {
+        root.style.setProperty('--k', calcK());
+        root.dataset.device = device;
+        root.classList.toggle('is-native', phone && device === 'mobile');
+        seg.dataset.d = device;
+        devBtns.forEach(function (b) { b.classList.toggle('is-active', b.dataset.d === device); });
+      }
+
+      /* ---------- Điền thông tin lên thanh trên ---------- */
+      function fill() {
+        $('title').textContent = cur ? cur.title : 'Không tìm thấy demo';
+        $('meta').textContent = cur ? [cur.type, cur.topic].filter(Boolean).join(' · ') : '';
+        $('visit').href = cur ? abs(cur.siteUrl || cur.url) : '#';
+        loader.style.setProperty('--thumb', cur && cur.thumb ? 'url("' + abs(cur.thumb) + '")' : 'none');
+        prevBtn.disabled = nextBtn.disabled = !(idx >= 0 && demos.length > 1);
+        hint.classList.remove('is-warn');
+        if (cur) document.title = cur.title;
+      }
+
+      /* Giữ URL khớp demo / thiết bị đang xem (tải lại trang vẫn đúng chỗ) */
+      function syncUrl() {
+        var k = cur && keyOf(cur.url);
+        if (!k) return;
+        var p = new URLSearchParams({ u: k, t: cur.title });
+        if (device === 'mobile') p.set('d', 'mobile');
+        history.replaceState(null, '', '?' + p.toString());
+      }
+
+      /* ---------- Gỡ iframe: giải phóng RAM, dừng WebGL ---------- */
+      function kill() {
+        clearTimeout(hintT); clearTimeout(loadT);
+        try { sessionStorage.removeItem('pv:loading'); } catch (e) {}
+        if (!iframe) return;
+        iframe.src = 'about:blank';
+        iframe.remove();
+        iframe = null;
+      }
+
+      /* ---------- Đặt kích thước iframe ----------
+         Máy tính (trình duyệt PC) hẹp hơn 1280: dựng trang 1280 rồi thu nhỏ vừa khung.
+         Các trường hợp còn lại: iframe lấp đầy khung (điện thoại đã có viewport 1024 hoặc viewport thật rồi) */
+      function layout() {
+        if (!iframe) return;
+        var sw = scr.clientWidth, sh = scr.clientHeight;
+        if (sw <= 0 || sh <= 0) return;
+        if (device === 'desktop' && !phone && sw < 1280) {
+          var s = sw / 1280;
+          iframe.style.width = '1280px';
+          iframe.style.height = sh / s + 'px';
+          iframe.style.transform = 'scale(' + s + ')';
+        } else {
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+          iframe.style.transform = 'none';
+        }
+      }
+
+      /* ---------- Nạp demo (luôn gỡ iframe cũ trước) ---------- */
+      function load() {
+        kill();
+        if (!cur) return;
+        loader.classList.remove('is-done', 'is-wait');
+        iframe = document.createElement('iframe');
+        iframe.title = cur.title;
+        iframe.setAttribute('sandbox', SANDBOX);
+        iframe.allow = 'fullscreen; autoplay';
+        iframe.addEventListener('load', function () {
+          try { sessionStorage.removeItem('pv:loading'); } catch (e) {}
+          clearTimeout(hintT);
+          loader.classList.add('is-done');
+          iframe.classList.add('is-loaded');
+        });
+        scr.appendChild(iframe);
+        layout();                                                       // có kích thước đúng rồi mới gán src
+        try { sessionStorage.setItem('pv:loading', cur.url); } catch (e) {}   // chốt chống crash
+        var x = new URL(abs(cur.url));
+        if (x.origin === location.origin) x.searchParams.set('embed', '1');
+        iframe.src = x.href;
+        hintT = setTimeout(function () { hint.classList.add('is-warn'); }, 7000);
+      }
+
+      function showWait(text, mode) {
+        waitMode = mode;
+        waitBtn.textContent = text;
+        loader.classList.remove('is-done');
+        loader.classList.add('is-wait');
+      }
+
+      /* ---------- Đổi thiết bị ---------- */
+      function setDevice(dev) {
+        if (dev === device) return;
+        if (phone) {
+          /* Điện thoại: nạp lại cả trang với viewport mới => RAM được giải phóng hoàn toàn */
+          kill();
+          var p = new URLSearchParams(location.search);
+          if (dev === 'mobile') p.set('d', 'mobile'); else p.delete('d');
+          location.replace(location.pathname + '?' + p.toString());
+          return;
+        }
+        device = dev;
+        syncUrl();
+        applyMode();
+        kill();
+        frame.classList.remove('pop'); void frame.offsetWidth; frame.classList.add('pop');
+        loader.classList.remove('is-done');
+        loadT = setTimeout(load, 120);
+      }
+
+      /* ---------- Demo trước / sau ---------- */
+      function step(dir) {
+        if (idx < 0 || demos.length < 2) return;
+        idx = (idx + dir + demos.length) % demos.length;
+        cur = demos[idx];
+        fill(); syncUrl();
+        kill();                                                         // gỡ demo cũ ngay
+        loader.classList.remove('is-done', 'is-wait');
+        loadT = setTimeout(load, 200);                                  // bấm liên tục chỉ nạp demo cuối
+      }
+
+      /* ---------- Toast, copy, quay lại ---------- */
+      function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('is-on');
+        clearTimeout(toastT);
+        toastT = setTimeout(function () { toast.classList.remove('is-on'); }, 1800);
+      }
+      function copyLink() {
+        if (!cur) return;
+        var url = location.origin + base + '/' + (cur.slug ? '#demo=' + cur.slug : '');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { showToast('Đã sao chép link demo'); },
+            function () { window.prompt('Sao chép link này:', url); });
+        } else window.prompt('Sao chép link này:', url);
+      }
+      function goBack() {
+        kill();
+        if (history.length > 1 && document.referrer.indexOf(location.origin) === 0) history.back();
+        else location.href = base + '/';
+      }
+
+      /* ---------- Sự kiện ---------- */
+      $('back').addEventListener('click', goBack);
+      prevBtn.addEventListener('click', function () { step(-1); });
+      nextBtn.addEventListener('click', function () { step(1); });
+      $('reload').addEventListener('click', function () { loader.classList.remove('is-done'); loadT = setTimeout(load, 60); });
+      $('copy').addEventListener('click', copyLink);
+      devBtns.forEach(function (b) { b.addEventListener('click', function () { setDevice(b.dataset.d); }); });
+      waitBtn.addEventListener('click', function () { if (waitMode === 'back') goBack(); else load(); });
+
+      /* "Tôi muốn web như này": lưu tên demo rồi về trang chính, phần Liên hệ */
+      $('want').addEventListener('click', function () {
+        if (cur) { try { sessionStorage.setItem('corespark:inquiry', JSON.stringify({ slug: cur.slug, title: cur.title })); } catch (e) {} }
+        kill();
+        location.href = base + '/#contact';
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { e.preventDefault(); goBack(); }
+        else if (e.key === 'ArrowLeft') step(-1);
+        else if (e.key === 'ArrowRight') step(1);
+        else if (e.key === '1') setDevice('desktop');
+        else if (e.key === '2') setDevice('mobile');
+      });
+
+      /* Rời trang là gỡ iframe ngay (iOS giữ RAM của trang cũ khá lâu nếu không gỡ) */
+      window.addEventListener('pagehide', kill);
+
+      /* Đổi cỡ cửa sổ / xoay điện thoại: gom vào một khung hình */
+      function onResize() { if (rafL) return; rafL = requestAnimationFrame(function () { rafL = 0; applyMode(); layout(); }); }
+      new ResizeObserver(onResize).observe(stage);
+      window.addEventListener('orientationchange', onResize);
+
+      /* ---------- Khởi động ---------- */
+      applyMode();
+      fill();
+
+      var crashed = false;
+      try {
+        crashed = !!cur && sessionStorage.getItem('pv:loading') === cur.url;   // lần trước nạp dở mà trang bị kill
+        sessionStorage.removeItem('pv:loading');
+      } catch (e) {}
+
+      if (!cur) showWait('Không tìm thấy demo · Quay lại', 'back');
+      else if (crashed) showWait('Lần trước trang bị dừng đột ngột · Nhấn để tải lại', 'load');
+      else requestAnimationFrame(load);
+    })();
   </script>
 </body>
 </html>
