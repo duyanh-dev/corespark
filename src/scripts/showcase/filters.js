@@ -51,6 +51,10 @@ export function initFilters({ demos, root }) {
   const cards = new Map([...grid.querySelectorAll('.sc-card')].map((c) => [c.dataset.slug, c]));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  ['wheel', 'touchstart', 'touchmove'].forEach((ev) =>
+  sheet.addEventListener(ev, (e) => e.stopPropagation(), { passive: true })
+);
+
   /* ----- Chuẩn bị dữ liệu: chuỗi tìm kiếm không dấu + cờ "có 3D" ----- */
   demos.forEach((d) => {
     d._s = norm([d.title, d.desc, d.type, d.topic, ...d.styles, ...d.tech].join(' '));

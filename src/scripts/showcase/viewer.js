@@ -44,6 +44,9 @@ export function initViewer({ demos, getList }) {
   const parseHash = () => (location.hash.match(/^#demo=([\w-]+)/) || [])[1] || null;
   const absUrl = (u) => new URL(u, location.href).href;
   const defaultDevice = () => (innerWidth < 1000 ? 'mobile' : 'desktop');
+  /* Điện thoại xem "Máy tính": giới hạn chiều cao ảo 800px (tỉ lệ 16:10) để iframe không phình to gây tràn RAM iOS */
+const deviceCfg = () =>
+  device === 'desktop' && innerWidth < 1000 ? { ...DEVICES.desktop, maxH: 800 } : DEVICES[device];
 
   /* ---------- HÀM 2: điền thông tin demo lên thanh trên ---------- */
   function fillUI(d) {
@@ -88,7 +91,7 @@ export function initViewer({ demos, getList }) {
 
   /* ---------- HÀM 5: tính kích thước khung + tỉ lệ thu nhỏ theo thiết bị đang chọn ---------- */
   function layoutFrame() {
-    const d = DEVICES[device];
+    const d = deviceCfg();   // trước đây: DEVICES[device]
     stage.style.paddingTop = bar.offsetHeight + 22 + 'px';
     stage.style.paddingBottom = (foot.offsetHeight ? foot.offsetHeight + 22 : 12) + 'px';
     const cs = getComputedStyle(stage);
@@ -133,7 +136,11 @@ export function initViewer({ demos, getList }) {
       : 'inset(50% 50% 50% 50% round 26px)';
     gsap.fromTo(viewer, { clipPath: from, opacity: 1 },
       { clipPath: 'inset(0px 0px 0px 0px round 0px)', duration: reduce ? 0 : 0.5, ease: 'power3.inOut',
-        onComplete: () => { viewer.style.clipPath = 'none'; layoutFrame(); onDone?.(); } });
+        onComplete: () => {
+  viewer.style.clipPath = 'none';
+  if (isOpen) document.documentElement.classList.add('sc-viewing');
+  layoutFrame(); onDone?.();
+}});
     gsap.from([bar, foot], { opacity: 0, y: (i) => (i ? 12 : -12), duration: 0.4, delay: reduce ? 0 : 0.25, clearProps: 'all' });
   }
 
@@ -168,6 +175,7 @@ export function initViewer({ demos, getList }) {
   function closeNow(cb) {
     if (!isOpen) return;
     isOpen = false;
+    document.documentElement.classList.remove('sc-viewing');
     gsap.killTweensOf(viewer);
     if (parseHash()) history.replaceState(null, '', location.pathname + location.search);
 

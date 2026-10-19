@@ -95,7 +95,7 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
 
   <div class="sc-layout">
     <!-- ===== Cột bộ lọc (desktop: tấm kính dính bên trái. Mobile: ngăn kéo từ dưới lên) ===== -->
-    <aside class="sc-filters" id="sc-filters" aria-label="Bộ lọc demo">
+    <aside class="sc-filters" id="sc-filters" data-lenis-prevent aria-label="Bộ lọc demo">
       <div class="sc-ftop">
         <h3 class="sc-ftitle">Bộ lọc</h3>
         <button class="sc-clear" id="sc-clear" type="button" disabled>Xóa tất cả</button>
@@ -290,6 +290,9 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     padding: 1.2rem 1.2rem 1rem; border-radius: 1.8rem;
     background: var(--g-bg); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
     border: 1px solid var(--g-bd); box-shadow: var(--g-shadow);
+      overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   }
   .sc-ftop { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .4rem; }
   .sc-ftitle { font-size: 1.15rem; letter-spacing: -.01em; margin-right: auto; }
@@ -485,6 +488,9 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   .sc-toast { position: absolute; left: 50%; bottom: 5.8rem; z-index: 5; padding: .5rem 1rem; border-radius: 999px; background: rgba(255, 255, 255, .92); color: #1d1d1f; font-size: .85rem; font-weight: 600; opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: opacity .25s, transform .25s; }
   .sc-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
 
+  html.sc-viewing .sc { visibility: hidden; }
+
+
   /* ---------- 6. RESPONSIVE ---------- */
   @media (max-width: 1000px) {
     .sc { padding: 6rem 0 5rem; }
@@ -494,6 +500,7 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     .sc-fbtn { display: inline-flex; }
     .sc-fdone { display: inline; }
     .sc-blob { filter: blur(60px); }
+    .sc-blob--c { display: none; }
 
     .sc-filters {
       position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 90; max-height: 86svh;
@@ -509,13 +516,27 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     .sc-backdrop { display: block; position: fixed; inset: 0; z-index: 85; background: rgba(0, 0, 0, .35); opacity: 0; pointer-events: none; transition: opacity .3s; }
     .sc-backdrop.is-open { opacity: 1; pointer-events: auto; }
 
-    .sc-vbar { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "close title cta" "dev dev tools"; row-gap: .6rem; }
+    .sc-vbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "close title cta" "dev dev tools";
+    align-items: center; row-gap: .55rem; column-gap: .6rem;
+    }
     .sc-vclose { grid-area: close; }
     .sc-vtitle { grid-area: title; }
     .sc-vcta { grid-area: cta; }
     .sc-seg { grid-area: dev; justify-self: start; }
     .sc-vtools { grid-area: tools; justify-self: end; }
+
+    /* Tên demo: cho xuống tối đa 2 dòng thay vì cắt "…" sau vài chữ */
+    .sc-vtitle strong {
+      white-space: normal; display: -webkit-box; -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2; overflow: hidden;
+      font-size: .95rem; line-height: 1.2; word-break: break-word;
+    }
     .sc-vtitle span { display: none; }
+
+    /* Nút Visit gọn lại, không chiếm chỗ của tên */
+    .sc-visit { padding: .45rem .85rem; font-size: .82rem; }
   }
 
   @media (max-width: 560px) {
@@ -536,7 +557,7 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     .sc-styles span:nth-child(n + 3) { display: none; }
 
     .sc-seg button { padding: .4rem .8rem; font-size: .82rem; }
-    .sc-visit { padding: .5rem .9rem; }
+    .sc-visit { padding: .42rem .75rem; font-size: .8rem; }
     .sc-vfoot { display: block; padding: .5rem; }
     .sc-vhint { display: none; }
     .sc-want { width: 100%; }

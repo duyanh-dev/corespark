@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-85X2W3TMR4"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-85X2W3TMR4');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinSnap - Quản lý chi tiêu phong cách hiện đại</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./wow.css">
+</head>
+<body>
+    <canvas id="stage"></canvas>
+<div class="cursor"></div>
+    <div class="color-bleed-bg" id="bleedBg"></div>
+
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">Fin<span>Snap</span></a>
+            <div class="nav-actions">
+                <button class="lang-switch" onclick="toggleLanguage()">🌐 <span id="currentLang">VN</span></button>
+                <a href="#try-it" class="nav-btn lang" data-vi="Thử bản Beta" data-en="Try Beta">Thử bản Beta</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1 class="reveal delay-1 lang" data-vi="Ghi lại mọi chi tiêu.<br>Nhanh như <span>chớp mắt.</span>" data-en="Track your expenses.<br>In a <span>snap.</span>">Ghi lại mọi chi tiêu.<br>Nhanh như <span>chớp mắt.</span></h1>
+        <p class="reveal delay-2 lang" data-vi="FinSnap mang đến trải nghiệm quản lý tài chính cá nhân mượt mà, trực quan với giao diện Dark Mode cao cấp. Việc ghi chép không còn nhàm chán." data-en="FinSnap brings a smooth, visual personal finance experience with a premium Dark Mode interface. Tracking money is no longer boring.">FinSnap mang đến trải nghiệm quản lý tài chính cá nhân mượt mà, trực quan với giao diện Dark Mode cao cấp. Việc ghi chép không còn nhàm chán.</p>
+        
+        <div class="hero-buttons reveal delay-3">
+            <a href="#try-it" class="cta-btn cta-primary"><span class="lang" data-vi="Quét mã QR trải nghiệm" data-en="Scan QR to Experience">Quét mã QR trải nghiệm</span></a>
+            <a href="#shortcut" class="cta-btn cta-secondary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                <span class="lang" data-vi="Thêm ra màn hình" data-en="Add to Home Screen">Thêm ra màn hình</span>
+            </a>
+            <a href="https://github.com/duyanh-dev/my-locket-finace" target="_blank" class="cta-btn cta-outline">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                <span class="lang" data-vi="Github Repo" data-en="GitHub Repo">Github Repo</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="philosophy">
+        <div class="philosophy-inner reveal">
+            <h2 class="lang" data-vi="Cảm hứng từ Locket 💛" data-en="Inspired by Locket 💛">Cảm hứng từ Locket 💛</h2>
+            <p class="lang" data-vi="Thay vì những con số khô khan và bảng tính phức tạp, FinSnap tiếp cận tài chính qua lăng kính của <strong>hình ảnh</strong>. Chúng tôi tin rằng mỗi hóa đơn, mỗi ly cafe hay món đồ bạn mua đều là một khoảnh khắc đáng nhớ. Mở app ra là Camera, chụp hóa đơn, gắn thẻ và hoàn tất trong đúng 3 giây. Trải nghiệm mượt mà, thân thuộc và mang tính cá nhân hóa cao." data-en="Instead of dry numbers and complex spreadsheets, FinSnap approaches finance through a <strong>visual lens</strong>. We believe every receipt, coffee, or item you buy is a memorable moment. Open the app to the Camera, snap the receipt, tag it, and you're done in exactly 3 seconds. A smooth, familiar, and highly personalized experience.">Thay vì những con số khô khan và bảng tính phức tạp, FinSnap tiếp cận tài chính qua lăng kính của <strong>hình ảnh</strong>. Chúng tôi tin rằng mỗi hóa đơn, mỗi ly cafe hay món đồ bạn mua đều là một khoảnh khắc đáng nhớ. Mở app ra là Camera, chụp hóa đơn, gắn thẻ và hoàn tất trong đúng 3 giây. Trải nghiệm mượt mà, thân thuộc và mang tính cá nhân hóa cao.</p>
+        </div>
+    </section>
+
+    <!-- (STICKY SCROLL) -->
+    <section class="sticky-features" id="stickySection">
+        <div class="features-grid">
+            
+            <div class="features-text-col">
+                <div class="feature-block" data-index="0">
+                    <h3 class="lang" data-vi="Camera UI:<br>Chạm là chụp" data-en="Camera UI:<br>Tap to snap">Camera :<br>Tap to snap</h3>
+                    <p class="lang" data-vi="Trái tim của FinSnap. Giao diện máy ảnh chiếm trọn màn hình, lấy nét tức thì và lưu trữ vĩnh viễn hình ảnh hóa đơn của bạn." data-en="The heart of FinSnap. A full-screen camera interface, instant focus, and permanent storage for your receipt images.">Trái tim của FinSnap. Giao diện máy ảnh chiếm trọn màn hình, chụp và lưu trữ vĩnh viễn hình ảnh của bạn.</p>
+                    <ul class="feature-list">
+                        <li class="lang" data-vi="Hỗ trợ Flash vật lý & Auto-Focus mượt mà." data-en="Physical Flash supported.">Hỗ trợ Flash vật lý.</li>
+                        <li class="lang" data-vi="Đổi ống kính góc rộng/tele siêu nhạy." data-en="Switch lenses and toggle between the front and rear cameras.">Đổi ống kính và chuyển giữa camera trước và sau.</li>
+                        <li class="lang" data-vi="Tẩy rửa định dạng HEIC/P3 của iOS tự động." data-en="Auto-cleans iOS HEIC/P3 formats.">chuyển đổi định dạng HEIC/P3 của iOS tự động.</li>
+                    </ul>
+                </div>
+
+                <div class="feature-block" data-index="1">
+                    <h3 class="lang" data-vi="Home Screen:<br>Dấu ấn từng ngày" data-en="Home Screen:<br>Daily Footprints">Home Screen:<br>Dấu ấn từng ngày</h3>
+                    <p class="lang" data-vi="Nắm bắt ngay lập tức dòng tiền trong ngày hoặc tuần qua giao diện lưới trực quan. Quản lý chi tiêu dễ dàng như xem lại thư viện ảnh." data-en="Instantly grasp your cash flow for the day | week | month | year through a visual grid interface. Manage expenses as easily as browsing a photo gallery.">Nắm bắt ngay lập tức dòng tiền trong ngày | tuần | tháng | năm qua giao diện lưới trực quan. Quản lý chi tiêu dễ dàng như xem lại thư viện ảnh.</p>
+                    <ul class="feature-list">
+                        <li class="lang" data-vi="Bộ lọc và tìm kiếm nâng cao đa điều kiện." data-en="Advanced filtering and multi-condition search.">Bộ lọc và tìm kiếm nâng cao đa điều kiện.</li>
+                        <li class="lang" data-vi="Hiệu ứng chọn & xóa hàng loạt vuốt mượt mà." data-en="Customize tags or delete them in bulk.">Tùy chỉnh tag hoặc xóa hàng loạt.
+                        <li class="lang" data-vi="Phân nhóm tự động theo ngày tháng." data-en="Automatically group by day | week | month | year.">Phân nhóm tự động theo ngày | tuần | tháng | năm.</li>
+                    </ul>
+                </div>
+
+                <div class="feature-block" data-index="2">
+                    <h3 class="lang" data-vi="Thẻ phân loại:<br>Đẹp & Trực quan" data-en="Tag List:<br>Beautiful & Visual">Thẻ phân loại:<br>Đẹp & Trực quan</h3>
+                    <p class="lang" data-vi="Các hạng mục chi tiêu không còn là những dòng chữ buồn tẻ. Mỗi thẻ (Tag) là một cuốn album ảnh sống động." data-en="Expense categories are no longer boring text. Each Tag is a vivid photo album.">Các hạng mục chi tiêu không còn là những dòng chữ buồn tẻ. Mỗi thẻ (Tag) là một cuốn album ảnh sống động.</p>
+                    <ul class="feature-list">
+                        <li class="lang" data-vi="Hiệu ứng Blur Background cao cấp." data-en="Blur Background effects.">Hiệu ứng Blur Background.</li>
+                        <li class="lang" data-vi="Tùy biến Icon và Màu sắc cho từng thẻ." data-en="Customize Icons and Colors for each tag.">Tùy biến Icon và Màu sắc cho từng thẻ.</li>
+                        <li class="lang" data-vi="Auto-Fallback: Tự động lấy ảnh mới nhất làm bìa." data-en="Freely customize the cards for each transaction.">Thoải mái tùy biến các thẻ cho từng giao dịch</li>
+                    </ul>
+                </div>
+
+                <div class="feature-block" data-index="3">
+                    <h3 class="lang" data-vi="Calendar & Thống kê:<br>Góc nhìn toàn cảnh" data-en="Calendar & Stats:<br>A Panoramic View">Calendar & Thống kê:<br>Góc nhìn toàn cảnh</h3>
+                    <p class="lang" data-vi="Theo dõi chi tiêu theo từng tháng và năm với biểu đồ trực quan, giúp bạn cân đối tài chính và lên kế hoạch tiết kiệm hiệu quả." data-en="Track expenses by month and year with visual charts, helping you balance finances and plan effective savings.">Theo dõi chi tiêu theo từng tháng và năm với biểu đồ trực quan, giúp bạn cân đối tài chính và lên kế hoạch tiết kiệm hiệu quả.</p>
+                    <ul class="feature-list">
+                        <li class="lang" data-vi="Biểu đồ phân tích tổng quan dễ hiểu." data-en="Easy-to-understand comprehensive analysis charts.">Biểu đồ phân tích tổng quan dễ hiểu.</li>
+                        <li class="lang" data-vi="Chế độ xem lịch giúp rà soát chi tiêu theo ngày." data-en="Calendar view to review daily spending.">Chế độ xem lịch giúp rà soát chi tiêu theo ngày.</li>
+                        <li class="lang" data-vi="Phân tích danh mục ngốn tiền nhiều nhất." data-en="Analyze the most expensive spending categories.">Phân tích danh mục ngốn tiền nhiều nhất.</li>
+                    </ul>
+                </div>
+
+                <div class="feature-block" data-index="4">
+                    <h3 class="lang" data-vi="Cài đặt & Tiện ích:<br>Quyền lực trong tay" data-en="Settings & Utils:<br>Power in your hands">Cài đặt & Tiện ích:<br>Quyền lực trong tay</h3>
+                    <p class="lang" data-vi="Tùy biến ứng dụng theo cách của bạn và đón chờ những tính năng thông minh độc quyền sẽ xuất hiện trong các phiên bản tới." data-en="Customize the app your way and look forward to exclusive smart features coming in future updates.">Tùy biến ứng dụng theo cách của bạn và đón chờ những tính năng thông minh độc quyền sẽ xuất hiện trong các phiên bản tới.</p>
+                    <ul class="feature-list">
+                        <li class="lang" data-vi="Hệ thống quy đổi tỷ giá tiền tệ quốc tế." data-en="International currency exchange rate system.">Hệ thống quy đổi tỷ giá tiền tệ quốc tế.</li>
+                        <li class="lang" data-vi="Phân tích thói quen tiêu dùng bằng AI (Sắp ra mắt)." data-en="AI-driven spending habit analysis (Coming Soon).">Phân tích thói quen tiêu dùng bằng AI (Sắp ra mắt).</li>
+                        <li class="lang" data-vi="Hỗ trợ ngôn ngữ tiếng Anh và tiếng Việt." data-en="English and Vietnamese language support.">Hỗ trợ ngôn ngữ tiếng Anh và tiếng Việt.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="features-phone-col desktop-only" id="desktopPhone">
+                <div class="phone-cluster">
+                    
+                    <div class="phone-wrapper screen-slider active" data-index="0">
+                        <div class="phone-frame">
+                            <div class="carousel-track">
+                                <img src="./images/camera01.jpg" alt="Camera 1">
+                                <img src="./images/camera02.jpg" alt="Camera 2">
+                                <img src="./images/camera03.jpg" alt="Camera 3">
+                            </div>
+                        </div>
+                        <div class="carousel-dots"></div>
+                    </div>
+
+                    <div class="phone-wrapper screen-slider" data-index="1">
+                        <div class="phone-frame">
+                            <div class="carousel-track">
+                                <img src="./images/home01.jpg" alt="Home 1">
+                                <img src="./images/home02.jpg" alt="Home 2">
+                                <img src="./images/home03.jpg" alt="Home 3">
+                                <img src="./images/home04.jpg" alt="Home 4">
+                            </div>
+                        </div>
+                        <div class="carousel-dots"></div>
+                    </div>
+
+                    <div class="phone-wrapper screen-slider" data-index="2">
+                        <div class="phone-frame">
+                            <div class="carousel-track">
+                                <img src="./images/tag01.jpg" alt="Tag 1">
+                                <img src="./images/tag05.jpg" alt="Tag 2">
+                                <img src="./images/tag04.jpg" alt="Tag 3">
+                                <img src="./images/tag03.jpg" alt="Tag 4">
+                                <img src="./images/tag02.jpg" alt="Tag 5">
+                            </div>
+                        </div>
+                        <div class="carousel-dots"></div>
+                    </div>
+
+                    <div class="phone-wrapper screen-slider" data-index="3">
+                        <div class="phone-frame">
+                            <div class="carousel-track">
+                                <img src="./images/calendar01.jpg" alt="Calendar 1">
+                                <img src="./images/calendar02.jpg" alt="Calendar 2">
+                            </div>
+                        </div>
+                        <div class="carousel-dots"></div>
+                    </div>
+
+                    <div class="phone-wrapper screen-slider" data-index="4">
+                        <div class="phone-frame">
+                            <div class="carousel-track">
+                                <img src="./images/setting01.jpg" alt="Settings 1">
+                                <img src="./images/setting02.jpg" alt="Settings 2">
+                            </div>
+                        </div>
+                        <div class="carousel-dots"></div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ĐIỆN THOẠI -->
+        <div class="mobile-only-phone reveal">
+            <div class="phone-wrapper">
+                <div class="phone-frame">
+                    <div class="carousel-track">
+                        <img src="./images/camera01.jpg" alt="Cam 1">
+                        <img src="./images/camera02.jpg" alt="Cam 2">
+                        <img src="./images/camera03.jpg" alt=R"Cam 3">
+                        <img src="./images/tag01.jpg" alt="Tag 1">
+                        <img src="./images/tag05.jpg" alt="Tag 2">
+                        <img src="./images/tag04.jpg" alt="Tag 3">
+                        <img src="./images/tag03.jpg" alt="Tag 4">
+                        <img src="./images/tag02.jpg" alt="Tag 5">
+                        <img src="./images/home01.jpg" alt="Home 1">
+                        <img src="./images/home02.jpg" alt="Home 2">
+                        <img src="./images/calendar01.jpg" alt="Calendar 1">
+                        <img src="./images/calendar02.jpg" alt="Calendar 2">
+                        <img src="./images/setting01.jpg" alt="Settings 1">
+                        <img src="./images/setting02.jpg" alt="Settings 2">
+                    </div>
+                </div>
+                <div class="carousel-dots"></div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="shortcut-guide" id="shortcut">
+        <div class="shortcut-container reveal">
+            <div class="shortcut-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect><path d="M9 3v18"></path><path d="M15 3v18"></path><path d="M3 9h18"></path><path d="M3 15h18"></path></svg>
+            </div>
+            <h2 class="lang" data-vi="Truy cập nhanh từ Màn hình chính" data-en="Quick access from Home Screen">Truy cập nhanh từ Màn hình chính</h2>
+            <p class="lang" data-vi="Không cần mở Expo Go mỗi lần dùng. Thêm biểu tượng FinSnap ra màn hình chính iPhone qua ứng dụng Phím tắt (Shortcuts) để mở app chỉ với 1 chạm." data-en="No need to open Expo Go every time. Add the FinSnap icon to your iPhone home screen via Shortcuts app for 1-tap access.">Không cần mở Expo Go mỗi lần dùng. Thêm biểu tượng FinSnap ra màn hình chính iPhone qua ứng dụng Phím tắt (Shortcuts) để mở app chỉ với 1 chạm.</p>
+            
+            <div class="shortcut-download reveal delay-1">
+                <a href="https://www.icloud.com/shortcuts/8373a0ffd66d41caa297fa34366f2c68" target="_blank" class="cta-btn cta-primary" style="font-size: 18px; padding: 20px 40px; box-shadow: 0 10px 40px rgba(255, 215, 0, 0.25);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span class="lang" data-vi="Tải Phím tắt iOS (1-Click)" data-en="Download iOS Shortcut (1-Click)">Tải Phím tắt iOS</span>
+                </a>
+                <p class="download-hint">
+                    <span class="lang" data-vi="Sau khi tải, nhấn nút <strong>Chia sẻ</strong> dưới màn hình > Chọn <strong>Thêm vào MH chính</strong>" data-en="After downloading, tap <strong>Share</strong> > Select <strong>Add to Home Screen</strong>">Sau khi tải, nhấn nút <strong>Chia sẻ</strong> dưới màn hình > Chọn <strong>Thêm vào màn hình chính</strong></span>
+                </p>
+            </div>
+
+            <div class="shortcut-divider reveal delay-2">
+                <span class="lang" data-vi="HOẶC TỰ TẠO THỦ CÔNG" data-en="OR CREATE MANUALLY">HOẶC TỰ TẠO THỦ CÔNG</span>
+            </div>
+
+            <div class="shortcut-steps">
+                <div class="sc-step reveal delay-2">
+                    <div class="sc-number">1</div>
+                    <h4 class="lang" data-vi="Tạo Phím tắt mới" data-en="Create new Shortcut">Tạo Phím tắt mới</h4>
+                    <p class="lang" data-vi="Mở app Phím tắt (Shortcuts) có sẵn trên iPhone > Bấm dấu + ở góc phải > Chọn 'Thêm tác vụ' (Add Action)." data-en="Open Shortcuts app on iPhone > Tap + icon > Select 'Add Action'.">Mở app Phím tắt (Shortcuts) có sẵn trên iPhone > Bấm dấu + ở góc phải > Chọn 'Thêm tác vụ' (Add Action).</p>
+                </div>
+                <div class="sc-step reveal delay-3">
+                    <div class="sc-number">2</div>
+                    <h4 class="lang" data-vi="Gán Link Expo" data-en="Assign Expo Link">Gán Link Expo</h4>
+                    <p class="lang" data-vi="Tìm kiếm hành động 'Mở URL'. Dán link Expo của FinSnap vào: <strong style='color:#fff; word-break: break-all;'>exp://u.expo.dev/a5e21ab4-5116-40ba-a85c-337981dd447e/group/37947bb1-f005-403c-86b3-c1cbbb35103f</strong>" data-en="Search for 'Open URLs'. Paste your Expo link: <strong style='color:#fff; word-break: break-all;'>exp://u.expo.dev/a5e21ab4-5116-40ba-a85c-337981dd447e/group/37947bb1-f005-403c-86b3-c1cbbb35103f</strong>">Tìm kiếm hành động 'Mở URL'. Dán link Expo của FinSnap vào: <br> <strong style='color:#fff; word-break: break-all;'>exp://u.expo.dev/a5e21ab4-5116-40ba-a85c-337981dd447e/group/bb1072c6-f7f4-4ccd-96df-22c6e3950682</strong></p>
+                </div>
+                <div class="sc-step reveal delay-3">
+                    <div class="sc-number">3</div>
+                    <h4 class="lang" data-vi="Thêm ra màn hình" data-en="Add to Home Screen">Thêm ra màn hình</h4>
+                    <p class="lang" data-vi="Đổi tên phím tắt thành FinSnap. Bấm nút Chia sẻ (Dưới cùng) > Chọn 'Thêm vào MH chính'. Xong!" data-en="Rename shortcut to FinSnap. Tap Share icon > 'Add to Home Screen'. Done!">Đổi tên phím tắt thành FinSnap. Bấm nút Chia sẻ (Dưới cùng) > Chọn 'Thêm vào MH chính'. Xong!</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- EXPO GUIDE -->
+    <section class="expo-guide" id="try-it">
+        <div class="guide-container">
+            <div class="guide-content">
+                <h2 class="reveal lang" data-vi="Hướng dẫn Tải App" data-en="Installation Guide">Hướng dẫn Tải App</h2>
+                <p class="reveal delay-1 lang" data-vi="FinSnap đang chạy trên nền tảng Expo. Làm theo 3 bước sau để cài đặt thẳng vào điện thoại của bạn mà không cần qua App Store." data-en="FinSnap runs on the Expo platform. Follow these 3 steps to install it directly on your phone without going through the App Store.">FinSnap đang chạy trên nền tảng Expo. Làm theo 3 bước sau để cài đặt thẳng vào điện thoại của bạn mà không cần qua App Store.</p>
+
+                <div class="step reveal delay-1">
+                    <div class="step-number">1</div>
+                    <div class="step-text">
+                        <h4 class="lang" data-vi="Cài đặt Expo Go" data-en="Install Expo Go">Cài đặt Expo Go</h4>
+                        <p class="lang" data-vi="Tải ứng dụng Expo Go miễn phí về điện thoại để tạo môi trường chạy app." data-en="Download the free Expo Go app to your phone to create a runtime environment.">Tải ứng dụng Expo Go miễn phí về điện thoại để tạo môi trường chạy app.</p>
+                        
+                        <div class="store-badges">
+                            <a href="https://apps.apple.com/app/expo-go/id982107779" target="_blank" class="store-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.592c-2.316 0-4.148-1.748-4.522-3.957-.033-.195.045-.392.203-.509l5.076-3.754c.264-.195.632-.007.632.325v7.41c0 .265-.215.485-.48.485h-.909zM18.89 8.271a3.52 3.52 0 0 0-1.89-2.923c-1.393-.728-3.033-.42-4.116.326-.704.485-1.428.485-2.128 0-1.077-.746-2.73-.997-4.128-.27-1.79.927-3.035 2.766-3.23 4.908-.344 3.756 1.83 6.945 4.385 7.03 1.134.037 1.898-.691 3.123-.691 1.218 0 1.956.702 3.126.691 2.454-.022 4.331-2.936 4.887-5.592a3.565 3.565 0 0 1-2.029-3.479zM14.945 5.097c.563-.732.93-1.751.826-2.774-.89.04-1.95.61-2.544 1.34-.526.645-.968 1.685-.845 2.695.992.08 1.988-.535 2.563-1.261z"/></svg> App Store</a>
+                            <a href="https://play.google.com/store/apps/details?id=host.exp.exponent" target="_blank" class="store-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.737 2.164a2.316 2.316 0 0 0-1.1 2.01v15.65c0 .822.428 1.547 1.1 2.01L14.464 12 3.737 2.164zm1.48.513l9.88 9.074 2.823-2.613L5.217 2.677zm11.237 8.04l2.88 2.667 3.513-2.028a2.32 2.32 0 0 0 0-4.015l-3.513-2.028-2.88 2.667-.935-.867 4.298-3.95A4.316 4.316 0 0 1 24 9.992v4.016a4.316 4.316 0 0 1-2.15 3.738l-4.298-3.95.935-.867zm-1.237 1.144L5.217 21.32l12.7-6.463-2.823-2.613z"/></svg> Google Play</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step reveal delay-2">
+                    <div class="step-number">2</div>
+                    <div class="step-text">
+                        <h4 class="lang" data-vi="Quét mã QR" data-en="Scan the QR Code">Quét mã QR</h4>
+                        <p class="lang" data-vi="iOS: Dùng Camera mặc định. Android: Bấm nút Scan QR trong app Expo Go." data-en="iOS: Use the default Camera. Android: Tap the Scan QR button in the Expo Go app.">iOS: Dùng Camera mặc định. Android: Bấm nút Scan QR trong app Expo Go.</p>
+                    </div>
+                </div>
+
+                <div class="step reveal delay-3">
+                    <div class="step-number">3</div>
+                    <div class="step-text">
+                        <h4 class="lang" data-vi="Trải nghiệm" data-en="Experience it">Trải nghiệm</h4>
+                        <p class="lang" data-vi="Đợi tải JS Bundle khoảng 10 giây. Lần sau mở app không cần quét lại mã." data-en="Wait about 10 seconds for the JS Bundle to load. Next time, no need to rescan the code.">Đợi tải JS Bundle khoảng 10 giây. Lần sau mở app không cần quét lại mã.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="qr-card reveal delay-2">
+                <div class="qr-box">
+                    <img src="./images/FinSnap.png" alt="QR Code">
+                </div>
+                <h4 class="lang" data-vi="Quét để mở FinSnap" data-en="Scan to open FinSnap">Quét để mở FinSnap</h4>
+                <p style="color: #888;" class="lang" data-vi="Yêu cầu app Expo Go" data-en="Expo Go app required">Yêu cầu app Expo Go</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER (thay toàn bộ <footer class="main-footer">...</footer> cũ bằng khối này) -->
+    <footer class="ft">
+        <div class="ft-grid">
+            <div class="ft-about reveal">
+                <h3>Bùi Duy Anh</h3>
+                <a class="ft-mail" href="mailto:buiduyanh.17042001@gmail.com">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    <span>buiduyanh.17042001@gmail.com</span>
+                </a>
+                <div class="ft-links">
+                    <a href="https://duyanh-dev.github.io/" target="_blank" rel="noopener" class="ft-pill">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                        Portfolio
+                    </a>
+                    <a href="https://github.com/duyanh-dev" target="_blank" rel="noopener" class="ft-pill">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                        GitHub
+                    </a>
+                </div>
+            </div>
+
+            <nav class="ft-nav reveal">
+                <a href="#try-it" class="lang" data-vi="Thử bản Beta" data-en="Try Beta">Thử bản Beta</a>
+                <a href="#shortcut" class="lang" data-vi="Thêm ra màn hình" data-en="Add to Home Screen">Thêm ra màn hình</a>
+                <a href="https://github.com/duyanh-dev/my-locket-finace" target="_blank" rel="noopener" class="lang" data-vi="Github Repo" data-en="GitHub Repo">Github Repo</a>
+            </nav>
+
+            <div class="ft-form reveal">
+                <h4 class="lang" data-vi="Gửi tin nhắn cho tôi" data-en="Send me a message">Gửi tin nhắn</h4>
+                <form id="contactForm" class="contact-form">
+                    <input type="text" id="senderName" placeholder="Tên..." required>
+                    <textarea id="senderMessage" placeholder="Nội dung..." required></textarea>
+                    <button type="submit" class="submit-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        <span class="lang" data-vi="Gửi ngay" data-en="Send Message">Gửi ngay</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="ft-bottom">
+            <p class="lang" data-vi="Dự án <span>FinSnap</span> phát triển bởi <span>Bùi Duy Anh</span> &copy; 2026. All rights reserved." data-en="Project <span>FinSnap</span> developed by <span>Bui Duy Anh</span> &copy; 2026. All rights reserved.">Dự án <span>FinSnap</span> phát triển bởi <span>Bùi Duy Anh</span> &copy; 2026. All rights reserved.</p>
+            <button class="ft-top" type="button" aria-label="Back to top">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="M5 12l7-7 7 7"></path></svg>
+            </button>
+        </div>
+        <div class="ft-word" aria-hidden="true"><span>F</span><span>i</span><span>n</span><span class="y">S</span><span class="y">n</span><span class="y">a</span><span class="y">p</span></div>
+
+    </footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="./index.js"></script>
+<script src="./wow.js"></script>
+</body>
+</html>
