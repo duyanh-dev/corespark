@@ -4,6 +4,7 @@
    Dữ liệu: src/data/demos.json. Thẻ + chip lọc được render sẵn lúc build (tốt cho SEO)
    Logic nằm ở src/scripts/showcase/*.js
    Nguồn demo: localUrl (code trong public/) được ưu tiên nếu file có thật, không thì dùng url
+   liteUrl (tuỳ chọn): bản nhẹ của demo, chỉ dùng khi ĐIỆN THOẠI xem khung "Máy tính" (chống tràn RAM iOS)
    ========================================================= */
 import raw from '../data/demos.json';
 import fs from 'node:fs';
@@ -17,9 +18,10 @@ const withBase = (u) => (u && u.startsWith('/') && !u.startsWith('//') ? base + 
 
 /* ---------- Chọn nguồn cho từng demo (chạy lúc build, và mỗi lần tải trang ở chế độ dev) ----------
    Quy tắc: localUrl (code trong public/) được ƯU TIÊN nếu file đó thật sự tồn tại, nếu không thì dùng url.
-   Kết quả gắn vào đúng 2 trường mà viewer.js đang đọc:
+   Kết quả gắn vào các trường mà viewer.js đang đọc:
      - url     = nguồn để NHÚNG (khung xem)
-     - siteUrl = nơi nút "Visit site" mở = siteUrl (nếu có) > url thật */
+     - siteUrl = nơi nút "Visit site" mở = siteUrl (nếu có) > url thật
+     - liteUrl = bản nhẹ (chỉ có khi file thật sự tồn tại trong public/) */
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
 
 /* HÀM 1: file của localUrl có thật trong public/ không? (kiểm tra bằng đường dẫn GỐC, chưa có base)
@@ -46,6 +48,7 @@ const demos = raw.map((d) => {
     thumb: withBase(d.thumb),
     url: withBase(url),
     siteUrl: withBase(d.siteUrl ?? d.url ?? d.localUrl),
+    liteUrl: localExists(d.liteUrl) ? withBase(d.liteUrl) : undefined,
   };
 });
 console.log(`[showcase] ${demos.length} demo. Đang dùng code trong site: ${usingLocal.length ? usingLocal.join(', ') : '(chưa có)'}`);
@@ -94,7 +97,8 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   </header>
 
   <div class="sc-layout">
-    <!-- ===== Cột bộ lọc (desktop: tấm kính dính bên trái. Mobile: ngăn kéo từ dưới lên) ===== -->
+    <!-- ===== Cột bộ lọc (desktop: tấm kính dính bên trái. Mobile: ngăn kéo từ dưới lên) =====
+         data-lenis-prevent: để Lenis không nuốt cuộn chuột/chạm trong bảng lọc -->
     <aside class="sc-filters" id="sc-filters" data-lenis-prevent aria-label="Bộ lọc demo">
       <div class="sc-ftop">
         <h3 class="sc-ftitle">Bộ lọc</h3>
@@ -290,9 +294,7 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     padding: 1.2rem 1.2rem 1rem; border-radius: 1.8rem;
     background: var(--g-bg); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
     border: 1px solid var(--g-bd); box-shadow: var(--g-shadow);
-      overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+    overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y;
   }
   .sc-ftop { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .4rem; }
   .sc-ftitle { font-size: 1.15rem; letter-spacing: -.01em; margin-right: auto; }
@@ -488,9 +490,10 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   .sc-toast { position: absolute; left: 50%; bottom: 5.8rem; z-index: 5; padding: .5rem 1rem; border-radius: 999px; background: rgba(255, 255, 255, .92); color: #1d1d1f; font-size: .85rem; font-weight: 600; opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: opacity .25s, transform .25s; }
   .sc-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
 
-/* Khi xem demo: gỡ hẳn trang cha khỏi render để nhường RAM cho iframe (cùng tiến trình trên iOS) */
-html.sc-viewing .sc { box-sizing: border-box; overflow: hidden; }
-html.sc-viewing .sc > *:not(.sc-viewer) { display: none; }
+  /* Khi xem demo: gỡ hẳn trang cha khỏi render để nhường RAM cho iframe (cùng tiến trình trên iOS).
+     Chiều cao section được viewer.js giữ cố định nên vị trí cuộn không nhảy khi đóng */
+  html.sc-viewing .sc { box-sizing: border-box; overflow: hidden; }
+  html.sc-viewing .sc > *:not(.sc-viewer) { display: none; }
 
   /* ---------- 6. RESPONSIVE ---------- */
   @media (max-width: 1000px) {
@@ -518,9 +521,9 @@ html.sc-viewing .sc > *:not(.sc-viewer) { display: none; }
     .sc-backdrop.is-open { opacity: 1; pointer-events: auto; }
 
     .sc-vbar {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "close title cta" "dev dev tools";
-    align-items: center; row-gap: .55rem; column-gap: .6rem;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: "close title cta" "dev dev tools";
+      align-items: center; row-gap: .55rem; column-gap: .6rem;
     }
     .sc-vclose { grid-area: close; }
     .sc-vtitle { grid-area: title; }
