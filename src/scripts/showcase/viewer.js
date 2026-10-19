@@ -98,6 +98,19 @@ export function initViewer({ demos, getList }) {
     iframe = null;
   }
 
+  /* Điện thoại xem "Máy tính": giảm tải cho demo (cùng origin nên chèn được CSS vào iframe).
+     - bỏ will-change: mỗi phần tử có nó giữ một lớp GPU riêng ở kích thước đầy đủ
+     - ảnh giải mã bất đồng bộ: cuộn nhanh không bị dồn nhiều ảnh lớn giải mã cùng lúc trên luồng chính */
+  function lighten(f) {
+    try {
+      const d = f.contentDocument;
+      const s = d.createElement('style');
+      s.textContent = '*,*::before,*::after{will-change:auto!important}';
+      d.head.appendChild(s);
+      d.querySelectorAll('img').forEach((i) => { i.decoding = 'async'; });
+    } catch {}
+  }
+
   /* ---------- HÀM 4: nạp demo vào iframe mới ---------- */
   function loadIframe() {
     killIframe();
@@ -109,8 +122,14 @@ export function initViewer({ demos, getList }) {
     const mine = iframe;
     iframe.addEventListener('load', () => {
       if (mine !== iframe) return;             // iframe cũ đã bị gỡ
+      /* Safari bắn một sự kiện load "ảo" của about:blank ngay khi gắn iframe (trước khi demo thật nạp):
+         bỏ qua, nếu không loader tắt sớm và cờ chống crash-loop bị xoá sớm */
+      let href = '';
+      try { href = iframe.contentWindow.location.href; } catch {}
+      if (!href || href === 'about:blank') return;
       try { sessionStorage.removeItem('sc:loading'); } catch {}
       clearTimeout(hintTimer);
+      if (device === 'desktop' && isNarrow()) lighten(iframe);
       loader.classList.add('is-done');
       iframe.classList.add('is-loaded');
       dbg.attach(iframe);
