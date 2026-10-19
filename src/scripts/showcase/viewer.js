@@ -64,6 +64,7 @@ const deviceCfg = () =>
   function killIframe() {
     clearTimeout(hintTimer);
     clearTimeout(loadTimer);
+    try { sessionStorage.removeItem('sc:loading'); } catch {}
     if (!iframe) return;
     iframe.src = 'about:blank';
     iframe.remove();
@@ -79,12 +80,14 @@ const deviceCfg = () =>
     iframe.setAttribute('sandbox', SANDBOX);
     iframe.allow = 'fullscreen; autoplay';
     iframe.addEventListener('load', () => {
+      try { sessionStorage.removeItem('sc:loading'); } catch {}
       clearTimeout(hintTimer);
       loader.classList.add('is-done');
       iframe.classList.add('is-loaded');
     });
     screen.appendChild(iframe);
-    layoutFrame();                          // có kích thước đúng rồi mới nạp (demo WebGL khỏi phải resize lại)
+    layoutFrame();             
+    try { sessionStorage.setItem('sc:loading', cur.slug); } catch {}             // có kích thước đúng rồi mới nạp (demo WebGL khỏi phải resize lại)
     iframe.src = absUrl(cur.url);
     hintTimer = setTimeout(() => hint.classList.add('is-warn'), 7000);
   }
@@ -282,6 +285,16 @@ const deviceCfg = () =>
 
   return {
     open: (slug, el) => open(slug, el),
-    openFromHash: () => { const s = parseHash(); if (s) open(s, null, { push: false }); },
+    openFromHash: () => {
+  const s = parseHash();
+  if (!s) return;
+  let crashed = null;
+  try { crashed = sessionStorage.getItem('sc:loading'); sessionStorage.removeItem('sc:loading'); } catch {}
+  if (crashed === s) {                       // lần trước demo này làm trang crash: không tự mở lại
+    history.replaceState(null, '', location.pathname + location.search);
+    return;
+  }
+  open(s, null, { push: false });
+},
   };
 }
