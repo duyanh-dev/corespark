@@ -61,6 +61,21 @@ function unfreezeParent() {
 const deviceCfg = () =>
   device === 'desktop' && innerWidth < 1000 ? { ...DEVICES.desktop, maxH: 800 } : DEVICES[device];
 
+/* Điện thoại + tab Máy tính = chế độ nhẹ: không nạp iframe, chỉ hiện ảnh chụp */
+const phoneDesktop = () => device === 'desktop' && innerWidth < 1000;
+
+function openFull() {
+  const u = new URL(absUrl(cur.url));
+  if (u.origin === location.origin) {
+    try { sessionStorage.setItem('sc:device', 'desktop'); } catch {}
+    location.href = viewer.dataset.preview
+      + '?u=' + encodeURIComponent(u.pathname + u.search)
+      + '&t=' + encodeURIComponent(cur.title);
+  } else {
+    window.open(absUrl(cur.siteUrl || cur.url), '_blank', 'noopener');
+  }
+}
+
   /* ---------- HÀM 2: điền thông tin demo lên thanh trên ---------- */
   function fillUI(d) {
     titleEl.textContent = d.title;
@@ -72,6 +87,7 @@ const deviceCfg = () =>
     prevBtn.disabled = nextBtn.disabled = !many;
     hint.classList.remove('is-warn');
   }
+  
 
   /* ---------- HÀM 3: gỡ iframe (giải phóng bộ nhớ, dừng WebGL) ---------- */
   function killIframe() {
@@ -86,9 +102,13 @@ const deviceCfg = () =>
 
   /* ---------- HÀM 4: nạp demo vào iframe mới ---------- */
   function loadIframe() {
-    killIframe();
-    loader.classList.remove('is-done');
-    iframe = document.createElement('iframe');
+  killIframe();
+  const lite = phoneDesktop();
+  loader.classList.toggle('is-lite', lite);
+  loader.classList.remove('is-done');
+  if (lite) { layoutFrame(); return; }      // chế độ nhẹ: dừng ở đây, không tạo iframe
+  iframe = document.createElement('iframe');
+
     iframe.title = cur.title;
     iframe.setAttribute('sandbox', SANDBOX);
     iframe.allow = 'fullscreen; autoplay';
@@ -135,12 +155,14 @@ const deviceCfg = () =>
 
   /* ---------- HÀM 6: đổi thiết bị ---------- */
   function setDevice(dev, chosen) {
-    device = dev;
-    if (chosen) deviceChosen = true;
-    devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
-    frame.dataset.device = dev;
-    layoutFrame();
-  }
+  const changed = dev !== device;
+  device = dev;
+  if (chosen) deviceChosen = true;
+  devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
+  frame.dataset.device = dev;
+  layoutFrame();
+  if (chosen && changed && isOpen && cur) loadIframe();   // chỉ khi người dùng tự bấm đổi
+}
 
   /* ---------- HÀM 7: hiệu ứng mở (thẻ phóng to ra toàn màn hình) ---------- */
   function animateIn(onDone) {
@@ -257,6 +279,7 @@ const deviceCfg = () =>
   }
 
   /* ----- Gắn sự kiện ----- */
+  loader.addEventListener('click', () => { if (loader.classList.contains('is-lite')) openFull(); });
   closeBtn.addEventListener('click', () => requestClose());
   prevBtn.addEventListener('click', () => step(-1));
   nextBtn.addEventListener('click', () => step(1));
@@ -303,12 +326,16 @@ const deviceCfg = () =>
     openFromHash: () => {
   const s = parseHash();
   if (!s) return;
-  let crashed = null;
-  try { crashed = sessionStorage.getItem('sc:loading'); sessionStorage.removeItem('sc:loading'); } catch {}
-  if (crashed === s) {                       // lần trước demo này làm trang crash: không tự mở lại
+  let crashed = null, dev = null;
+  try {
+    crashed = sessionStorage.getItem('sc:loading'); sessionStorage.removeItem('sc:loading');
+    dev = sessionStorage.getItem('sc:device');      sessionStorage.removeItem('sc:device');
+  } catch {}
+  if (crashed === s) {
     history.replaceState(null, '', location.pathname + location.search);
     return;
   }
+  if (dev === 'desktop') setDevice('desktop', true);   // khôi phục tab Máy tính (chế độ nhẹ)
   open(s, null, { push: false });
 },
   };

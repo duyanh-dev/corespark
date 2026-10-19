@@ -1,0 +1,45 @@
+---
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+<meta name="viewport" content="width=1024, minimum-scale=0.2, maximum-scale=3" />
+  <meta name="robots" content="noindex" />
+  <title>Xem bản máy tính</title>
+  <style is:global>
+    html, body { margin: 0; height: 100%; background: #0b0b0d; color: #f5f5f7; font-family: system-ui, sans-serif; }
+body { display: flex; flex-direction: column; }
+.bar { flex: none; display: flex; align-items: center; gap: 28px; height: 120px; padding: 0 28px; }
+.bar button { height: 76px; padding: 0 36px; border: 0; border-radius: 999px; background: #fff; color: #1d1d1f; font: 600 34px system-ui; }
+.bar span { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 34px; }
+iframe { flex: 1; min-height: 0; width: 1024px; border: 0; background: #fff; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <button id="back" type="button">← Quay lại</button>
+    <span id="t"></span>
+  </div>
+  <iframe id="f" title="Demo"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+    allow="fullscreen; autoplay"></iframe>
+
+  <script is:inline define:vars={{ base }}>
+    const q = new URLSearchParams(location.search);
+    const u = q.get('u') || '';
+    document.getElementById('t').textContent = q.get('t') || '';
+    document.getElementById('back').onclick = () => {
+      if (history.length > 1 && document.referrer.startsWith(location.origin)) history.back();
+      else location.href = base + '/';
+    };
+    // Chỉ nhận đường dẫn nội bộ (tránh bị lợi dụng để nhúng trang lạ)
+    if (/^\/(?!\/)[^\\]*$/.test(u)) {
+      const x = new URL(u, location.origin);
+      x.searchParams.set('embed', '1');
+      document.getElementById('f').src = x.href;
+    }
+  </script>
+</body>
+</html>

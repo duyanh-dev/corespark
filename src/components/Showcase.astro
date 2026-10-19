@@ -193,7 +193,7 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   <div class="sc-backdrop" id="sc-backdrop"></div>
 
   <!-- ===== KHUNG XEM DEMO (JS sẽ chuyển ra <body> khi khởi tạo) ===== -->
-  <div class="sc-viewer" id="sc-viewer" role="dialog" aria-modal="true" aria-label="Xem demo" hidden>
+  <div class="sc-viewer" id="sc-viewer" data-preview={`${base}/preview/`} role="dialog" aria-modal="true" aria-label="Xem demo" hidden>
     <div class="sc-vglow" aria-hidden="true"></div>
 
     <!-- Thanh nổi phía trên -->
@@ -222,12 +222,18 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     </div>
 
     <div class="sc-stage" id="v-stage">
-      <div class="sc-frame" id="v-frame" data-device="desktop">
-        <div class="sc-screen" id="v-screen">
-          <div class="sc-loader" id="v-loader"><span class="sc-spin"></span></div>
+  <div class="sc-frame" id="v-frame" data-device="desktop">
+    <div class="sc-screen" id="v-screen">
+      <div class="sc-loader" id="v-loader">
+        <span class="sc-spin"></span>
+        <div class="sc-lite">
+          <p>Đây là bản xem nhanh. Muốn xem kỹ hơn:</p>
+          <button type="button">Mở bản máy tính đầy đủ ↗</button>
         </div>
       </div>
     </div>
+  </div>
+</div>
 
     <!-- Thanh nổi phía dưới -->
     <div class="sc-vfoot" id="v-foot">
@@ -470,6 +476,12 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   .sc-loader { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: #1c1c1e var(--thumb, none) center / cover no-repeat; transition: opacity .4s, visibility 0s; }
   .sc-loader::before { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, .45); }
   .sc-loader.is-done { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .4s, visibility 0s .4s; }
+
+  .sc-lite { display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; flex-direction: column; align-items: center; gap: .4rem; padding: 1.2rem .6rem .6rem; text-align: center; font-size: .72rem; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.8)); }
+.sc-lite button { padding: .45rem .9rem; border-radius: 999px; background: #fff; color: #1d1d1f; font-size: .8rem; font-weight: 600; }
+.sc-loader.is-lite { cursor: pointer; }
+.sc-loader.is-lite::before, .sc-loader.is-lite .sc-spin { display: none; }
+.sc-loader.is-lite .sc-lite { display: flex; }
   .sc-spin { position: relative; width: 2rem; height: 2rem; border: 3px solid rgba(255, 255, 255, .22); border-top-color: #fff; border-radius: 50%; animation: sc-rot .8s linear infinite; }
   @keyframes sc-rot { to { transform: rotate(360deg); } }
 
