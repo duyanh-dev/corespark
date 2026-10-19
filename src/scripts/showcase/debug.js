@@ -98,6 +98,16 @@ export function initDebug() {
       out.jsKB = kb('script'); out.cssKB = kb('css');
       out.cssRules = [...d.styleSheets].reduce((a, s) => { try { return a + s.cssRules.length; } catch { return a; } }, 0);
       out.win = `${w.innerWidth}x${w.innerHeight}`;
+      /* 6 ảnh nặng nhất: kích thước gốc so với kích thước đang hiển thị */
+      out.topImgs = [...d.images].map((i) => {
+        const r = i.getBoundingClientRect();
+        return {
+          f: (i.currentSrc || i.src).split('/').pop().slice(0, 40),
+          nat: `${i.naturalWidth}x${i.naturalHeight}`,
+          shown: `${Math.round(r.width)}x${Math.round(r.height)}`,
+          mb: Math.round(i.naturalWidth * i.naturalHeight * 4 / 1048576),
+        };
+      }).sort((a, b) => b.mb - a.mb).slice(0, 6);
     } catch (e) { out.layersErr = String(e.message || e); }
     return out;
   }
