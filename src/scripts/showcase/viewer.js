@@ -10,7 +10,7 @@
    ========================================================= */
 import gsap from 'gsap';
 import { lockScroll, unlockScroll } from './scroll-lock.js';
-
+import { initDebug } from './debug.js';
 /* ---------- CẤU HÌNH THIẾT BỊ ----------
    w = chiều rộng "màn hình ảo" (px), maxH = chiều cao tối đa,
    b = độ dày viền máy, r = độ bo góc */
@@ -22,6 +22,7 @@ const ORDER = ['desktop', 'mobile'];
 const SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals';
 
 export function initViewer({ demos, getList }) {
+  const dbg = initDebug();
   const byslug = new Map(demos.map((d) => [d.slug, d]));
   const $ = (id) => document.getElementById(id);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -38,6 +39,9 @@ export function initViewer({ demos, getList }) {
   /* ----- Trạng thái ----- */
   let cur = null, isOpen = false, device = 'desktop', deviceChosen = false;
   let iframe = null, origin = null, returnFocus = null, hintTimer, toastTimer, pendingCb = null;
+  dbg.setCtx(() => ({
+  slug: cur?.slug, device, iw: iframe?.style.width, ih: iframe?.style.height, tf: iframe?.style.transform,
+}));
   let loadTimer = 0, rafL = 0;
 
   /* ---------- HÀM 1: tiện ích nhỏ ---------- */
@@ -75,6 +79,7 @@ const deviceCfg = () =>
 
   /* ---------- HÀM 3: gỡ iframe (giải phóng bộ nhớ, dừng WebGL) ---------- */
   function killIframe() {
+    dbg.detach();
     clearTimeout(hintTimer);
     clearTimeout(loadTimer);
     try { sessionStorage.removeItem('sc:loading'); } catch {}
@@ -93,14 +98,18 @@ const deviceCfg = () =>
     iframe.setAttribute('sandbox', SANDBOX);
     iframe.allow = 'fullscreen; autoplay';
     iframe.addEventListener('load', () => {
-      try { sessionStorage.removeItem('sc:loading'); } catch {}
-      clearTimeout(hintTimer);
-      loader.classList.add('is-done');
-      iframe.classList.add('is-loaded');
-    });
+  try { sessionStorage.removeItem('sc:loading'); } catch {}
+  clearTimeout(hintTimer);
+  loader.classList.add('is-done');
+  iframe.classList.add('is-loaded');
+  dbg.attach(iframe);
+});
+
     screen.appendChild(iframe);
     layoutFrame();             
-    try { sessionStorage.setItem('sc:loading', cur.slug); } catch {}             // có kích thước đúng rồi mới nạp (demo WebGL khỏi phải resize lại)
+    try { sessionStorage.setItem('sc:loading', cur.slug); } catch {}  
+    dbg.log('load-start', { slug: cur.slug, device, dpr: devicePixelRatio });
+iframe.src = absUrl(cur.url);           // có kích thước đúng rồi mới nạp (demo WebGL khỏi phải resize lại)
     iframe.src = absUrl(cur.url);
     hintTimer = setTimeout(() => hint.classList.add('is-warn'), 7000);
   }
@@ -140,6 +149,7 @@ const deviceCfg = () =>
     devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
     frame.dataset.device = dev;
     layoutFrame();
+    dbg.log('setDevice', { dev });
   }
 
   /* ---------- HÀM 7: hiệu ứng mở (thẻ phóng to ra toàn màn hình) ---------- */

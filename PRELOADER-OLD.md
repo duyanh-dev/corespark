@@ -1,247 +1,315 @@
----
 /* =========================================================
-   PRELOADER.ASTRO - Giọt kính lỏng (liquid glass), không gradient
-   Thấu kính nở ra để lộ trang (SVG mask), sự kiện "corespark:reveal"
-   báo cho Hero bắt đầu animation đúng lúc trang lộ ra
+   VIEWER.JS - Khung xem demo toàn màn hình
+   - Thẻ phóng to thành khung xem (clip-path), đóng thì thu về đúng thẻ
+   - iframe chỉ nạp khi mở xong animation, gỡ hẳn khi đóng
+   - Đổi thiết bị: trang hiển thị đúng kích thước thật rồi thu nhỏ vừa khung
+   - Link riêng #demo=slug, nút Back đóng khung, phím tắt
+   - Tối ưu: dừng Lenis khi mở, debounce khi bấm ←/→, gom layout vào rAF,
+     đặt kích thước iframe TRƯỚC khi gán src
+   Trả về: { open(slug, cardEl), openFromHash() }
    ========================================================= */
-const brand = [...'CoreSpark'];
----
+import gsap from 'gsap';
+import { lockScroll, unlockScroll } from './scroll-lock.js';
 
-<!-- Khóa cuộn trang NGAY khi trình duyệt đọc tới đây (trước khi module chạy) + chốt an toàn 12s -->
-<script is:inline>
-  document.documentElement.classList.add('is-loading');
-  setTimeout(function () { document.documentElement.classList.remove('is-loading'); }, 12000);
-</script>
-<noscript><style>#preloader{display:none!important}html.is-loading{overflow:auto!important}</style></noscript>
+/* ---------- CẤU HÌNH THIẾT BỊ ----------
+   w = chiều rộng "màn hình ảo" (px), maxH = chiều cao tối đa,
+   b = độ dày viền máy, r = độ bo góc */
+const DEVICES = {
+  desktop: { w: 1280, maxH: Infinity, b: 0,  r: 14 },
+  mobile:  { w: 390,  maxH: 844,      b: 12, r: 44 },
+};
+const ORDER = ['desktop', 'mobile'];
+const SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals';
 
-<div class="pl" id="preloader" role="status" aria-live="polite" aria-label="Đang tải">
-  <!-- Màn che đặc, có "lỗ tròn" (mask) sẽ nở ra lúc kết thúc -->
-  <svg class="pl-veil" aria-hidden="true">
-    <defs>
-      <mask id="pl-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
-        <rect width="100%" height="100%" fill="#fff" />
-        <circle id="pl-hole" cx="50%" cy="50%" r="0" fill="#000" />
-      </mask>
-    </defs>
-    <rect class="pl-veil-rect" width="100%" height="100%" mask="url(#pl-mask)" />
-  </svg>
+export function initViewer({ demos, getList }) {
+  const byslug = new Map(demos.map((d) => [d.slug, d]));
+  const $ = (id) => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  <!-- Gốc toạ độ = tâm màn hình -->
-  <div class="pl-stage">
-    <!-- 3 viên màu phẳng quay quanh, nằm SAU kính nên bị khúc xạ -->
-    <span class="pl-blob"><i style="background:#0a84ff"></i></span>
-    <span class="pl-blob"><i style="background:#bf5af2"></i></span>
-    <span class="pl-blob"><i style="background:#ff6b8a"></i></span>
+  /* ----- Lấy phần tử. Đưa khung xem ra thẳng <body> để position: fixed luôn phủ cả màn hình ----- */
+  const viewer = $('sc-viewer');
+  document.body.appendChild(viewer);
+  const bar = $('v-bar'), foot = $('v-foot'), stage = $('v-stage'), frame = $('v-frame'), screen = $('v-screen');
+  const loader = $('v-loader'), hint = $('v-hint'), toast = $('v-toast');
+  const closeBtn = $('v-close'), titleEl = $('v-title'), metaEl = $('v-meta'), visit = $('v-visit');
+  const prevBtn = $('v-prev'), nextBtn = $('v-next'), reloadBtn = $('v-reload'), copyBtn = $('v-copy'), wantBtn = $('v-want');
+  const devBtns = [...$('v-devices').querySelectorAll('button')];
 
-    <div class="pl-orb"></div>
+  /* ----- Trạng thái ----- */
+  let cur = null, isOpen = false, device = 'desktop', deviceChosen = false;
+  let iframe = null, origin = null, returnFocus = null, hintTimer, toastTimer, pendingCb = null;
+  let loadTimer = 0, rafL = 0;
 
-    <svg class="pl-ring" viewBox="0 0 200 200" aria-hidden="true">
-      <circle class="pl-ring-track" cx="100" cy="100" r="96" />
-      <circle class="pl-ring-bar" cx="100" cy="100" r="96" />
-    </svg>
+  /* ---------- HÀM 1: tiện ích nhỏ ---------- */
+  const parseHash = () => (location.hash.match(/^#demo=([\w-]+)/) || [])[1] || null;
+  const absUrl = (u) => new URL(u, location.href).href;
+  const defaultDevice = () => (innerWidth < 1000 ? 'mobile' : 'desktop');
 
-    <div class="pl-core"><div class="pl-num"><span id="pl-num">0</span><small>%</small></div></div>
+const scRoot = document.getElementById('showcase');
+function freezeParent() {
+  if (!scRoot) return;
+  const h = scRoot.getBoundingClientRect().height;   // đo TRƯỚC khi ẩn
+  document.documentElement.classList.add('sc-viewing');
+  scRoot.style.height = h + 'px';
+}
+function unfreezeParent() {
+  document.documentElement.classList.remove('sc-viewing');
+  if (scRoot) scRoot.style.height = '';
+}
 
-    <div class="pl-text">
-      <div class="pl-brand" aria-hidden="true">
-        {brand.map((c) => <span class="pl-chw"><span class="pl-ch">{c}</span></span>)}
-      </div>
-      <p class="pl-status" id="pl-status">Ý tưởng</p>
-    </div>
-  </div>
-</div>
+  /* Điện thoại xem "Máy tính": giới hạn chiều cao ảo 800px (tỉ lệ 16:10) để iframe không phình to gây tràn RAM iOS */
+const deviceCfg = () =>
+  device === 'desktop' && innerWidth < 1000 ? { ...DEVICES.desktop, maxH: 800 } : DEVICES[device];
 
-<style is:global>
-  html.is-loading { overflow: hidden; }
-
-  .pl {
-    position: fixed; inset: 0; z-index: 9999; overflow: hidden; touch-action: none;
-    color: var(--text, #1d1d1f);
-    --o: 11rem;          /* đường kính giọt kính */
-    --b: 5rem;           /* đường kính viên màu */
-    animation: pl-failsafe 0s linear 12s forwards;   /* nếu JS lỗi, tự ẩn sau 12s */
+  /* ---------- HÀM 2: điền thông tin demo lên thanh trên ---------- */
+  function fillUI(d) {
+    titleEl.textContent = d.title;
+    metaEl.textContent = [d.type, d.topic, d.styles.join(', '), d.tech.join(', ')].join(' · ');
+    visit.href = absUrl(d.siteUrl || d.url);
+    visit.setAttribute('aria-label', `Mở ${d.title} ở tab mới`);
+    loader.style.setProperty('--thumb', d.thumb ? `url("${absUrl(d.thumb)}")` : 'none');
+    const many = getList().length > 1;
+    prevBtn.disabled = nextBtn.disabled = !many;
+    hint.classList.remove('is-warn');
   }
-  @keyframes pl-failsafe { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 
-  .pl-veil { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .pl-veil-rect { fill: var(--bg, #fbfbfd); }
-  .pl-stage { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
-
-  /* Viên màu */
-  .pl-blob { position: absolute; left: calc(var(--b) / -2); top: calc(var(--b) / -2); width: var(--b); height: var(--b); will-change: transform; }
-  .pl-blob i { display: block; width: 100%; height: 100%; border-radius: 50%; opacity: 0; }
-
-  /* Giọt kính: nền trong + nhòe + tăng bão hòa, độ sâu bằng bóng đổ trong (không gradient) */
-  .pl-orb {
-    --spec: 1;
-    position: absolute; left: calc(var(--o) / -2); top: calc(var(--o) / -2); width: var(--o); height: var(--o);
-    border-radius: 50%; opacity: 0; will-change: transform, border-radius;
-    background: rgba(255, 255, 255, .26);
-    -webkit-backdrop-filter: blur(18px) saturate(190%); backdrop-filter: blur(18px) saturate(190%);
-    border: 1px solid rgba(255, 255, 255, .85);
-    box-shadow:
-      0 24px 60px rgba(20, 30, 60, .16),
-      inset 0 2px 0 rgba(255, 255, 255, .95),
-      inset 0 -12px 26px rgba(255, 255, 255, .32),
-      inset 10px 0 22px rgba(255, 255, 255, .22),
-      inset -10px 0 22px rgba(255, 255, 255, .14);
+  /* ---------- HÀM 3: gỡ iframe (giải phóng bộ nhớ, dừng WebGL) ---------- */
+  function killIframe() {
+    clearTimeout(hintTimer);
+    clearTimeout(loadTimer);
+    try { sessionStorage.removeItem('sc:loading'); } catch {}
+    if (!iframe) return;
+    iframe.src = 'about:blank';
+    iframe.remove();
+    iframe = null;
   }
-  /* Hai vệt sáng phẳng (điểm sáng phản chiếu) */
-  .pl-orb::before, .pl-orb::after { content: ''; position: absolute; background: #fff; border-radius: 50%; opacity: var(--spec); }
-  .pl-orb::before { left: 15%; top: 10%; width: 36%; height: 17%; transform: rotate(-30deg); filter: blur(1.5px); opacity: calc(var(--spec) * .8); }
-  .pl-orb::after { right: 17%; bottom: 14%; width: 9%; height: 9%; filter: blur(1px); opacity: calc(var(--spec) * .45); }
 
-  /* Vòng tiến độ */
-  .pl-ring { position: absolute; width: calc(var(--o) * 1.27); height: calc(var(--o) * 1.27); left: calc(var(--o) * -.635); top: calc(var(--o) * -.635); transform: rotate(-90deg); opacity: 0; overflow: visible; }
-  .pl-ring circle { fill: none; stroke-linecap: round; }
-  .pl-ring-track { stroke: rgba(60, 60, 67, .12); stroke-width: 2.5; }
-  .pl-ring-bar { stroke: var(--accent, #0a84ff); stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(10, 132, 255, .5)); }
+  /* ---------- HÀM 4: nạp demo vào iframe mới ---------- */
+  function loadIframe() {
+    killIframe();
+    loader.classList.remove('is-done');
+    iframe = document.createElement('iframe');
+    iframe.title = cur.title;
+    iframe.setAttribute('sandbox', SANDBOX);
+    iframe.allow = 'fullscreen; autoplay';
+    iframe.addEventListener('load', () => {
+      try { sessionStorage.removeItem('sc:loading'); } catch {}
+      clearTimeout(hintTimer);
+      loader.classList.add('is-done');
+      iframe.classList.add('is-loaded');
+    });
+    screen.appendChild(iframe);
+    layoutFrame();             
+    try { sessionStorage.setItem('sc:loading', cur.slug); } catch {}             // có kích thước đúng rồi mới nạp (demo WebGL khỏi phải resize lại)
+    iframe.src = absUrl(cur.url);
+    hintTimer = setTimeout(() => hint.classList.add('is-warn'), 7000);
+  }
 
-  /* Số đếm trong kính */
-  .pl-core { position: absolute; left: calc(var(--o) / -2); top: calc(var(--o) / -2); width: var(--o); height: var(--o); display: grid; place-items: center; opacity: 0; }
-  .pl-num { font-size: calc(var(--o) * .3); font-weight: 600; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
-  .pl-num small { font-size: .38em; margin-left: .12em; color: var(--text-dim, #6e6e73); font-weight: 500; }
+  /* ---------- HÀM 5: tính kích thước khung + tỉ lệ thu nhỏ theo thiết bị đang chọn ---------- */
+  function layoutFrame() {
+    const d = deviceCfg();   // trước đây: DEVICES[device]
+    stage.style.paddingTop = bar.offsetHeight + 22 + 'px';
+    stage.style.paddingBottom = (foot.offsetHeight ? foot.offsetHeight + 22 : 12) + 'px';
+    const cs = getComputedStyle(stage);
+    const availW = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const availH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    if (availW <= 0 || availH <= 0) return;
 
-  /* Tên thương hiệu + trạng thái */
-  .pl-text { position: absolute; left: 0; top: calc(var(--o) / 2 + 3.2rem); transform: translateX(-50%); width: max-content; text-align: center; opacity: 0; }
-  .pl-brand { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.2; }
-  .pl-chw { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .14em; }
-  .pl-ch { display: inline-block; }
-  .pl-status { margin-top: .35rem; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim, #6e6e73); }
+    const b = d.b;
+    let scale = Math.min(1, (availW - 2 * b) / d.w);
+    if (isFinite(d.maxH)) scale = Math.min(scale, (availH - 2 * b) / d.maxH);
+    let innerH = (availH - 2 * b) / scale;
+    if (isFinite(d.maxH)) innerH = Math.min(innerH, d.maxH);
 
-  @media (max-width: 640px) { .pl { --o: 9rem; --b: 4rem; } }
-</style>
+    frame.style.width = d.w * scale + 2 * b + 'px';
+    frame.style.height = innerH * scale + 2 * b + 'px';
+    frame.style.borderRadius = d.r + 'px';
+    screen.style.setProperty('--b', b + 'px');
+    screen.style.borderRadius = Math.max(0, d.r - b) + 'px';
+    if (iframe) {
+      iframe.style.width = d.w + 'px';
+      iframe.style.height = innerH + 'px';
+      iframe.style.transform = `scale(${scale})`;
+    }
+  }
 
-<script>
-  import gsap from 'gsap';
+  /* ---------- HÀM 6: đổi thiết bị ---------- */
+  function setDevice(dev, chosen) {
+    device = dev;
+    if (chosen) deviceChosen = true;
+    devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
+    frame.dataset.device = dev;
+    layoutFrame();
+  }
 
-  const root = document.getElementById('preloader');
-  if (root) {
-    const html = document.documentElement;
-    const q = (s) => root.querySelector(s);
-    const orb = q('.pl-orb'), ringEl = q('.pl-ring'), bar = q('.pl-ring-bar'), core = q('.pl-core');
-    const textEl = q('.pl-text'), num = q('#pl-num'), status = q('#pl-status'), hole = q('#pl-hole');
-    const letters = [...root.querySelectorAll('.pl-ch')];
-    const blobs = [...root.querySelectorAll('.pl-blob')];
-    const inners = blobs.map((b) => b.firstElementChild);
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const STEPS = ['Ý tưởng', 'Thiết kế', 'Code', 'Ra mắt'];
-    const C = 2 * Math.PI * 96;                       // chu vi vòng tiến độ
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  /* ---------- HÀM 7: hiệu ứng mở (thẻ phóng to ra toàn màn hình) ---------- */
+  function animateIn(onDone) {
+    gsap.killTweensOf(viewer);
+    const r = origin?.getBoundingClientRect();
+    const ok = r && r.width > 0 && r.bottom > 0 && r.top < innerHeight;
+    const from = ok
+      ? `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round 26px)`
+      : 'inset(50% 50% 50% 50% round 26px)';
+    gsap.fromTo(viewer, { clipPath: from, opacity: 1 },
+      { clipPath: 'inset(0px 0px 0px 0px round 0px)', duration: reduce ? 0 : 0.5, ease: 'power3.inOut',
+        onComplete: () => {
+  viewer.style.clipPath = 'none';
+  if (isOpen) freezeParent();
+  layoutFrame(); onDone?.();
+}
+    });
+    gsap.from([bar, foot], { opacity: 0, y: (i) => (i ? 12 : -12), duration: 0.4, delay: reduce ? 0 : 0.25, clearProps: 'all' });
+  }
 
-    /* Chặn cuộn trong lúc tải (kể cả Lenis) */
-    ['wheel', 'touchmove'].forEach((t) =>
-      root.addEventListener(t, (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
-    let lenisStopped = false;
+  /* ---------- HÀM 8: MỞ khung xem demo (hoặc chuyển sang demo khác nếu đang mở) ---------- */
+  function open(slug, originEl = null, { push = true } = {}) {
+    const d = byslug.get(slug);
+    if (!d) return;
+    const wasOpen = isOpen;
+    cur = d;
+    origin = originEl || document.querySelector(`.sc-card[data-slug="${slug}"]`);
+    fillUI(d);
 
-    let revealed = false;
-    const reveal = () => { if (revealed) return; revealed = true; window.dispatchEvent(new CustomEvent('corespark:reveal')); };
-    const orbit = () => {};                            // gán lại bên dưới
-    const done = () => {
-      gsap.ticker.remove(orbitTick);
-      html.classList.remove('is-loading');
-      window.__lenis?.start?.();
-      root.remove();
+    if (!wasOpen) {
+      isOpen = true;
+      if (!deviceChosen) setDevice(defaultDevice(), false);
+      returnFocus = document.activeElement;
+      viewer.hidden = false;
+      lockScroll();
+      window.__lenis?.stop();                    // trang chính ngừng render ngầm khi xem demo
+      if (push) history.pushState({ scDemo: slug }, '', '#demo=' + slug);
+      animateIn(() => { if (isOpen && !iframe) loadIframe(); });   // đợi mở xong mới nạp demo
+      closeBtn.focus({ preventScroll: true });
+    } else {
+      history.replaceState(history.state?.scDemo ? { scDemo: slug } : null, '', '#demo=' + slug);
+      killIframe();                              // gỡ demo cũ ngay
+      loader.classList.remove('is-done');
+      loadTimer = setTimeout(loadIframe, 200);   // debounce: bấm ←/→ liên tục chỉ nạp demo cuối
+    }
+  }
+
+  /* ---------- HÀM 9: ĐÓNG (thu khung về đúng thẻ) ---------- */
+  function closeNow(cb) {
+    if (!isOpen) return;
+    isOpen = false;
+    // document.documentElement.classList.remove('sc-viewing');
+    unfreezeParent();
+    gsap.killTweensOf(viewer);
+    if (parseHash()) history.replaceState(null, '', location.pathname + location.search);
+
+    const finish = () => {
+      killIframe();
+      viewer.hidden = true;
+      viewer.style.clipPath = ''; viewer.style.opacity = '';
+      unlockScroll();
+      window.__lenis?.start();
+      returnFocus?.focus?.({ preventScroll: true });
+      cb?.();
     };
 
-    /* ----- Tiến độ: số, vòng, dòng trạng thái ----- */
-    const prog = { v: 0 };
-    let step = -1;
-    bar.style.strokeDasharray = C;
-    bar.style.strokeDashoffset = C;
-    const render = () => {
-      num.textContent = Math.round(prog.v);
-      bar.style.strokeDashoffset = C * (1 - prog.v / 100);
-      const s = Math.min(3, Math.floor(prog.v / 25));
-      if (s !== step) {
-        step = s;
-        status.textContent = STEPS[s];
-        gsap.fromTo(status, { y: 8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out', overwrite: true });
-      }
-    };
-
-    /* ----- 3 viên màu quay quanh giọt kính, hút vào tâm khi st.conv -> 1 ----- */
-    const st = { conv: 0 };
-    const setX = blobs.map((b) => gsap.quickSetter(b, 'x', 'px'));
-    const setY = blobs.map((b) => gsap.quickSetter(b, 'y', 'px'));
-    function orbitTick(time) {
-      if (!lenisStopped && window.__lenis) { window.__lenis.stop(); lenisStopped = true; }
-      const R = (orb.offsetWidth / 2) * 1.3 * (1 - st.conv);
-      blobs.forEach((_, i) => {
-        const a = time * (0.9 + i * 0.25) + i * 2.09;
-        const r = R * (1 + 0.1 * Math.sin(time * 1.3 + i));
-        setX[i](Math.cos(a) * r);
-        setY[i](Math.sin(a) * r * 0.8);
+    const r = origin && origin.isConnected ? origin.getBoundingClientRect() : null;
+    const ok = r && r.width > 0 && r.bottom > 0 && r.top < innerHeight;
+    if (ok) {
+      gsap.set(viewer, { clipPath: 'inset(0px 0px 0px 0px round 0px)' });
+      gsap.to(viewer, {
+        clipPath: `inset(${r.top}px ${innerWidth - r.right}px ${innerHeight - r.bottom}px ${r.left}px round 26px)`,
+        duration: reduce ? 0 : 0.5, ease: 'power3.inOut', onComplete: finish,
       });
+    } else {
+      gsap.to(viewer, { opacity: 0, duration: reduce ? 0 : 0.3, onComplete: finish });
     }
-
-    /* ----- Chờ trang tải xong (tối đa 8s) ----- */
-    const ready = Promise.all([
-      new Promise((r) => (document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true }))),
-      document.fonts?.ready ?? 0,
-    ]);
-    const waitReady = () => Promise.race([ready, sleep(8000)]);
-
-    async function run() {
-      /* Bản giảm chuyển động: chỉ mờ dần */
-      if (reduce) {
-        await waitReady();
-        reveal();
-        gsap.to(root, { opacity: 0, duration: 0.35, onComplete: () => { html.classList.remove('is-loading'); window.__lenis?.start?.(); root.remove(); } });
-        return;
-      }
-
-      /* ----- Giọt kính biến dạng như chất lỏng ----- */
-      const rr = () => gsap.utils.random(43, 57, 1);
-      const shape = () => `${rr()}% ${rr()}% ${rr()}% ${rr()}% / ${rr()}% ${rr()}% ${rr()}% ${rr()}%`;
-      let morph;
-      gsap.set(orb, { borderRadius: shape(), scale: 0.2 });
-      const wobble = () => { morph = gsap.to(orb, { borderRadius: shape(), duration: 1.4, ease: 'sine.inOut', onComplete: wobble }); };
-      wobble();
-
-      gsap.set(letters, { yPercent: 110 });
-      gsap.set(inners, { scale: 0.3 });
-      gsap.set(textEl, { opacity: 1 });
-      gsap.ticker.add(orbitTick);
-      render();
-
-      /* ----- Vào cảnh ----- */
-      gsap.timeline()
-        .to(orb, { opacity: 1, scale: 1, duration: 1.5, ease: 'elastic.out(1, 0.6)' }, 0)
-        .to(inners, { opacity: 1, scale: 1, duration: 0.9, stagger: 0.12, ease: 'back.out(2)' }, 0.1)
-        .to([ringEl, core], { opacity: 1, duration: 0.6 }, 0.35)
-        .to(letters, { yPercent: 0, duration: 0.9, stagger: 0.045, ease: 'power4.out' }, 0.4);
-
-      /* ----- Chạy tiến độ: tối thiểu ~2.2s, chờ trang tải xong mới lên 100 ----- */
-      const minDone = new Promise((r) => gsap.to(prog, { v: 88, duration: 2.2, ease: 'power2.out', onUpdate: render, onComplete: r }));
-      await Promise.all([minDone, waitReady()]);
-      await new Promise((r) => gsap.to(prog, { v: 100, duration: 0.45, ease: 'power2.inOut', onUpdate: render, onComplete: r }));
-
-      /* ----- Kết thúc: hút màu vào tâm, rồi thấu kính nở ra để lộ trang ----- */
-      const R0 = orb.offsetWidth / 2;
-      const Rmax = Math.hypot(innerWidth, innerHeight) / 2 * 1.08;
-      const e = { r: R0 };
-      const full = '50% 50% 50% 50% / 50% 50% 50% 50%';
-      const tl = gsap.timeline({ onComplete: done });
-
-      tl.to([core, ringEl, textEl], { opacity: 0, duration: 0.45, ease: 'power2.in' }, 0)
-        .to(letters, { yPercent: -110, duration: 0.5, stagger: 0.03, ease: 'power3.in' }, 0)
-        .to(st, { conv: 1, duration: 0.8, ease: 'power3.inOut' }, 0)
-        .to(inners, { scale: 1.8, duration: 0.8, ease: 'power3.inOut' }, 0)
-        .to(orb, { scale: 1.08, duration: 0.25, yoyo: true, repeat: 1, ease: 'power2.out' }, 0.65)
-        .add(() => morph.kill(), 0.8)
-        .to(orb, { borderRadius: full, duration: 0.4, ease: 'power2.out' }, 0.8)
-        .to(orb, { '--spec': 0, duration: 0.5 }, 1.0)
-        .addLabel('expand', 1.05)
-        .set(hole, { attr: { r: R0 } }, 'expand')
-        .to(e, {
-          r: Rmax, duration: 1.25, ease: 'power4.inOut',
-          onUpdate: () => { hole.setAttribute('r', e.r); gsap.set(orb, { scale: e.r / R0 }); },
-        }, 'expand')
-        .to(inners, { opacity: 0, duration: 0.4 }, 'expand+=0.1')
-        .call(reveal, null, 'expand+=0.55')
-        .to(orb, { opacity: 0, duration: 0.55, ease: 'power1.in' }, 'expand+=0.85');
-    }
-    run();
   }
-</script>
+
+  /* Đóng qua lịch sử: nếu đã thêm 1 mục lịch sử khi mở thì "lùi lại" 1 bước (popstate sẽ đóng thật) */
+  function requestClose(cb) {
+    if (history.state?.scDemo) { pendingCb = cb; history.back(); }
+    else closeNow(cb);
+  }
+
+  /* ---------- HÀM 10: demo trước / sau trong danh sách đang lọc ---------- */
+  function step(dir) {
+    const list = getList().map((d) => d.slug);
+    if (list.length < 2) return;
+    const i = Math.max(0, list.indexOf(cur.slug));
+    open(list[(i + dir + list.length) % list.length], null, { push: false });
+  }
+
+  /* ---------- HÀM 11: thông báo nhỏ (toast) và sao chép link ---------- */
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('is-on'), 1800);
+  }
+  async function copyLink() {
+    const url = location.origin + location.pathname + '#demo=' + cur.slug;
+    try { await navigator.clipboard.writeText(url); showToast('Đã sao chép link demo'); }
+    catch { window.prompt('Sao chép link này:', url); }
+  }
+
+  /* ---------- HÀM 12: giữ phím Tab xoay vòng trong khung xem ---------- */
+  function trapFocus(e) {
+    const f = [...viewer.querySelectorAll('a[href], button:not([disabled])')];
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  /* ----- Gắn sự kiện ----- */
+  closeBtn.addEventListener('click', () => requestClose());
+  prevBtn.addEventListener('click', () => step(-1));
+  nextBtn.addEventListener('click', () => step(1));
+  reloadBtn.addEventListener('click', () => { if (iframe) { loader.classList.remove('is-done'); iframe.classList.remove('is-loaded'); iframe.src = iframe.src; } });
+  copyBtn.addEventListener('click', copyLink);
+  devBtns.forEach((b) => b.addEventListener('click', () => setDevice(b.dataset.d, true)));
+
+  // "Tôi muốn web như này": đóng khung, lưu tên demo, báo cho phần Liên hệ rồi cuộn xuống
+  wantBtn.addEventListener('click', () => {
+    const detail = { slug: cur.slug, title: cur.title };
+    try { sessionStorage.setItem('corespark:inquiry', JSON.stringify(detail)); } catch {}
+    window.dispatchEvent(new CustomEvent('corespark:inquiry', { detail }));
+    requestClose(() => {
+      const target = document.querySelector('#contact');
+      if (!target) return;
+      window.__lenis ? window.__lenis.scrollTo(target, { duration: 1.4 }) : target.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!isOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); requestClose(); }
+    else if (e.key === 'ArrowLeft') step(-1);
+    else if (e.key === 'ArrowRight') step(1);
+    else if (['1', '2'].includes(e.key)) setDevice(ORDER[Number(e.key) - 1], true);
+    else if (e.key === 'Tab') trapFocus(e);
+  });
+
+  // Nút Back / Forward của trình duyệt
+  window.addEventListener('popstate', () => {
+    const slug = parseHash();
+    if (slug) { if (!isOpen || cur?.slug !== slug) open(slug, null, { push: false }); }
+    else if (isOpen) { const cb = pendingCb; pendingCb = null; closeNow(cb); }
+  });
+
+  // Đổi cỡ cửa sổ / xoay điện thoại: quan sát viewer (không phải stage, tránh vòng lặp) và gom vào 1 khung hình
+  new ResizeObserver(() => {
+    if (!isOpen || rafL) return;
+    rafL = requestAnimationFrame(() => { rafL = 0; layoutFrame(); });
+  }).observe(viewer);
+
+  return {
+    open: (slug, el) => open(slug, el),
+    openFromHash: () => {
+  const s = parseHash();
+  if (!s) return;
+  let crashed = null;
+  try { crashed = sessionStorage.getItem('sc:loading'); sessionStorage.removeItem('sc:loading'); } catch {}
+  if (crashed === s) {                       // lần trước demo này làm trang crash: không tự mở lại
+    history.replaceState(null, '', location.pathname + location.search);
+    return;
+  }
+  open(s, null, { push: false });
+},
+  };
+}
