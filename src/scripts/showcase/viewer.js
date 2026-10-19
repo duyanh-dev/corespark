@@ -63,7 +63,9 @@ function unfreezeParent() {
 
   /* Điện thoại xem "Máy tính": giới hạn chiều cao ảo 800px (tỉ lệ 16:10) để iframe không phình to gây tràn RAM iOS */
 const deviceCfg = () =>
-  device === 'desktop' && innerWidth < 1000 ? { ...DEVICES.desktop, maxH: 800 } : DEVICES[device];
+  device === 'desktop' && innerWidth < 1000
+    ? { ...DEVICES.desktop, w: 1024, maxH: 640 }
+    : DEVICES[device];
 
   /* ---------- HÀM 2: điền thông tin demo lên thanh trên ---------- */
   function fillUI(d) {
@@ -144,13 +146,22 @@ iframe.src = absUrl(cur.url);           // có kích thước đúng rồi mới
 
   /* ---------- HÀM 6: đổi thiết bị ---------- */
   function setDevice(dev, chosen) {
-    device = dev;
-    if (chosen) deviceChosen = true;
-    devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
-    frame.dataset.device = dev;
+  const changed = dev !== device;
+  device = dev;
+  if (chosen) deviceChosen = true;
+  devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
+  frame.dataset.device = dev;
+  dbg.log('setDevice', { dev });
+  if (changed && iframe && isOpen) {
+    killIframe();                              // gỡ demo cũ, thu hồi RAM trước
+    loader.classList.remove('is-done');
     layoutFrame();
-    dbg.log('setDevice', { dev });
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(loadIframe, 300);   // nạp lại ở kích thước mới
+  } else {
+    layoutFrame();
   }
+}
 
   /* ---------- HÀM 7: hiệu ứng mở (thẻ phóng to ra toàn màn hình) ---------- */
   function animateIn(onDone) {
