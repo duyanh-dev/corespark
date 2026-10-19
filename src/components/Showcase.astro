@@ -222,18 +222,28 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     </div>
 
     <div class="sc-stage" id="v-stage">
-  <div class="sc-frame" id="v-frame" data-device="desktop">
-    <div class="sc-screen" id="v-screen">
-      <div class="sc-loader" id="v-loader">
-        <span class="sc-spin"></span>
-        <div class="sc-lite">
-          <p>Đây là bản xem nhanh. Muốn xem kỹ hơn:</p>
-          <button type="button">Mở bản máy tính đầy đủ ↗</button>
+      <div class="sc-frame" id="v-frame" data-device="desktop">
+        <div class="sc-screen" id="v-screen">
+          <div class="sc-loader" id="v-loader">
+            <span class="sc-spin"></span>
+            <!-- GIỮ NGUYÊN trong DOM để viewer.js (bật/tắt .is-lite, gắn sự kiện bấm) vẫn chạy như cũ.
+                 Luôn bị ẩn bằng CSS: nội dung hiển thị ở .sc-litebox, nằm NGOÀI khung, sát ngay dưới frame -->
+            <div class="sc-lite" aria-hidden="true">
+              <p>Đây là thumnail xem nhanh. Bấm nút bên dưới để xem demo lớn hơn.</p>
+              <button type="button" tabindex="-1">Xem demo nhanh ↗</button>
+              <p class="sc-lite-note">Để trải nghiệm trọn vẹn nhất, hãy bấm <b>Visit site</b> và xem trên thiết bị thật.</p>
+            </div>
+          </div>
         </div>
       </div>
+
+      <!-- Chỉ hiện ở bản xem nhanh (.is-lite): một khối duy nhất, nằm sát dưới frame -->
+      <div class="sc-litebox">
+        <p class="sc-lite-lead">Đây là thumbnail xem nhanh.<br />Bấm nút bên dưới để xem demo lớn hơn.</p>
+        <button class="sc-liteopen" id="v-lite-open" type="button">Xem demo nhanh ↗</button>
+        <p class="sc-lite-note">Để trải nghiệm trọn vẹn nhất, hãy bấm <b class="nw">Visit site</b> và xem trên <b class="nw">thiết bị thật</b>.</p>
+      </div>
     </div>
-  </div>
-</div>
 
     <!-- Thanh nổi phía dưới -->
     <div class="sc-vfoot" id="v-foot">
@@ -296,9 +306,9 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     padding: 1.2rem 1.2rem 1rem; border-radius: 1.8rem;
     background: var(--g-bg); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
     border: 1px solid var(--g-bd); box-shadow: var(--g-shadow);
-      overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
   .sc-ftop { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .4rem; }
   .sc-ftitle { font-size: 1.15rem; letter-spacing: -.01em; margin-right: auto; }
@@ -460,11 +470,12 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   }
   .sc-visit:hover { transform: scale(1.04); }
 
-  .sc-stage { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; padding: 1rem; overflow: hidden; }
+  /* Stage: xếp frame + khối chú thích theo cột, căn giữa */
+  .sc-stage { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7rem; padding: 1rem; overflow: hidden; }
 
   /* TỐI ƯU: không animate width/height (làm iframe reflow liên tục), contain để cô lập layout/paint */
   .sc-frame {
-    position: relative; overflow: hidden; background: #000; border-radius: 14px;
+    position: relative; flex: none; overflow: hidden; background: #000; border-radius: 14px;
     box-shadow: 0 40px 100px -30px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255, 255, 255, .1);
     contain: layout paint;
   }
@@ -477,13 +488,34 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   .sc-loader::before { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, .45); }
   .sc-loader.is-done { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .4s, visibility 0s .4s; }
 
-  .sc-lite { display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; flex-direction: column; align-items: center; gap: .4rem; padding: 1.2rem .6rem .6rem; text-align: center; font-size: .72rem; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.8)); }
-.sc-lite button { padding: .45rem .9rem; border-radius: 999px; background: #fff; color: #1d1d1f; font-size: .8rem; font-weight: 600; }
-.sc-loader.is-lite { cursor: pointer; }
-.sc-loader.is-lite::before, .sc-loader.is-lite .sc-spin { display: none; }
-.sc-loader.is-lite .sc-lite { display: flex; }
+  /* Bản xem nhanh (.is-lite): trong khung chỉ còn ảnh thumbnail sạch, không chữ/nút/gradient đè lên.
+     .sc-lite gốc vẫn nằm trong DOM (viewer.js cần) nhưng luôn ẩn; nội dung hiện ở .sc-litebox, sát dưới frame */
+  .sc-lite { display: none !important; }
+  .sc-loader.is-lite { cursor: pointer; }
+  .sc-loader.is-lite::before, .sc-loader.is-lite .sc-spin { display: none; }
   .sc-spin { position: relative; width: 2rem; height: 2rem; border: 3px solid rgba(255, 255, 255, .22); border-top-color: #fff; border-radius: 50%; animation: sc-rot .8s linear infinite; }
   @keyframes sc-rot { to { transform: rotate(360deg); } }
+
+  .sc-litebox { display: none; }
+.sc-viewer:has(.sc-loader.is-lite) .sc-litebox {
+  display: flex; flex-direction: column; align-items: center; gap: .6rem;
+  width: 100%; max-width: 32rem; padding: 0 .5rem; text-align: center; flex: none;
+}
+.sc-litebox p { margin: 0; font-size: .8rem; line-height: 1.5; color: #d1d1d6; text-wrap: balance; }
+.sc-litebox .sc-lite-note { color: #aeaeb2; font-size: .75rem; }
+.sc-litebox b { color: #fff; font-weight: 600; }
+.sc-litebox .nw { white-space: nowrap; }
+  .sc-liteopen {
+    padding: .65rem 1.4rem; border-radius: 999px; white-space: nowrap; text-align: center;
+    background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .22); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3);
+    color: #f5f5f7; font-size: .85rem; font-weight: 600; transition: background .2s, transform .2s;
+  }
+  .sc-liteopen:hover { background: rgba(255, 255, 255, .26); }
+  .sc-liteopen:active { transform: scale(.97); }
+
+  /* Ở bản xem nhanh: ẩn gợi ý ở thanh dưới (thanh dưới chỉ còn nút "Tôi muốn web như này"), chừa chỗ cho thanh dưới */
+  .sc-viewer:has(.sc-loader.is-lite) .sc-vhint { display: none; }
+  .sc-viewer:has(.sc-loader.is-lite) .sc-stage { padding-bottom: 5rem; }
 
   .sc-vfoot {
     position: absolute; z-index: 3; left: .7rem; right: .7rem; bottom: calc(.7rem + env(safe-area-inset-bottom));
@@ -529,9 +561,9 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     .sc-backdrop.is-open { opacity: 1; pointer-events: auto; }
 
     .sc-vbar {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "close title cta" "dev dev tools";
-    align-items: center; row-gap: .55rem; column-gap: .6rem;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: "close title cta" "dev dev tools";
+      align-items: center; row-gap: .55rem; column-gap: .6rem;
     }
     .sc-vclose { grid-area: close; }
     .sc-vtitle { grid-area: title; }
@@ -548,7 +580,7 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
     .sc-vtitle span { display: none; }
 
     /* Nút Visit gọn lại, không chiếm chỗ của tên */
-    .sc-visit { padding: .45rem .85rem; font-size: .82rem; }
+    .sc-visit { padding: .45rem .85rem; font-size: .82rem; width: 100%; justify-content: center; }
   }
 
   @media (max-width: 560px) {
@@ -577,7 +609,7 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   }
 
   @media (max-height: 560px) and (orientation: landscape) {
-    .sc-vfoot { display: none; }
+    .sc-vfoot, .sc-viewer:has(.sc-loader.is-lite) .sc-vfoot { display: none; }
     .sc-vbar { top: .4rem; padding: .35rem .6rem; }
   }
 </style>
@@ -625,5 +657,11 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
 
     /* 5) Mở thẳng demo nếu link có #demo=ten-demo */
     viewer.openFromHash();
+
+    /* 6) Nút "Xem demo toàn màn hình" (nằm ngoài khung, sát dưới frame) chỉ chuyển tiếp cú bấm sang nút gốc trong .sc-lite,
+          nên viewer.js vẫn xử lý đúng như trước, không đổi logic */
+    document.getElementById('v-lite-open')?.addEventListener('click', () => {
+      document.querySelector('#v-loader .sc-lite button')?.click();
+    });
   }
 </script>
