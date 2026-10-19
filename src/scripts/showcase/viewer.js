@@ -6,14 +6,10 @@
    - Link riêng #demo=slug, nút Back đóng khung, phím tắt
    - Tối ưu: dừng Lenis khi mở, debounce khi bấm ←/→, gom layout vào rAF,
      đặt kích thước iframe TRƯỚC khi gán src
-   - Chống crash iOS: đổi thiết bị = gỡ iframe + nạp lại (không resize trang đang chạy),
-     điện thoại xem "Máy tính" dùng màn hình ảo nhỏ hơn, ưu tiên bản liteUrl nếu có,
-     gỡ trang cha khỏi render khi đang xem demo
    Trả về: { open(slug, cardEl), openFromHash() }
    ========================================================= */
 import gsap from 'gsap';
 import { lockScroll, unlockScroll } from './scroll-lock.js';
-import { initDebug } from './debug.js';
 
 /* ---------- CẤU HÌNH THIẾT BỊ ----------
    w = chiều rộng "màn hình ảo" (px), maxH = chiều cao tối đa,
@@ -22,14 +18,10 @@ const DEVICES = {
   desktop: { w: 1280, maxH: Infinity, b: 0,  r: 14 },
   mobile:  { w: 390,  maxH: 844,      b: 12, r: 44 },
 };
-/* Điện thoại xem "Máy tính": màn hình ảo nhỏ hơn (vẫn > 1024 để demo giữ bố cục desktop) và thấp hơn
-   => ít pixel phải dựng hơn, iframe không phình to gây tràn RAM iOS */
-const NARROW_DESKTOP = { w: 1100, maxH: 700 };
 const ORDER = ['desktop', 'mobile'];
 const SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals';
 
 export function initViewer({ demos, getList }) {
-  const dbg = initDebug();
   const byslug = new Map(demos.map((d) => [d.slug, d]));
   const $ = (id) => document.getElementById(id);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -42,37 +34,32 @@ export function initViewer({ demos, getList }) {
   const closeBtn = $('v-close'), titleEl = $('v-title'), metaEl = $('v-meta'), visit = $('v-visit');
   const prevBtn = $('v-prev'), nextBtn = $('v-next'), reloadBtn = $('v-reload'), copyBtn = $('v-copy'), wantBtn = $('v-want');
   const devBtns = [...$('v-devices').querySelectorAll('button')];
-  const scRoot = document.getElementById('showcase');
 
   /* ----- Trạng thái ----- */
   let cur = null, isOpen = false, device = 'desktop', deviceChosen = false;
   let iframe = null, origin = null, returnFocus = null, hintTimer, toastTimer, pendingCb = null;
   let loadTimer = 0, rafL = 0;
 
-  dbg.setCtx(() => ({
-    slug: cur?.slug, device, iw: iframe?.style.width, ih: iframe?.style.height, tf: iframe?.style.transform,
-  }));
-
   /* ---------- HÀM 1: tiện ích nhỏ ---------- */
   const parseHash = () => (location.hash.match(/^#demo=([\w-]+)/) || [])[1] || null;
   const absUrl = (u) => new URL(u, location.href).href;
-  const isNarrow = () => innerWidth < 1000;
-  const defaultDevice = () => (isNarrow() ? 'mobile' : 'desktop');
-  const deviceCfg = () =>
-    device === 'desktop' && isNarrow() ? { ...DEVICES.desktop, ...NARROW_DESKTOP } : DEVICES[device];
+  const defaultDevice = () => (innerWidth < 1000 ? 'mobile' : 'desktop');
 
-  /* Khi xem demo: gỡ trang cha khỏi render (iframe cùng origin dùng chung RAM với trang cha trên iOS).
-     Chiều cao section được giữ cố định để vị trí cuộn không nhảy khi đóng */
-  function freezeParent() {
-    if (!scRoot) return;
-    const h = scRoot.getBoundingClientRect().height;   // đo TRƯỚC khi ẩn
-    document.documentElement.classList.add('sc-viewing');
-    scRoot.style.height = h + 'px';
-  }
-  function unfreezeParent() {
-    document.documentElement.classList.remove('sc-viewing');
-    if (scRoot) scRoot.style.height = '';
-  }
+const scRoot = document.getElementById('showcase');
+function freezeParent() {
+  if (!scRoot) return;
+  const h = scRoot.getBoundingClientRect().height;   // đo TRƯỚC khi ẩn
+  document.documentElement.classList.add('sc-viewing');
+  scRoot.style.height = h + 'px';
+}
+function unfreezeParent() {
+  document.documentElement.classList.remove('sc-viewing');
+  if (scRoot) scRoot.style.height = '';
+}
+
+  /* Điện thoại xem "Máy tính": giới hạn chiều cao ảo 800px (tỉ lệ 16:10) để iframe không phình to gây tràn RAM iOS */
+const deviceCfg = () =>
+  device === 'desktop' && innerWidth < 1000 ? { ...DEVICES.desktop, maxH: 800 } : DEVICES[device];
 
   /* ---------- HÀM 2: điền thông tin demo lên thanh trên ---------- */
   function fillUI(d) {
@@ -88,7 +75,6 @@ export function initViewer({ demos, getList }) {
 
   /* ---------- HÀM 3: gỡ iframe (giải phóng bộ nhớ, dừng WebGL) ---------- */
   function killIframe() {
-    dbg.detach();
     clearTimeout(hintTimer);
     clearTimeout(loadTimer);
     try { sessionStorage.removeItem('sc:loading'); } catch {}
@@ -96,19 +82,6 @@ export function initViewer({ demos, getList }) {
     iframe.src = 'about:blank';
     iframe.remove();
     iframe = null;
-  }
-
-  /* Điện thoại xem "Máy tính": giảm tải cho demo (cùng origin nên chèn được CSS vào iframe).
-     - bỏ will-change: mỗi phần tử có nó giữ một lớp GPU riêng ở kích thước đầy đủ
-     - ảnh giải mã bất đồng bộ: cuộn nhanh không bị dồn nhiều ảnh lớn giải mã cùng lúc trên luồng chính */
-  function lighten(f) {
-    try {
-      const d = f.contentDocument;
-      const s = d.createElement('style');
-      s.textContent = '*,*::before,*::after{will-change:auto!important}';
-      d.head.appendChild(s);
-      d.querySelectorAll('img').forEach((i) => { i.decoding = 'async'; });
-    } catch {}
   }
 
   /* ---------- HÀM 4: nạp demo vào iframe mới ---------- */
@@ -119,35 +92,22 @@ export function initViewer({ demos, getList }) {
     iframe.title = cur.title;
     iframe.setAttribute('sandbox', SANDBOX);
     iframe.allow = 'fullscreen; autoplay';
-    const mine = iframe;
     iframe.addEventListener('load', () => {
-      if (mine !== iframe) return;             // iframe cũ đã bị gỡ
-      /* Safari bắn một sự kiện load "ảo" của about:blank ngay khi gắn iframe (trước khi demo thật nạp):
-         bỏ qua, nếu không loader tắt sớm và cờ chống crash-loop bị xoá sớm */
-      let href = '';
-      try { href = iframe.contentWindow.location.href; } catch {}
-      if (!href || href === 'about:blank') return;
       try { sessionStorage.removeItem('sc:loading'); } catch {}
       clearTimeout(hintTimer);
-      if (device === 'desktop' && isNarrow()) lighten(iframe);
       loader.classList.add('is-done');
       iframe.classList.add('is-loaded');
-      dbg.attach(iframe);
     });
     screen.appendChild(iframe);
-    layoutFrame();                             // có kích thước đúng rồi mới nạp (demo WebGL khỏi phải resize lại)
-
-    /* Điện thoại xem "Máy tính": dùng bản nhẹ (liteUrl) nếu demo có */
-    const useLite = device === 'desktop' && isNarrow() && cur.liteUrl;
-    try { sessionStorage.setItem('sc:loading', cur.slug); } catch {}
-    dbg.log('load-start', { slug: cur.slug, device, lite: !!useLite, dpr: devicePixelRatio });
-    iframe.src = absUrl(useLite ? cur.liteUrl : cur.url);
+    layoutFrame();             
+    try { sessionStorage.setItem('sc:loading', cur.slug); } catch {}             // có kích thước đúng rồi mới nạp (demo WebGL khỏi phải resize lại)
+    iframe.src = absUrl(cur.url);
     hintTimer = setTimeout(() => hint.classList.add('is-warn'), 7000);
   }
 
   /* ---------- HÀM 5: tính kích thước khung + tỉ lệ thu nhỏ theo thiết bị đang chọn ---------- */
   function layoutFrame() {
-    const d = deviceCfg();
+    const d = deviceCfg();   // trước đây: DEVICES[device]
     stage.style.paddingTop = bar.offsetHeight + 22 + 'px';
     stage.style.paddingBottom = (foot.offsetHeight ? foot.offsetHeight + 22 : 12) + 'px';
     const cs = getComputedStyle(stage);
@@ -160,7 +120,6 @@ export function initViewer({ demos, getList }) {
     if (isFinite(d.maxH)) scale = Math.min(scale, (availH - 2 * b) / d.maxH);
     let innerH = (availH - 2 * b) / scale;
     if (isFinite(d.maxH)) innerH = Math.min(innerH, d.maxH);
-    innerH = Math.round(innerH);
 
     frame.style.width = d.w * scale + 2 * b + 'px';
     frame.style.height = innerH * scale + 2 * b + 'px';
@@ -168,33 +127,19 @@ export function initViewer({ demos, getList }) {
     screen.style.setProperty('--b', b + 'px');
     screen.style.borderRadius = Math.max(0, d.r - b) + 'px';
     if (iframe) {
-      /* Chỉ ghi khi giá trị đổi: tránh bắt demo bố cục lại vô ích (thanh địa chỉ iOS co giãn liên tục) */
-      const w = d.w + 'px', h = innerH + 'px', t = `scale(${scale})`;
-      if (iframe.style.width !== w) iframe.style.width = w;
-      if (iframe.style.height !== h) iframe.style.height = h;
-      if (iframe.style.transform !== t) iframe.style.transform = t;
+      iframe.style.width = d.w + 'px';
+      iframe.style.height = innerH + 'px';
+      iframe.style.transform = `scale(${scale})`;
     }
   }
 
-  /* ---------- HÀM 6: đổi thiết bị ----------
-     Đổi thiết bị = gỡ iframe, đợi iOS thu hồi RAM, rồi nạp lại ở đúng kích thước mới.
-     (Resize viewport của trang đang chạy làm RAM vọt lên đỉnh -> iOS giết tab) */
+  /* ---------- HÀM 6: đổi thiết bị ---------- */
   function setDevice(dev, chosen) {
-    const changed = dev !== device;
     device = dev;
     if (chosen) deviceChosen = true;
     devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
     frame.dataset.device = dev;
-    dbg.log('setDevice', { dev });
-
-    if (changed && iframe && isOpen) {
-      killIframe();
-      loader.classList.remove('is-done');
-      layoutFrame();
-      loadTimer = setTimeout(loadIframe, 350);
-    } else {
-      layoutFrame();
-    }
+    layoutFrame();
   }
 
   /* ---------- HÀM 7: hiệu ứng mở (thẻ phóng to ra toàn màn hình) ---------- */
@@ -208,10 +153,11 @@ export function initViewer({ demos, getList }) {
     gsap.fromTo(viewer, { clipPath: from, opacity: 1 },
       { clipPath: 'inset(0px 0px 0px 0px round 0px)', duration: reduce ? 0 : 0.5, ease: 'power3.inOut',
         onComplete: () => {
-          viewer.style.clipPath = 'none';
-          if (isOpen) freezeParent();
-          layoutFrame(); onDone?.();
-        } });
+  viewer.style.clipPath = 'none';
+  if (isOpen) freezeParent();
+  layoutFrame(); onDone?.();
+}
+    });
     gsap.from([bar, foot], { opacity: 0, y: (i) => (i ? 12 : -12), duration: 0.4, delay: reduce ? 0 : 0.25, clearProps: 'all' });
   }
 
@@ -246,7 +192,8 @@ export function initViewer({ demos, getList }) {
   function closeNow(cb) {
     if (!isOpen) return;
     isOpen = false;
-    unfreezeParent();                            // dựng lại trang cha TRƯỚC khi đo vị trí thẻ
+    // document.documentElement.classList.remove('sc-viewing');
+    unfreezeParent();
     gsap.killTweensOf(viewer);
     if (parseHash()) history.replaceState(null, '', location.pathname + location.search);
 
@@ -354,15 +301,15 @@ export function initViewer({ demos, getList }) {
   return {
     open: (slug, el) => open(slug, el),
     openFromHash: () => {
-      const s = parseHash();
-      if (!s) return;
-      let crashed = null;
-      try { crashed = sessionStorage.getItem('sc:loading'); sessionStorage.removeItem('sc:loading'); } catch {}
-      if (crashed === s) {                       // lần trước demo này làm trang crash: không tự mở lại (tránh vòng lặp)
-        history.replaceState(null, '', location.pathname + location.search);
-        return;
-      }
-      open(s, null, { push: false });
-    },
+  const s = parseHash();
+  if (!s) return;
+  let crashed = null;
+  try { crashed = sessionStorage.getItem('sc:loading'); sessionStorage.removeItem('sc:loading'); } catch {}
+  if (crashed === s) {                       // lần trước demo này làm trang crash: không tự mở lại
+    history.replaceState(null, '', location.pathname + location.search);
+    return;
+  }
+  open(s, null, { push: false });
+},
   };
 }
