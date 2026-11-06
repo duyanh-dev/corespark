@@ -168,20 +168,132 @@ The process has four steps: **Idea, Design, Code, Launch**. You get a live websi
 
 ## Project structure
 
-```text
-corespark/
-├─ public/
-│  ├─ demos/              Demo source code (HTML, CSS, JS), one folder per demo
-│  └─ thumbs/             Thumbnail image for each demo
-├─ src/
-│  ├─ components/         Sections: Hero, Spark, Showcase, Process, Studio, Footer...
-│  ├─ data/demos.json     Demo list (single source of truth for the Showcase)
-│  ├─ layouts/Layout.astro
-│  ├─ pages/index.astro
-│  ├─ scripts/            hero3d.js, liquid.js, smooth-scroll.js, make-thumbs.mjs
-│  │  └─ showcase/        filters.js, cards.js, viewer.js, scroll-lock.js
-│  └─ styles/global.css
-└─ astro.config.mjs
+```
+corespark
+├─ AGENTS.md
+├─ astro.config.mjs
+├─ package-lock.json
+├─ package.json
+├─ PRELOADER-OLD.md
+├─ public
+│  ├─ demos
+│  │  ├─ FinSnap
+│  │  │  ├─ images
+│  │  │  │  ├─ calendar01.jpg
+│  │  │  │  ├─ calendar02.jpg
+│  │  │  │  ├─ camera01.jpg
+│  │  │  │  ├─ camera02.jpg
+│  │  │  │  ├─ camera03.jpg
+│  │  │  │  ├─ FinSnap.png
+│  │  │  │  ├─ home01.jpg
+│  │  │  │  ├─ home02.jpg
+│  │  │  │  ├─ home03.jpg
+│  │  │  │  ├─ home04.jpg
+│  │  │  │  ├─ setting01.jpg
+│  │  │  │  ├─ setting02.jpg
+│  │  │  │  ├─ tag01.jpg
+│  │  │  │  ├─ tag02.jpg
+│  │  │  │  ├─ tag03.jpg
+│  │  │  │  ├─ tag04.jpg
+│  │  │  │  └─ tag05.jpg
+│  │  │  ├─ index.html
+│  │  │  ├─ index.js
+│  │  │  ├─ style.css
+│  │  │  ├─ wow.css
+│  │  │  └─ wow.js
+│  │  ├─ portfolio-dessigner
+│  │  │  ├─ index.html
+│  │  │  ├─ index.js
+│  │  │  └─ style.css
+│  │  ├─ portfolio-marrketing
+│  │  │  ├─ index.html
+│  │  │  ├─ index.js
+│  │  │  └─ style.css
+│  │  ├─ sample
+│  │  │  └─ index.html
+│  │  ├─ schedule-planing
+│  │  │  ├─ animation.css
+│  │  │  ├─ animation.js
+│  │  │  ├─ css
+│  │  │  │  └─ item.css
+│  │  │  ├─ data-sync.js
+│  │  │  ├─ day-manager.js
+│  │  │  ├─ DEBUG.md
+│  │  │  ├─ emegency.js
+│  │  │  ├─ export-pdf.js
+│  │  │  ├─ index.html
+│  │  │  ├─ index.js
+│  │  │  ├─ MAP-PICKER-TEST.md
+│  │  │  ├─ maps-logic.js
+│  │  │  ├─ OLD-PRELOADER.md
+│  │  │  ├─ preloader.css
+│  │  │  ├─ preloader.js
+│  │  │  ├─ quick-add.js
+│  │  │  ├─ README.md
+│  │  │  ├─ setting.css
+│  │  │  ├─ settings.js
+│  │  │  ├─ style.css
+│  │  │  └─ trip-logic.js
+│  │  └─ tripPlanner-landingpage
+│  │     ├─ index.html
+│  │     ├─ index.js
+│  │     └─ style.css
+│  ├─ favicon.ico
+│  ├─ favicon.svg
+│  └─ thumbs
+│     ├─ aurora-landing.jpg
+│     ├─ brand-portfolio.jpg
+│     ├─ brutal-agency.jpg
+│     ├─ coffee-corner.jpg
+│     ├─ duyanh-designer-portfolio.png
+│     ├─ finsnap-page.png
+│     ├─ folio-studio.jpg
+│     ├─ glass-bank.jpg
+│     ├─ nebula.jpg
+│     ├─ orbit-shop.jpg
+│     ├─ paper-blog.jpg
+│     ├─ pulse-dashboard.jpg
+│     ├─ quynh-anh-pr-portfolio.png
+│     ├─ schedule-planner.png
+│     └─ tripplanner-landing.png
+├─ README.md
+├─ src
+│  ├─ components
+│  │  ├─ Contact.astro
+│  │  ├─ Footer.astro
+│  │  ├─ Hero.astro
+│  │  ├─ Nav.astro
+│  │  ├─ Preloader.astro
+│  │  ├─ Process.astro
+│  │  ├─ Showcase.astro
+│  │  ├─ Signal.astro
+│  │  ├─ Spark.astro
+│  │  ├─ Studio.astro
+│  │  └─ Toolbox.astro
+│  ├─ data
+│  │  └─ demos.json
+│  ├─ layouts
+│  │  └─ Layout.astro
+│  ├─ pages
+│  │  ├─ index.astro
+│  │  └─ preview.astro
+│  ├─ scripts
+│  │  ├─ hero-glass.js
+│  │  ├─ hero3d.js
+│  │  ├─ liquid.js
+│  │  ├─ make-thumbs.mjs
+│  │  ├─ showcase
+│  │  │  ├─ cards.js
+│  │  │  ├─ debug.js
+│  │  │  ├─ filters.js
+│  │  │  ├─ scroll-lock.js
+│  │  │  └─ viewer.js
+│  │  ├─ smooth-scroll.js
+│  │  └─ studio3d.js
+│  └─ styles
+│     └─ global.css
+└─ tsconfig.json
+
 ```
 
 ## Getting started
