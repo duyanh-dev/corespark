@@ -497,6 +497,67 @@ const dataJson = JSON.stringify(demos).replace(/</g, '\\u003c');
   @keyframes sc-rot { to { transform: rotate(360deg); } }
 
   .sc-litebox { display: none; }
+
+    /* ---------- 7. VIÊN KÍNH TRƯỢT TRONG NÚT GẠT THIẾT BỊ ----------
+     Nền trắng của nút đang chọn chuyển thành 1 viên kính di chuyển (JS chỉ đặt --x, --w) */
+  .sc-seg { position: relative; }
+  .sc-seg::before {
+    content: ''; position: absolute; top: 3px; bottom: 3px; left: 0; width: var(--w, 0px);
+    transform: translateX(var(--x, 0px)); border-radius: 999px;
+    background: rgba(255, 255, 255, .92);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .25), inset 0 1px 0 #fff, inset 0 -1px 0 rgba(0, 0, 0, .06);
+    transition: transform .55s cubic-bezier(.3, 1.5, .4, 1), width .55s cubic-bezier(.3, 1.5, .4, 1);  /* nảy nhẹ như chất lỏng */
+  }
+  .sc-seg:not([data-ready])::before { transition: none; }
+  .sc-seg button { position: relative; z-index: 1; }
+  .sc-seg[data-ready] button.is-active { background: transparent; box-shadow: none; }
+
+  /* ---------- 8. LỚP KÍNH KHI BIẾN HÌNH KHUNG ----------
+     Màu phẳng + blur + viền sáng. --vb (độ nhòe) do GSAP animate */
+  .sc-veil {
+    position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; border-radius: inherit;
+    background: rgba(255, 255, 255, .16);
+    -webkit-backdrop-filter: blur(var(--vb, 0px)) saturate(170%);
+    backdrop-filter: blur(var(--vb, 0px)) saturate(170%);
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .55), inset 0 2px 0 rgba(255, 255, 255, .7), inset 0 -2px 0 rgba(255, 255, 255, .25);
+  }
+  /* Viền ngoài của khung sáng lên trong lúc biến hình */
+  .sc-frame { transition: box-shadow .3s; }
+  .sc-frame.is-morph { box-shadow: 0 40px 100px -30px rgba(0, 0, 0, .8), 0 0 0 1.5px rgba(255, 255, 255, .45); }
+  /* Màn hình chờ lúc biến hình: chỉ còn ảnh thumbnail sạch (không spinner, không lớp tối) */
+  .sc-loader.is-morph::before, .sc-loader.is-morph .sc-spin { display: none; }
+
+  /* ---------- 9. VÉ KÍNH BAY (gắn thẳng vào <body>) ---------- */
+  .sc-ticket {
+    position: fixed; left: 0; top: 0; z-index: 200; width: 9.5rem; padding: .35rem; border-radius: 1.1rem;
+    pointer-events: none; color: #1d1d1f; will-change: transform;
+    background: rgba(255, 255, 255, .62); -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, .9);
+    box-shadow: 0 18px 40px -12px rgba(20, 30, 60, .4), inset 0 1px 0 #fff, inset 0 -1px 0 rgba(255, 255, 255, .35);
+  }
+  .sc-ticket img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top center; border-radius: .75rem; background: #d3e2f9; }
+  .sc-ticket-body { margin-top: .4rem; padding: .45rem .35rem .2rem; border-top: 1.5px dashed rgba(29, 29, 31, .28); }  /* đường xé của vé */
+  .sc-ticket-tag { display: block; font-size: .62rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #6e6e73; }
+  .sc-ticket-body strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: .82rem; line-height: 1.2; }
+
+  /* ---------- 10. CHIP "DEMO BẠN CHỌN" TRONG FORM LIÊN HỆ ---------- */
+  .sc-dock {
+    position: relative; display: flex; align-items: center; gap: .7rem; width: fit-content; max-width: 100%;
+    grid-column: 1 / -1; margin: 0 0 1.2rem; padding: .4rem .5rem .4rem .4rem; border-radius: 999px; color: #1d1d1f;
+    background: rgba(255, 255, 255, .72); -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, .85);
+    box-shadow: 0 12px 32px rgba(20, 30, 60, .22), inset 0 1px 0 #fff, inset 0 -1px 0 rgba(255, 255, 255, .35);
+    opacity: 0; pointer-events: none; transition: opacity .3s;      /* ẩn cho tới khi vé hạ cánh */
+  }
+  .sc-dock.is-in { opacity: 1; pointer-events: auto; }
+  .sc-dock img { flex: none; width: 2.6rem; aspect-ratio: 16 / 10; object-fit: cover; object-position: top center; border-radius: .45rem; }
+  .sc-dock-txt { min-width: 0; line-height: 1.2; }
+  .sc-dock-txt span { display: block; font-size: .68rem; color: #6e6e73; }
+  .sc-dock-txt strong { display: block; font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sc-dock-x { flex: none; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: rgba(120, 120, 128, .2); font-size: .7rem; color: inherit; }
+  .sc-dock-x:hover { background: rgba(120, 120, 128, .35); }
+  /* Vòng sóng kính lúc vé hạ cánh: chỉ là viền mảnh, không phát sáng */
+  .sc-ring { position: absolute; inset: 0; border-radius: inherit; border: 1.5px solid currentColor; pointer-events: none; }
 .sc-viewer:has(.sc-loader.is-lite) .sc-litebox {
   display: flex; flex-direction: column; align-items: center; gap: .6rem;
   width: 100%; max-width: 32rem; padding: 0 .5rem; text-align: center; flex: none;

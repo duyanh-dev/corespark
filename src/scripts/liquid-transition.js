@@ -1,17 +1,29 @@
 /* =========================================================
-   LIQUID-TRANSITION.JS - Chuyển tiếp KÍNH LỎNG giữa các section (bản 3)
+   LIQUID-TRANSITION.JS - Chuyển tiếp KÍNH LỎNG giữa các section (bản 4: nhiều kiểu)
 
-   Không màu, không gradient: chỉ là một khối kính lỏng trong suốt trào qua màn hình.
-     - Bờ kính là mặt cắt bán nguyệt (meniscus): sáng ở mép đón đèn, tối ở mép khuất,
-       có vệt sáng phản chiếu, đường sáng bên trong và tán sắc nhẹ ở viền
-     - Trên Chromium/Edge (máy tính): phần trang phía sau bị KHÚC XẠ thật qua lớp kính
-       (SVG displacement, gợn như nước chảy) + làm mờ nhẹ. Safari/Firefox/điện thoại:
-       chỉ làm mờ, viền kính vẫn đầy đủ
-     - Giọt dẫn đầu trước bờ sóng, giống bọt nước
-     - Giữa lúc phủ kín hiện số thứ tự + tên + dòng phụ của section sắp tới
+   Không màu, không gradient: chỉ là khối kính lỏng trong suốt trào qua màn hình.
+   NĂM KIỂU, chạy xen kẽ ngẫu nhiên (không lặp lại kiểu vừa rồi):
+     wave      Sóng dọc: bờ gợn quét từ dưới lên (hoặc từ trên xuống khi cuộn lên)
+     drip      Rèm giọt: các lưỡi chất lỏng dài thò ra trước như nước chảy xuống kính
+     sweep     Quét ngang: dải kính trượt từ trái sang phải (phải sang trái khi cuộn lên)
+     diagonal  Quét chéo: dải kính nghiêng, góc và chiều ngẫu nhiên mỗi lần
+     ripple    Gợn tròn: vòng kính toả ra từ một điểm (cuộn xuống), hoặc co vào (cuộn lên)
 
-   CHỮ TỪNG SECTION CÓ THỂ TỰ SỬA - ba cách, ưu tiên từ trên xuống:
-     1. File src/data/transition-text.json  (khoá = id của section, hoặc số thứ tự "1","2"...)
+   Mọi kiểu đều:
+     - Mép kính bán nguyệt: vệt sáng phản chiếu, đường sáng bên trong, tán sắc nhẹ
+     - Trên Chromium/Edge (máy tính): khúc xạ + làm mờ phần trang phía sau (SVG displacement);
+       trình duyệt khác / điện thoại: chỉ làm mờ, viền kính vẫn đủ
+     - Phủ kín màn hình trong giây lát, giữa lúc đó hiện số + tên + dòng phụ của section sắp tới
+     - Chữ tự đổi tối/sáng theo nền trang; viền kính tự chỉnh theo nền sáng/tối
+
+   CHỌN KIỂU (tuỳ chọn style):
+     style: 'random'                     // mặc định: xen kẽ ngẫu nhiên cả 5 kiểu
+     style: 'ripple'                     // luôn dùng một kiểu
+     style: ['wave', 'ripple', 'sweep']  // chỉ xoay vòng trong danh sách này
+     lt.play(1, 'drip')                  // chạy thử tay: (chiều, kiểu)
+
+   CHỮ TỪNG SECTION TỰ SỬA - ưu tiên từ trên xuống:
+     1. src/data/transition-text.json  (khoá = id section, hoặc số thứ tự "1","2"...)
           { "showcase": { "title": "Dự án", "sub": "Demo thật để bạn xem" } }
           { "contact": "Liên hệ" }              // viết tắt: chỉ có tên
           { "studio": ["Studio", "Dòng phụ"] }  // dạng mảng [tên, phụ]
@@ -26,18 +38,44 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
 
-const W = 1.9;                       // bề dày dải kính (đơn vị: chiều cao màn hình), đủ lớn để phủ kín
-const F0 = -0.2, F1 = 1.2 + W;       // vị trí bờ trước: từ ngoài đáy tới ngoài đỉnh + hết dải
+/* ----- Hằng số hình học (đơn vị: chiều cao màn hình) ----- */
+const W = 1.9;                       // bề dày dải kính (kiểu dải), đủ lớn để phủ kín
+const F0 = -0.2, F1 = 1.2 + W;       // vị trí bờ trước của dải: từ ngoài đáy tới ngoài đỉnh + hết dải
 const BW = 0.075;                    // bề rộng vát cong của mép kính
+const RW0 = 1.7;                     // bề dày tối thiểu của vòng (kiểu gợn tròn)
+const RO0 = -0.12;                   // bán kính ngoài lúc bắt đầu
 
-/* ----- Hai bờ gợn: CHUNG công thức ở JS (cắt lớp backdrop) và GLSL (vẽ viền) ----- */
-const wobF = (x, t, seed) =>
-  0.050 * Math.sin(x * 5.0 + t * 3.0 + seed * 6.0) +
-  0.025 * Math.sin(x * 11.0 - t * 4.0 + 1.3) +
-  0.035 * Math.sin(x * 2.3 + seed * 9.0);
-const wobT = (x, t, seed) =>
-  0.045 * Math.sin(x * 4.0 - t * 2.4 + seed * 3.0) +
-  0.030 * Math.sin(x * 9.0 + t * 3.1);
+const ALL_STYLES = ['wave', 'drip', 'sweep', 'diagonal', 'ripple'];
+
+/* ----- Công thức hình dạng: CHUNG ở JS (cắt lớp backdrop) và GLSL (vẽ viền) ----- */
+const frac = (x) => x - Math.floor(x);
+const wobF = (v, t, seed) =>
+  0.050 * Math.sin(v * 5.0 + t * 3.0 + seed * 6.0) +
+  0.025 * Math.sin(v * 11.0 - t * 4.0 + 1.3) +
+  0.035 * Math.sin(v * 2.3 + seed * 9.0);
+const wobT = (v, t, seed) =>
+  0.045 * Math.sin(v * 4.0 - t * 2.4 + seed * 3.0) +
+  0.030 * Math.sin(v * 9.0 + t * 3.1);
+function tongue(v, ph, seed) {                       // các "lưỡi" chất lỏng thò ra
+  let s = 0;
+  for (let j = 0; j < 5; j++) {
+    const c = frac(0.13 + 0.211 * j + (seed + ph) * 0.83);
+    const w = 0.05 + 0.035 * frac(j * 0.37 + seed);
+    const h = 0.12 + 0.18 * frac(j * 0.61 + seed * 1.7);
+    const d = (v - c) / w;
+    s += Math.exp(-d * d * d * d) * h;          // siêu-gauss: lưỡi rộng, đầu tròn như giọt
+  }
+  return s;
+}
+const offF = (v, t, seed, drip) => wobF(v, t, seed) + drip * tongue(v, 0.0, seed);
+const offT = (v, t, seed, drip) => wobT(v, t, seed) - drip * 0.5 * tongue(v, 0.31, seed);
+const woR = (th, t, seed) =>
+  0.040 * Math.sin(3 * th + t * 2.0 + seed * 6.0) +
+  0.025 * Math.sin(5 * th - t * 3.0 + 1.3) +
+  0.020 * Math.sin(8 * th + t * 2.5 + seed * 2.0);
+const wiR = (th, t, seed) =>
+  0.035 * Math.sin(4 * th - t * 2.2 + seed * 3.0) +
+  0.020 * Math.sin(7 * th + t * 3.0);
 
 const VERT = /* glsl */`
   void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }
@@ -47,60 +85,119 @@ const FRAG = /* glsl */`
   precision highp float;
   uniform vec2  uRes;
   uniform float uT;
-  uniform float uP;
-  uniform float uDir;
+  uniform float uP;       // tiến độ hiệu dụng 0..1
+  uniform float uDir;     // +1 / -1
   uniform float uSeed;
   uniform float uBg;      // 0 = trang nền tối, 1 = trang nền sáng
+  uniform float uMode;    // 0 = dải, 1 = vòng
+  uniform float uTheta;   // góc trục chuyển động của dải
+  uniform float uDrip;    // độ dài lưỡi chất lỏng (0 = không)
+  uniform float uRev;     // vòng co vào thay vì toả ra
+  uniform vec2  uC0;      // tâm vòng (đơn vị chiều cao màn hình)
+  uniform float uRW;      // bề dày vòng
+  uniform float uRO1;     // bán kính ngoài lúc kết thúc
 
-  const float W  = ${W.toFixed(3)};
-  const float F0 = ${F0.toFixed(3)};
-  const float F1 = ${F1.toFixed(3)};
-  const float BW = ${BW.toFixed(3)};
+  const float W   = ${W.toFixed(3)};
+  const float F0  = ${F0.toFixed(3)};
+  const float F1  = ${F1.toFixed(3)};
+  const float BW  = ${BW.toFixed(3)};
+  const float RO0 = ${RO0.toFixed(3)};
 
   float hash12(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 
-  float wobF(float x) {
-    return 0.050 * sin(x * 5.0 + uT * 3.0 + uSeed * 6.0)
-         + 0.025 * sin(x * 11.0 - uT * 4.0 + 1.3)
-         + 0.035 * sin(x * 2.3 + uSeed * 9.0);
+  float wobF(float v) {
+    return 0.050 * sin(v * 5.0 + uT * 3.0 + uSeed * 6.0)
+         + 0.025 * sin(v * 11.0 - uT * 4.0 + 1.3)
+         + 0.035 * sin(v * 2.3 + uSeed * 9.0);
   }
-  float wobT(float x) {
-    return 0.045 * sin(x * 4.0 - uT * 2.4 + uSeed * 3.0)
-         + 0.030 * sin(x * 9.0 + uT * 3.1);
+  float wobT(float v) {
+    return 0.045 * sin(v * 4.0 - uT * 2.4 + uSeed * 3.0)
+         + 0.030 * sin(v * 9.0 + uT * 3.1);
   }
-  float dWobF(float x) {
-    return 0.250 * cos(x * 5.0 + uT * 3.0 + uSeed * 6.0)
-         + 0.275 * cos(x * 11.0 - uT * 4.0 + 1.3)
-         + 0.0805 * cos(x * 2.3 + uSeed * 9.0);
+  float tongue(float v, float ph) {
+    float s = 0.0;
+    for (int j = 0; j < 5; j++) {
+      float fj = float(j);
+      float c = fract(0.13 + 0.211 * fj + (uSeed + ph) * 0.83);
+      float w = 0.05 + 0.035 * fract(fj * 0.37 + uSeed);
+      float h = 0.12 + 0.18 * fract(fj * 0.61 + uSeed * 1.7);
+      float d = (v - c) / w;
+      s += exp(-d * d * d * d) * h;
+    }
+    return s;
   }
-  float dWobT(float x) {
-    return 0.180 * cos(x * 4.0 - uT * 2.4 + uSeed * 3.0)
-         + 0.270 * cos(x * 9.0 + uT * 3.1);
-  }
+  float offF(float v) { return wobF(v) + uDrip * tongue(v, 0.0); }
+  float offT(float v) { return wobT(v) - uDrip * 0.5 * tongue(v, 0.31); }
 
-  /* Khoảng cách có dấu tới mép khối kính (đơn vị: chiều cao màn hình, dương = bên trong) */
-  float shapeD(vec2 uv) {
+  /* ----- Kiểu dải: trục chuyển động xoay theo uTheta ----- */
+  float bandD(vec2 uv) {
     float asp = uRes.x / uRes.y;
-    float s = uDir > 0.0 ? uv.y : 1.0 - uv.y;
+    vec2 p = vec2(uv.x * asp, uv.y) - vec2(0.5 * asp, 0.5);
+    vec2 ax = vec2(cos(uTheta), sin(uTheta));
+    vec2 cr = vec2(-ax.y, ax.x);
+    float La = abs(ax.x) * asp + abs(ax.y);                 // độ dài màn hình dọc theo trục
+    float Lc = abs(cr.x) * asp + abs(cr.y);                 // và theo phương vuông góc
+    float sRaw = dot(p, ax) / La + 0.5;
+    float v = dot(p, cr) / Lc + 0.5;
+    float s = uDir > 0.0 ? sRaw : 1.0 - sRaw;
     float f = mix(F0, F1, uP);
 
-    float a = f + wobF(uv.x) - s;                 // > 0: đã qua bờ trước
-    float b = s - (f - W + wobT(uv.x));           // > 0: chưa qua bờ sau
-    float da = dWobF(uv.x) / asp;
-    float db = dWobT(uv.x) / asp;
-    float D = min(a * inversesqrt(1.0 + da * da), b * inversesqrt(1.0 + db * db));
+    float a = (f + offF(v) - s) * La;                       // > 0: đã qua bờ trước
+    float b = (s - (f - W + offT(v))) * La;                 // > 0: chưa qua bờ sau
+    float h = 0.003;
+    float sa = (offF(v + h) - offF(v - h)) / (2.0 * h) * La / Lc;
+    float sb = (offT(v + h) - offT(v - h)) / (2.0 * h) * La / Lc;
+    float D = min(a * inversesqrt(1.0 + sa * sa), b * inversesqrt(1.0 + sb * sb));
 
     // Giọt dẫn đầu phía trước bờ sóng
-    float fade = smoothstep(0.0, 0.06, uP);
+    float fade = smoothstep(0.0, 0.06, uP) * (1.0 - 0.6 * uDrip);
     for (int i = 0; i < 4; i++) {
       float fi = float(i);
-      vec2 c = vec2(fract(0.15 + 0.29 * fi + uSeed * 0.7) * asp,
-                    f + 0.07 + 0.06 * fi + 0.01 * sin(uT * 4.0 + fi));
+      vec2 c = vec2(f * La + 0.07 + 0.06 * fi + 0.01 * sin(uT * 4.0 + fi),
+                    fract(0.15 + 0.29 * fi + uSeed * 0.7) * Lc);
       float r = 0.032 + 0.011 * fi;
-      D = max(D, (r - length(vec2(uv.x * asp, s) - c)) * fade);
+      D = max(D, (r - length(vec2(s * La, v * Lc) - c)) * fade);
     }
     return D;
   }
+
+  /* ----- Kiểu vòng: vành khuyên gợn, toả ra hoặc co vào ----- */
+  float ringD(vec2 uv) {
+    float asp = uRes.x / uRes.y;
+    vec2 p = vec2(uv.x * asp, uv.y) - uC0;
+    float r = length(p);
+    float th = atan(p.y, p.x);
+    float Ro = mix(RO0, uRO1, uP);
+    float Ri = Ro - uRW;
+
+    float wo  = 0.040 * sin(3.0 * th + uT * 2.0 + uSeed * 6.0)
+              + 0.025 * sin(5.0 * th - uT * 3.0 + 1.3)
+              + 0.020 * sin(8.0 * th + uT * 2.5 + uSeed * 2.0);
+    float wi  = 0.035 * sin(4.0 * th - uT * 2.2 + uSeed * 3.0)
+              + 0.020 * sin(7.0 * th + uT * 3.0);
+    float dwo = 0.120 * cos(3.0 * th + uT * 2.0 + uSeed * 6.0)
+              + 0.125 * cos(5.0 * th - uT * 3.0 + 1.3)
+              + 0.160 * cos(8.0 * th + uT * 2.5 + uSeed * 2.0);
+    float dwi = 0.140 * cos(4.0 * th - uT * 2.2 + uSeed * 3.0)
+              + 0.140 * cos(7.0 * th + uT * 3.0);
+    float rr = max(r, 0.06);
+    float D = min(((Ro + wo) - r) * inversesqrt(1.0 + dwo * dwo / (rr * rr)),
+                  (r - (Ri + wi)) * inversesqrt(1.0 + dwi * dwi / (rr * rr)));
+
+    // Giọt dẫn đầu: phía ngoài khi toả ra, phía trong khi co vào
+    float fade = smoothstep(0.0, 0.06, uP);
+    for (int i = 0; i < 4; i++) {
+      float fi = float(i);
+      float ph = 6.2832 * fract(0.10 + 0.29 * fi + uSeed * 0.7);
+      float lead = uRev > 0.5 ? (Ri - 0.07 - 0.06 * fi) : (Ro + 0.07 + 0.06 * fi);
+      float rb = lead > 0.05 ? 0.032 + 0.011 * fi : 0.0;
+      D = max(D, (rb - length(p - lead * vec2(cos(ph), sin(ph)))) * fade);
+    }
+    return D;
+  }
+
+  /* Khoảng cách có dấu tới mép khối kính (đơn vị chiều cao màn hình, dương = bên trong) */
+  float shapeD(vec2 uv) { return uMode > 0.5 ? ringD(uv) : bandD(uv); }
 
   float sp(vec3 n, vec3 L, float pw) {
     return pow(max(dot(n, normalize(L + vec3(0.0, 0.0, 1.0))), 0.0), pw);
@@ -141,9 +238,9 @@ const FRAG = /* glsl */`
     vec3 light = clamp((key + fill + inner + bevel) * vec3(0.96, 0.98, 1.0), 0.0, 1.0) * 0.92;
     float lightA = max(max(light.r, light.g), light.b);
 
-    // Mép khuất sáng: kính dày nên tối lại (phản xạ toàn phần)
+    // Mép khuất sáng: kính dày nên tối lại; nền sáng thì tối đậm hơn + đường viền mảnh
     float darkA = smoothstep(0.08, 0.65, rim) * 0.26 * mix(1.0, 2.2, uBg);
-    darkA += exp(-pow(k / 0.06, 2.0)) * 0.38 * uBg;       // nền sáng: đường viền mảnh để thấy rõ hình kính
+    darkA += exp(-pow(k / 0.06, 2.0)) * 0.38 * uBg;
     darkA = clamp(darkA, 0.0, 0.8) * (1.0 - lightA);
     vec3 rgb = light + vec3(0.01, 0.02, 0.04) * darkA;
     rgb += (hash12(gl_FragCoord.xy) - 0.5) / 255.0 * step(0.001, lightA + darkA);
@@ -169,6 +266,7 @@ export function initLiquidTransition(options = {}) {
   const {
     selector = 'main > section, body > section, section[id], footer',
     texts: textsOpt = {},          // { idHoặcSố: 'Tên' | ['Tên','Phụ'] | { title, sub } }
+    style: styleOpt = 'random',    // 'random' | tên một kiểu | mảng tên kiểu
     duration = 2.0,
     armDelay = 1500,               // chờ preloader xong rồi mới bật (ms)
     cooldown = 900,                // nghỉ tối thiểu giữa hai lần chạy (ms)
@@ -197,7 +295,7 @@ export function initLiquidTransition(options = {}) {
 
   let texts = textsOpt || {};
 
-  /* ----- Lớp 1: kính trong (backdrop mờ + khúc xạ), cắt theo bờ sóng. KHÔNG có màu nền ----- */
+  /* ----- Lớp 1: kính trong (backdrop mờ + khúc xạ), cắt theo hình khối. KHÔNG có màu nền ----- */
   const fixed = { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', visibility: 'hidden' };
   const glass = document.createElement('div');
   Object.assign(glass.style, fixed, { zIndex: '899' });
@@ -245,17 +343,15 @@ export function initLiquidTransition(options = {}) {
   const numEl = document.createElement('div');
   Object.assign(numEl.style, {
     fontSize: 'clamp(12px, 1.5vw, 15px)', letterSpacing: '0.35em', fontWeight: '600', opacity: '0.8',
-    textShadow: '0 1px 14px rgba(0,0,0,0.35)',
   });
   const titleEl = document.createElement('div');
   Object.assign(titleEl.style, {
     fontSize: 'clamp(30px, 6.5vw, 88px)', fontWeight: '700', letterSpacing: '-0.03em', lineHeight: '1.05',
-    maxWidth: '86vw', textShadow: '0 4px 40px rgba(0,0,0,0.35)',
+    maxWidth: '86vw',
   });
   const subEl = document.createElement('div');
   Object.assign(subEl.style, {
     fontSize: 'clamp(14px, 1.7vw, 20px)', fontWeight: '500', opacity: '0.85', maxWidth: '60ch',
-    textShadow: '0 2px 20px rgba(0,0,0,0.35)',
   });
   label.append(numEl, titleEl, subEl);
 
@@ -266,6 +362,8 @@ export function initLiquidTransition(options = {}) {
   const uniforms = {
     uRes: { value: new THREE.Vector2(1, 1) },
     uT: { value: 0 }, uP: { value: 0 }, uDir: { value: 1 }, uSeed: { value: 0.3 }, uBg: { value: 0 },
+    uMode: { value: 0 }, uTheta: { value: Math.PI / 2 }, uDrip: { value: 0 }, uRev: { value: 0 },
+    uC0: { value: new THREE.Vector2(0.8, 0.5) }, uRW: { value: RW0 }, uRO1: { value: 3.0 },
   };
   const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: VERT, fragmentShader: FRAG, depthTest: false, depthWrite: false });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
@@ -347,14 +445,94 @@ export function initLiquidTransition(options = {}) {
     subEl.style.textShadow = `0 0 10px ${sh}`;
   }
 
+  /* ----- Chọn kiểu: xáo túi, không lặp kiểu vừa rồi ----- */
+  let bag = [], lastStyle = '';
+  function pickStyle() {
+    if (typeof styleOpt === 'string' && ALL_STYLES.includes(styleOpt)) return styleOpt;
+    const pool = Array.isArray(styleOpt) ? styleOpt.filter((s) => ALL_STYLES.includes(s)) : ALL_STYLES;
+    if (!pool.length) return 'wave';
+    if (!bag.length) {
+      bag = pool.slice().sort(() => Math.random() - 0.5);
+      if (bag.length > 1 && bag[0] === lastStyle) bag.push(bag.shift());
+    }
+    lastStyle = bag.shift();
+    return lastStyle;
+  }
+
+  /* ----- Cấu hình một lần chạy theo kiểu ----- */
+  let cur = null;
+  function configure(name, d, vw, vh) {
+    const asp = vw / vh;
+    const c = { name, mode: 0, theta: Math.PI / 2, drip: 0, rev: false, dur: duration, vw, vh, asp };
+    if (name === 'drip') c.drip = 1.0;
+    else if (name === 'sweep') c.theta = 0;
+    else if (name === 'diagonal') { c.theta = (Math.random() < 0.5 ? 1 : -1) * (0.55 + Math.random() * 0.45); c.drip = 0.25; }
+    else if (name === 'ripple') {
+      c.mode = 1;
+      c.rev = d < 0;
+      c.dur = duration * 1.1;
+      c.c0 = [asp * (0.5 + (Math.random() - 0.5) * 0.2), 0.5 + (Math.random() - 0.5) * 0.2];
+      const Rm = Math.hypot(Math.max(c.c0[0], asp - c.c0[0]), Math.max(c.c0[1], 1 - c.c0[1]));
+      c.RW = Math.max(RW0, Rm + 0.7);
+      c.RO1 = Rm + 0.12 + c.RW;
+      const span = c.RO1 - RO0;
+      const pi = (Rm + 0.085 - RO0) / span, po = (c.RW - 0.06 - RO0) / span;     // khoảng p kính phủ kín
+      c.pIn = c.rev ? 1 - po : pi;
+      c.pOut = c.rev ? 1 - pi : po;
+      return c;
+    }
+    c.pIn = (1.11 - F0) / (F1 - F0);
+    c.pOut = (W - 0.075 - F0) / (F1 - F0);
+    return c;
+  }
+
+  /* ----- Đường cắt lớp kính theo đúng hình khối (cùng công thức với shader) ----- */
+  function bandPolygon(pe, t) {
+    const { vw, asp, theta, drip } = cur;
+    const ax = [Math.cos(theta), Math.sin(theta)], cr = [-ax[1], ax[0]];
+    const La = Math.abs(ax[0]) * asp + Math.abs(ax[1]);
+    const Lc = Math.abs(cr[0]) * asp + Math.abs(cr[1]);
+    const f = F0 + (F1 - F0) * pe;
+    const up = dir > 0;
+    const pt = (sb, v) => {
+      const sRaw = up ? sb : 1 - sb;
+      const along = (sRaw - 0.5) * La, across = (v - 0.5) * Lc;
+      const px = ax[0] * along + cr[0] * across + 0.5 * asp;
+      const py = ax[1] * along + cr[1] * across + 0.5;
+      return ((px / asp) * 100).toFixed(2) + '% ' + ((1 - py) * 100).toFixed(2) + '%';
+    };
+    const N = 56, pts = [];
+    for (let i = 0; i <= N; i++) {
+      const v = -0.03 + (1.06 * i) / N;
+      pts.push(pt(clamp(f + offF(v, t, seed, drip), -0.15, 1.15), v));
+    }
+    for (let i = N; i >= 0; i--) {
+      const v = -0.03 + (1.06 * i) / N;
+      pts.push(pt(clamp(f - W + offT(v, t, seed, drip), -0.15, 1.15), v));
+    }
+    return 'polygon(' + pts.join(',') + ')';
+  }
+  function ringPath(pe, t) {
+    const { vw, vh, asp, c0, RW, RO1 } = cur;
+    const Ro = RO0 + (RO1 - RO0) * pe, Ri = Ro - RW;
+    const M = 96;
+    let outer = '', inner = '';
+    for (let i = 0; i < M; i++) {
+      const th = (2 * Math.PI * i) / M;
+      const ro = Math.max(0.001, Ro + woR(th, t, seed));
+      const ri = Math.max(0.0, Ri + wiR(th, t, seed));
+      const c = Math.cos(th), s = Math.sin(th);
+      const f2 = (r) => ((c0[0] + r * c) / asp * vw).toFixed(1) + ' ' + ((1 - (c0[1] + r * s)) * vh).toFixed(1);
+      outer += (i ? 'L' : 'M') + f2(ro);
+      inner += (i ? 'L' : 'M') + f2(ri);
+    }
+    return `path(evenodd, '${outer}Z${inner}Z')`;
+  }
+
   /* ----- Chạy hiệu ứng ----- */
   const state = { p: 0 };
   let playing = false, lastPlay = 0, destroyed = false;
   let dir = 1, t0 = 0, seed = 0.3, labelSet = false, prev = -1;
-
-  // Khoảng p mà màn hình được phủ kín hoàn toàn (tính cả biên độ gợn ~0.11)
-  const pIn = (1.11 - F0) / (F1 - F0);
-  const pOut = (W - 0.075 - F0) / (F1 - F0);
 
   function setLabel() {
     if (!labels || !sections.length) return;
@@ -372,23 +550,11 @@ export function initLiquidTransition(options = {}) {
   function render() {
     const p = state.p;
     const t = (performance.now() - t0) / 1000;
+    const pe = cur.rev ? 1 - p : p;
     uniforms.uT.value = t;
-    uniforms.uP.value = p;
+    uniforms.uP.value = pe;
 
-    // Cắt lớp kính theo đúng hai bờ gợn (cùng công thức với shader)
-    const f = F0 + (F1 - F0) * p;
-    const N = 44, up = dir > 0;
-    const toY = (s) => ((up ? 1 - s : s) * 100).toFixed(2);
-    const pts = [];
-    for (let i = 0; i <= N; i++) {
-      const x = -0.02 + (1.04 * i) / N;
-      pts.push((x * 100).toFixed(2) + '% ' + toY(clamp(f + wobF(x, t, seed), -0.15, 1.15)) + '%');
-    }
-    for (let i = N; i >= 0; i--) {
-      const x = -0.02 + (1.04 * i) / N;
-      pts.push((x * 100).toFixed(2) + '% ' + toY(clamp(f - W + wobT(x, t, seed), -0.15, 1.15)) + '%');
-    }
-    glass.style.clipPath = 'polygon(' + pts.join(',') + ')';
+    glass.style.clipPath = cur.mode === 1 ? ringPath(pe, t) : bandPolygon(pe, t);
 
     // Khúc xạ: mạnh nhất giữa lúc kính phủ qua, gợn chảy theo thời gian
     if (disp) {
@@ -397,29 +563,46 @@ export function initLiquidTransition(options = {}) {
     }
 
     if (labels) {
-      if (!labelSet && p >= pIn - 0.12) { labelSet = true; setLabel(); }
-      const o = sstep(pIn - 0.1, pIn, p) * (1 - sstep(pOut, pOut + 0.1, p));
+      if (!labelSet && p >= cur.pIn - 0.12) { labelSet = true; setLabel(); }
+      const o = sstep(cur.pIn - 0.1, cur.pIn, p) * (1 - sstep(cur.pOut, cur.pOut + 0.1, p));
       label.style.opacity = o.toFixed(3);
-      label.style.transform = 'translateY(' + ((0.5 - p) * 160 * (up ? 1 : -1)).toFixed(1) + 'px)';
+      if (cur.mode === 1) {                                   // vòng: chữ nở nhẹ ra
+        label.style.transform = 'scale(' + (0.9 + 0.1 * sstep(cur.pIn - 0.1, cur.pOut, p)).toFixed(3) + ')';
+      } else {                                                // dải: chữ trôi cùng chiều chảy
+        const sg = dir > 0 ? 1 : -1, sh = (0.5 - p) * 160;
+        label.style.transform = 'translate(' + (-sg * Math.cos(cur.theta) * sh).toFixed(1) + 'px,' + (sg * Math.sin(cur.theta) * sh).toFixed(1) + 'px)';
+      }
     }
     renderer.render(scene, camera);
   }
 
-  function play(d = 1) {
+  function play(d = 1, styleName) {
     if (playing || destroyed) return;
     playing = true;
     lastPlay = performance.now();
     dir = d >= 0 ? 1 : -1;
     seed = Math.random();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    cur = configure(ALL_STYLES.includes(styleName) ? styleName : pickStyle(), dir, vw, vh);
+
     uniforms.uDir.value = dir;
     uniforms.uSeed.value = seed;
     uniforms.uBg.value = sstep(0.35, 0.65, pageLum());
+    uniforms.uMode.value = cur.mode;
+    uniforms.uTheta.value = cur.theta;
+    uniforms.uDrip.value = cur.drip;
+    uniforms.uRev.value = cur.rev ? 1 : 0;
+    if (cur.mode === 1) {
+      uniforms.uC0.value.set(cur.c0[0], cur.c0[1]);
+      uniforms.uRW.value = cur.RW;
+      uniforms.uRO1.value = cur.RO1;
+    }
     t0 = performance.now();
     labelSet = false;
     state.p = 0;
     glass.style.visibility = cv.style.visibility = label.style.visibility = 'visible';
     gsap.to(state, {
-      p: 1, duration, ease: 'none',
+      p: 1, duration: cur.dur, ease: 'none',
       onUpdate: render,
       onComplete() {
         glass.style.visibility = cv.style.visibility = label.style.visibility = 'hidden';
@@ -429,6 +612,16 @@ export function initLiquidTransition(options = {}) {
       },
     });
   }
+
+    /* ---------- TẮT TẠM khi bấm "Tôi muốn web như này" ----------
+     viewer.js bắn sự kiện 'corespark:inquiry' rồi tự cuộn xuống #contact.
+     Trong lúc đó không phát kính lỏng (mọi kiểu: wave, drip, sweep, diagonal, ripple).
+     4 giây là đủ cho: viewer thu về thẻ (~0.5s) + cuộn Lenis (1.4s).
+     Hết thời gian này, cuộn tay bình thường vẫn có hiệu ứng như cũ. */
+  const MUTE_MS = 4000;
+  let muteUntil = 0;
+  const onInquiry = () => { muteUntil = performance.now() + MUTE_MS; };
+  window.addEventListener('corespark:inquiry', onInquiry);
 
   /* ----- Lắng nghe cuộn: nhìn trước theo hướng cuộn để kính phủ kín đúng lúc section đổi ----- */
   let armed = false, raf = 0, lastY = window.scrollY, dirS = 1;
@@ -443,8 +636,9 @@ export function initLiquidTransition(options = {}) {
     if (d !== dirS) { dirS = d; prev = idxAt(line); return; }   // đổi chiều cuộn: đặt lại mốc, không kích hoạt
     const idx = idxAt(line);
     if (idx < 0) return;
-    if (prev >= 0 && idx !== prev && enabled() && performance.now() - lastPlay > cooldown) play(d);
-    prev = idx;
+    /* đang tắt tạm (vừa bấm "Tôi muốn web như này") thì chỉ cập nhật mốc, không phát hiệu ứng */
+    const muted = performance.now() < muteUntil;
+    if (prev >= 0 && idx !== prev && !muted && enabled() && performance.now() - lastPlay > cooldown) play(d);    prev = idx;
   }
   const onScroll = () => { if (!raf) raf = requestAnimationFrame(check); };
 
@@ -472,6 +666,7 @@ export function initLiquidTransition(options = {}) {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', resize);
       window.removeEventListener('resize', refresh);
+            window.removeEventListener('corespark:inquiry', onInquiry);
       gsap.killTweensOf(state);
       renderer.dispose();
       svg?.remove(); glass.remove(); cv.remove(); label.remove();

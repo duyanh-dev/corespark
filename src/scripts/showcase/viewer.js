@@ -35,6 +35,14 @@ export function initViewer({ demos, getList }) {
   const prevBtn = $('v-prev'), nextBtn = $('v-next'), reloadBtn = $('v-reload'), copyBtn = $('v-copy'), wantBtn = $('v-want');
   const devBtns = [...$('v-devices').querySelectorAll('button')];
 
+    /* ----- Phần tử mới cho hiệu ứng đổi thiết bị ----- */
+  const seg = $('v-devices');                       // nút gạt Máy tính | Điện thoại (chứa viên kính trượt)
+  const veil = document.createElement('span');      // lớp kính phủ lên khung khi biến hình
+  veil.className = 'sc-veil';
+  frame.appendChild(veil);
+  let morphTl = null;                               // timeline biến hình đang chạy (để huỷ khi bấm liên tục)
+  let flying = false;                               // đang có vé bay (chặn bấm đúp)
+
   /* ----- Trạng thái ----- */
   let cur = null, isOpen = false, device = 'desktop', deviceChosen = false;
   let iframe = null, origin = null, returnFocus = null, hintTimer, toastTimer, pendingCb = null;
@@ -127,6 +135,7 @@ function openFull() {
 
   /* ---------- HÀM 5: tính kích thước khung + tỉ lệ thu nhỏ theo thiết bị đang chọn ---------- */
   function layoutFrame() {
+    syncSeg(); 
     const d = deviceCfg();   // trước đây: DEVICES[device]
     stage.style.paddingTop = bar.offsetHeight + 22 + 'px';
     stage.style.paddingBottom = (foot.offsetHeight ? foot.offsetHeight + 22 : 12) + 'px';
@@ -153,16 +162,87 @@ function openFull() {
     }
   }
 
+    /* ---------- HÀM A: chụp kích thước hiện tại của khung (rộng, cao, bo góc, viền máy) ---------- */
+  const snapFrame = () => ({
+    w: frame.offsetWidth,
+    h: frame.offsetHeight,
+    r: parseFloat(frame.style.borderRadius) || 14,
+    b: parseFloat(screen.style.getPropertyValue('--b')) || 0,
+  });
+
+  /* ---------- HÀM B: đặt viên kính trượt dưới nút đang chọn (chỉ cập nhật 2 biến CSS --x, --w) ---------- */
+  function syncSeg() {
+    const on = seg.querySelector('.is-active');
+    if (!on || !on.offsetWidth) return;            // khung xem đang ẩn thì chưa đo được
+    seg.style.setProperty('--x', on.offsetLeft + 'px');
+    seg.style.setProperty('--w', on.offsetWidth + 'px');
+    if (!seg.dataset.ready) {                      // lần đầu: đặt đúng chỗ không cần trượt
+      requestAnimationFrame(() => requestAnimationFrame(() => { seg.dataset.ready = '1'; }));
+    }
+  }
+
+  /* ---------- HÀM C: biến hình khung từ kích thước cũ sang mới (kính lỏng) ----------
+     Gọi SAU khi layoutFrame() đã đặt kích thước đích. Iframe đã gỡ nên chỉ animate vỏ khung (rẻ) */
+  function morphFrame(from) {
+    const to = snapFrame();                         // kích thước đích (vừa được layoutFrame đặt)
+    loader.classList.add('is-morph');               // ẩn spinner + lớp tối, chỉ còn ảnh thumbnail sạch
+    loader.classList.remove('is-done');
+    loader.classList.toggle('is-lite', phoneDesktop());
+    frame.classList.add('is-morph');                // viền kính sáng lên
+
+    morphTl = gsap.timeline({
+      onComplete: () => {
+        morphTl = null;
+        frame.classList.remove('is-morph');
+        gsap.set([frame, loader], { clearProps: 'transform' });
+        gsap.set(veil, { opacity: 0 });
+      },
+    });
+
+    morphTl
+      /* lớp kính hiện ra và nhòe dần */
+      .fromTo(veil, { opacity: 0, '--vb': '0px' }, { opacity: 1, '--vb': '16px', duration: 0.28, ease: 'power2.out' }, 0)
+      /* khung chảy sang kích thước + bo góc mới */
+      .fromTo(frame, { width: from.w, height: from.h, borderRadius: from.r },
+                     { width: to.w, height: to.h, borderRadius: to.r, duration: 0.8, ease: 'expo.inOut' }, 0)
+      /* viền máy và bo góc màn hình biến hình cùng lúc */
+      .fromTo(screen, { '--b': from.b + 'px', borderRadius: Math.max(0, from.r - from.b) },
+                      { '--b': to.b + 'px', borderRadius: Math.max(0, to.r - to.b), duration: 0.8, ease: 'expo.inOut' }, 0)
+      /* ảnh thumbnail lùi nhẹ như bị kính khúc xạ */
+      .fromTo(loader, { scale: 1.08 }, { scale: 1, duration: 0.9, ease: 'power3.out' }, 0)
+      /* co dãn như giọt chất lỏng: ép nhẹ rồi bật về */
+      .to(frame, { scaleX: 0.96, scaleY: 1.04, duration: 0.3, ease: 'sine.out' }, 0)
+      .to(frame, { scaleX: 1, scaleY: 1, duration: 0.9, ease: 'elastic.out(1, 0.4)' }, 0.3)
+      /* kính trong lại */
+      .to(veil, { opacity: 0, '--vb': '0px', duration: 0.45, ease: 'power2.inOut' }, 0.55)
+      /* khung gần xong thì mới nạp iframe */
+      .call(() => {
+        if (!isOpen || !cur) return;
+        loader.classList.remove('is-morph');
+        loadIframe();
+      }, null, 0.8);
+  }
+
   /* ---------- HÀM 6: đổi thiết bị ---------- */
+  /* ---------- HÀM 6: đổi thiết bị (có biến hình khi người dùng tự bấm) ---------- */
   function setDevice(dev, chosen) {
-  const changed = dev !== device;
-  device = dev;
-  if (chosen) deviceChosen = true;
-  devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
-  frame.dataset.device = dev;
-  layoutFrame();
-  if (chosen && changed && isOpen && cur) loadIframe();   // chỉ khi người dùng tự bấm đổi
-}
+    const changed = dev !== device;
+    const morph = chosen && changed && isOpen && cur && !reduce;
+
+    /* bấm liên tục: huỷ hiệu ứng đang chạy, chụp từ kích thước hiện tại */
+    if (morphTl) { morphTl.kill(); morphTl = null; gsap.set(frame, { clearProps: 'transform' }); }
+    const from = morph ? snapFrame() : null;
+
+    device = dev;
+    if (chosen) deviceChosen = true;
+    devBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.d === dev));
+    frame.dataset.device = dev;
+
+    if (morph) { killIframe(); layoutFrame(); morphFrame(from); return; }
+
+    layoutFrame();
+    if (chosen && changed && isOpen && cur) loadIframe();   // giảm chuyển động: đổi tức thì như cũ
+  }
 
   /* ---------- HÀM 7: hiệu ứng mở (thẻ phóng to ra toàn màn hình) ---------- */
   function animateIn(onDone) {
@@ -278,6 +358,108 @@ function openFull() {
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
 
+    /* ---------- HÀM D: dựng "vé" kính từ demo đang xem ---------- */
+  function buildTicket(d) {
+    const t = document.createElement('div');
+    t.className = 'sc-ticket';
+    t.setAttribute('aria-hidden', 'true');
+    if (d.thumb) {
+      const img = document.createElement('img');
+      img.src = absUrl(d.thumb); img.alt = '';
+      t.appendChild(img);
+    }
+    const body = document.createElement('div');
+    body.className = 'sc-ticket-body';
+    const tag = document.createElement('span');
+    tag.className = 'sc-ticket-tag'; tag.textContent = 'Vé demo';
+    const name = document.createElement('strong');
+    name.textContent = d.title;
+    body.append(tag, name);
+    t.appendChild(body);
+    return t;
+  }
+
+  /* ---------- HÀM E: vé nảy lên từ nút "Tôi muốn web như này" rồi lơ lửng chờ ---------- */
+  function launchTicket(d, fromEl) {
+    if (reduce) return null;
+    const t = buildTicket(d);
+    document.body.appendChild(t);
+    const r = fromEl.getBoundingClientRect();
+    gsap.set(t, { xPercent: -50, yPercent: -50, x: r.left + r.width / 2, y: r.top + r.height / 2, scale: 0.5, opacity: 0 });
+    gsap.to(t, { y: r.top - 90, scale: 1, opacity: 1, rotation: -5, duration: 0.55, ease: 'back.out(1.6)' });
+    gsap.to(t, { y: '-=8', duration: 1.1, ease: 'sine.inOut', yoyo: true, repeat: -1, delay: 0.55 });   // lơ lửng nhẹ
+    return t;
+  }
+
+  /* ---------- HÀM F: gắn chip "Demo bạn chọn" làm phần tử đầu tiên của form (đang ẩn, để đo vị trí đáp) ---------- */
+  function mountDock(d, contactEl) {
+    const host = contactEl.querySelector('form') || contactEl;
+    host.querySelector('.sc-dock')?.remove();
+
+    const dock = document.createElement('div');
+    dock.className = 'sc-dock';
+    if (d.thumb) {
+      const img = document.createElement('img');
+      img.src = absUrl(d.thumb); img.alt = '';
+      dock.appendChild(img);
+    }
+    const txt = document.createElement('div');
+    txt.className = 'sc-dock-txt';
+    const lab = document.createElement('span'); lab.textContent = 'Demo bạn chọn';
+    const nm = document.createElement('strong'); nm.textContent = d.title;
+    txt.append(lab, nm);
+    const x = document.createElement('button');
+    x.type = 'button'; x.className = 'sc-dock-x'; x.setAttribute('aria-label', 'Bỏ chọn demo'); x.textContent = '✕';
+    x.addEventListener('click', () => {
+      dock.remove();
+      try { sessionStorage.removeItem('corespark:inquiry'); } catch {}
+      window.dispatchEvent(new CustomEvent('corespark:inquiry-clear'));
+    });
+    dock.append(txt, x);
+    host.insertBefore(dock, host.firstChild);
+    return dock;
+  }
+
+  /* ---------- HÀM G: chip hiện ra, vé tan đi, vòng sóng kính lan ra ---------- */
+  function landTicket(ticket, dock) {
+    dock.classList.add('is-in');
+    gsap.fromTo(dock, { scale: 0.94 }, { scale: 1, duration: 0.7, ease: 'elastic.out(1, 0.5)', clearProps: 'transform' });
+    const ring = document.createElement('i');
+    ring.className = 'sc-ring';
+    dock.appendChild(ring);
+    gsap.fromTo(ring, { scale: 1, opacity: 0.45 }, { scale: 1.35, opacity: 0, duration: 0.8, ease: 'power2.out', onComplete: () => ring.remove() });
+    gsap.to(ticket, { opacity: 0, scale: 0.8, duration: 0.25, ease: 'power2.in', onComplete: () => { ticket.remove(); flying = false; } });
+  }
+
+  /* ---------- HÀM H: vé bay theo đường cong tới chip. Đích được đo LẠI mỗi khung hình
+     nên vẫn đúng khi trang đang cuộn (Lenis) ---------- */
+  function flyTicket(ticket, d, contactEl) {
+    const dock = mountDock(d, contactEl);
+    if (!ticket) { dock.classList.add('is-in'); flying = false; return; }   // giảm chuyển động: hiện chip luôn
+
+    gsap.killTweensOf(ticket);                                   // dừng nảy/lơ lửng
+    const a = ticket.getBoundingClientRect();
+    const sx = a.left + a.width / 2, sy = a.top + a.height / 2;  // điểm xuất phát
+    const rot0 = Number(gsap.getProperty(ticket, 'rotation')) || 0;
+    const p = { v: 0 };
+
+    gsap.to(p, {
+      v: 1, duration: 1.6, ease: 'power3.inOut',
+      onUpdate: () => {
+        const r = dock.getBoundingClientRect();
+        const tx = r.left + r.width / 2, ty = r.top + r.height / 2;   // đích hiện tại
+        const arc = Math.sin(Math.PI * p.v);                          // 0 → 1 → 0: độ cong của đường bay
+        gsap.set(ticket, {
+          x: sx + (tx - sx) * p.v + arc * 70,
+          y: sy + (ty - sy) * p.v,
+          rotation: rot0 * (1 - p.v) + arc * 8,
+          scale: 1 - 0.15 * p.v,
+        });
+      },
+      onComplete: () => landTicket(ticket, dock),
+    });
+  }
+
   /* ----- Gắn sự kiện ----- */
   loader.addEventListener('click', () => { if (loader.classList.contains('is-lite')) openFull(); });
   closeBtn.addEventListener('click', () => requestClose());
@@ -288,13 +470,23 @@ function openFull() {
   devBtns.forEach((b) => b.addEventListener('click', () => setDevice(b.dataset.d, true)));
 
   // "Tôi muốn web như này": đóng khung, lưu tên demo, báo cho phần Liên hệ rồi cuộn xuống
+    // "Tôi muốn web như này": vé nảy ra từ nút, viewer thu về thẻ, rồi vé bay xuống Liên hệ và dính vào form
   wantBtn.addEventListener('click', () => {
-    const detail = { slug: cur.slug, title: cur.title };
+    if (flying) return;
+    flying = true;
+    const d = cur;
+    const detail = { slug: d.slug, title: d.title };
     try { sessionStorage.setItem('corespark:inquiry', JSON.stringify(detail)); } catch {}
     window.dispatchEvent(new CustomEvent('corespark:inquiry', { detail }));
+
+    const ticket = launchTicket(d, wantBtn);
+    const bail = setTimeout(() => { ticket?.remove(); flying = false; }, 5000);   // an toàn: không để vé kẹt lại
+
     requestClose(() => {
+      clearTimeout(bail);
       const target = document.querySelector('#contact');
-      if (!target) return;
+      if (!target) { ticket?.remove(); flying = false; return; }
+      flyTicket(ticket, d, target);                    // đặt chip + bắt đầu bay TRƯỚC khi cuộn
       window.__lenis ? window.__lenis.scrollTo(target, { duration: 1.4 }) : target.scrollIntoView({ behavior: 'smooth' });
     });
   });
