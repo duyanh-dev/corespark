@@ -49,3 +49,15 @@ const {
   import { initLiquidCursor } from '../scripts/liquid-cursor.js';
   initLiquidCursor();
 </script>
+
+<!-- Chuyển tiếp kính lỏng giữa các section: sóng kính quét qua khi cuộn sang section khác.
+     Canvas riêng, không chặn click/cuộn. Xoá khối này là hết hiệu ứng, không ảnh hưởng gì khác. -->
+<script>
+  import { initLiquidTransition } from '../scripts/liquid-transition.js';
+  import texts from '../data/transition-text.json'; // chữ từng section: sửa trong file JSON này
+  initLiquidTransition({
+    selector: 'main > section, body > section, section[id], footer',
+    texts,
+    armDelay: 2000, // chờ preloader xong; tăng nếu preloader lâu hơn
+  });
+</script>

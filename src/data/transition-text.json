@@ -1,0 +1,10 @@
+{
+  "hero": { "title": "CoreSpark", "sub": "Mọi website bắt đầu từ một tia lửa" },
+  "showcase": { "title": "Dự án", "sub": "Demo thật để bạn xem trước khi quyết định" },
+  "studio": { "title": "Studio", "sub": "Thiết kế và code từng chi tiết" },
+  "process": { "title": "Quy trình", "sub": "Từ ý tưởng đến ngày ra mắt" },
+  "toolbox": { "title": "Công cụ", "sub": "Những gì chúng tôi dùng hằng ngày" },
+  "signal": { "title": "Tín hiệu", "sub": "Vì sao nên chọn chúng tôi" },
+  "spark": { "title": "Tia lửa", "sub": "Bắt đầu từ một ý tưởng nhỏ" },
+  "contact": { "title": "Liên hệ", "sub": "Kể cho chúng tôi nghe dự án của bạn" }
+}
