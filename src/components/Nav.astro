@@ -111,7 +111,9 @@ const links = [
   <div class="nav__list">
     <!-- Viên kính lỏng: kính + bản sao mục (để phóng đại) + lớp viền sáng -->
     <div class="nav__blob" aria-hidden="true">
-      <div class="nav__bglass"><div class="nav__mag" aria-hidden="true" inert></div></div>
+      <div class="nav__bglass"><div class="nav__mag" aria-hidden="true" inert></div>
+  <div class="nav__ring" aria-hidden="true"><div class="nav__mag nav__mag2" inert></div></div>
+</div>
       <div class="nav__bfx"></div>
     </div>
     <div class="nav__rows">
@@ -355,8 +357,16 @@ const links = [
 .nav__bglass { position: absolute; inset: 0; overflow: hidden; border-radius: 1.45rem; background: var(--lens-fill); isolation: isolate; }
 .nav__mag { position: absolute; left: 0; top: 0; width: 100%; display: flex; flex-direction: column; gap: .15rem; transform-origin: 0 0; }
 
+.nav__ring { display: none; position: absolute; inset: 0; padding: 11px; border-radius: inherit; pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.nav__sheet.edge-lite .nav__ring { display: block; }
+.nav__mag2 .nav__txt b { text-shadow: -1.2px 0 rgba(255, 60, 110, .55), 1.2px 0 rgba(60, 140, 255, .6); }
+.nav__mag2 .nav__chev, .nav__mag2 .nav__txt small { opacity: .8; }
+
 .nav__sheet.edge-fx .nav__bglass { filter: url(#nav-lens); }
-.nav__sheet.edge-lite .nav__bglass { filter: url(#nav-lens-lite); }
+
 
 
 /* Lớp ánh sáng nằm NGOÀI bộ lọc nên không bị bẻ cong: viền, độ dày, caustic, bóng đổ. --k = độ phồng (0..1) */
@@ -674,10 +684,19 @@ const magRows = sheetItems.map((r) => {
   mag.appendChild(c);
   return c;
 });
+
+const mag2 = panel.querySelector('.nav__mag2');
+const magRows2 = sheetItems.map((r) => {
+  const c = r.cloneNode(true);
+  c.removeAttribute('href'); c.removeAttribute('aria-label'); c.removeAttribute('style');
+  mag2.appendChild(c);
+  return c;
+});
+
 // Mục đang xem (aria-current) đổi ở HÀM 3 thì bản sao đổi theo
 const syncCur = () => sheetItems.forEach((r, i) => {
-  if (r.getAttribute('aria-current') === 'true') magRows[i].setAttribute('aria-current', 'true');
-  else magRows[i].removeAttribute('aria-current');
+  const on = r.getAttribute('aria-current') === 'true';
+  [magRows[i], magRows2[i]].forEach((c) => on ? c.setAttribute('aria-current', 'true') : c.removeAttribute('aria-current'));
 });
 const mo = new MutationObserver(syncCur);
 sheetItems.forEach((r) => mo.observe(r, { attributes: true, attributeFilter: ['aria-current'] }));
@@ -717,6 +736,10 @@ function syncLens() {
   blob.style.setProperty('--k', k.toFixed(3));
   blob.style.setProperty('--sh', `${Math.max(-28, Math.min(28, L.vy / 22)).toFixed(1)}deg`);
   mag.style.transform = `translate(${w / 2}px, ${h / 2}px) scale(${m / sx}, ${m / sy}) translate(${-w / 2}px, ${-cy}px)`;
+
+const m2 = m * .86;   // chữ ở mép bị nén vào, như gờ kính
+mag2.style.transform = `translate(${w / 2}px, ${h / 2}px) scale(${m2 / sx}, ${m2 / sy}) translate(${-w / 2}px, ${-cy}px)`;
+
   const half = (h * sy) / 2 - 3;
   rowsEl.style.setProperty('--h0', `${cy - half}px`);
   rowsEl.style.setProperty('--h1', `${cy + half}px`);
@@ -740,7 +763,6 @@ function hideLens() {
   gsap.killTweensOf(L);
   L.on = false; L.k = 0; L.vy = 0; shown = false;
   blob.style.opacity = '0';
-  sheet.classList.remove('edge-fx', 'edge-lite');
   rowsEl.style.setProperty('--h0', '-1px'); rowsEl.style.setProperty('--h1', '-1px');
 }
 function restLens(instant) {
@@ -783,16 +805,14 @@ gsap.ticker.add(() => {
 
 // Đo kích thước viên kính (và vẽ bản đồ khúc xạ mép nếu được hỗ trợ)
 function buildLensMap() {
-  if (!edgeFx || !L.w || !L.h) return;
+  if (!L.w || !L.h) return;
+  sheet.classList.add('edge-lite');
+  if (!canRefract || !lfilt || !limg) return;
   const r = Math.min(parseFloat(getComputedStyle(sheetItems[0]).borderTopLeftRadius) || 23, L.h / 2);
-  const url = drawMap(L.w, L.h, r, Math.min(r, 20));
-  const f = canRefract ? lfilt : liteFilt;
-  const im = canRefract ? limg : liteImg;
-  f.setAttribute('width', L.w); f.setAttribute('height', L.h);
-  im.setAttribute('width', L.w); im.setAttribute('height', L.h);
-  setHref(im, url);
-  sheet.classList.toggle('edge-fx', canRefract);
-  sheet.classList.toggle('edge-lite', !canRefract);
+  lfilt.setAttribute('width', L.w); lfilt.setAttribute('height', L.h);
+  limg.setAttribute('width', L.w); limg.setAttribute('height', L.h);
+  setHref(limg, drawMap(L.w, L.h, r, Math.min(r, 20)));
+  sheet.classList.add('edge-fx');
 }
 function measureLens() {
   L.w = Math.round(list.offsetWidth);
@@ -990,11 +1010,11 @@ function setMenu(open) {
   } else {
     press(false);
     tl = gsap.timeline({ onComplete: () => {
-      sheet.classList.remove('is-open');
-      gsap.set([panel, ...kids, ...chars], { clearProps: 'all' });
-      panel.style.setProperty('--lit', '0');
-      hideLens(); touching = false;
-    } });
+  sheet.classList.remove('is-open', 'edge-fx', 'edge-lite');
+  gsap.set([panel, ...kids, ...chars], { clearProps: 'all' });
+  panel.style.setProperty('--lit', '0');
+  hideLens(); touching = false;
+} });
     tl.to(kids, { opacity: 0, y: -8, duration: .18, stagger: { each: .02, from: 'end' } }, 0)
       .to(blob, { opacity: 0, duration: .15 }, 0)
       .to(panel, { rotationX: 0, rotationY: 0, duration: .2 }, 0)
