@@ -43,6 +43,18 @@ const links = [
       <feDisplacementMap in="soft" in2="map" scale="40" xChannelSelector="R" yChannelSelector="G" result="bent" />
       <feColorMatrix in="bent" type="saturate" values="1.7" />
     </filter>
+    <!-- Bộ lọc khúc xạ mép cho VIÊN KÍNH LỎNG trong menu (bản đồ vẽ bằng JS, xem HÀM 4) -->
+<filter id="nav-lens" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="100" height="66" color-interpolation-filters="sRGB">
+  <feImage id="nav-lens-map" x="0" y="0" width="100" height="66" preserveAspectRatio="none" result="map" />
+  <feDisplacementMap id="nav-lens-r" in="SourceGraphic" in2="map" scale="40" xChannelSelector="R" yChannelSelector="G" result="dr" />
+  <feColorMatrix in="dr" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r" />
+  <feDisplacementMap id="nav-lens-g" in="SourceGraphic" in2="map" scale="46" xChannelSelector="R" yChannelSelector="G" result="dg" />
+  <feColorMatrix in="dg" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g" />
+  <feDisplacementMap id="nav-lens-b" in="SourceGraphic" in2="map" scale="52" xChannelSelector="R" yChannelSelector="G" result="db" />
+  <feColorMatrix in="db" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b" />
+  <feBlend in="r" in2="g" mode="screen" result="rg" />
+  <feBlend in="rg" in2="b" mode="screen" />
+</filter>
   </defs>
 </svg>
 
@@ -73,13 +85,21 @@ const links = [
 <div class="nav__sheet" id="nav-sheet" aria-hidden="true" inert>
   <div class="nav__scrim" aria-hidden="true"></div>
   <nav class="nav__panel" aria-label="Menu">
-  <span class="nav__blob" aria-hidden="true"></span>
-  {links.map((l, i) => (
-    <a href={l.href} class="nav__item" style={`--i:${i}`}>
-      <span class="nav__txt"><small>{String(i + 1).padStart(2, '0')}</small><b>{l.t}</b></span>
-      <svg class="nav__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-    </a>
-  ))}
+  <div class="nav__list">
+    <!-- Viên kính lỏng: kính + bản sao mục (để phóng đại) + lớp viền sáng -->
+    <div class="nav__blob" aria-hidden="true">
+      <div class="nav__bglass"><div class="nav__mag" aria-hidden="true" inert></div></div>
+      <div class="nav__bfx"></div>
+    </div>
+    <div class="nav__rows">
+      {links.map((l, i) => (
+        <a href={l.href} class="nav__item" style={`--i:${i}`}>
+          <span class="nav__txt"><small>{String(i + 1).padStart(2, '0')}</small><b>{l.t}</b></span>
+          <svg class="nav__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </a>
+      ))}
+    </div>
+  </div>
   <a href="#contact" class="nav__cta2" style={`--i:${links.length}`}>
     <span>Liên hệ</span>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
@@ -222,6 +242,8 @@ const links = [
          .nav__cta2  nút kính màu nhấn
      Các biến --s-* là bảng màu của riêng menu; .nav__sheet--dark (JS bật) đổi sang tông tối. */
   .nav__sheet {
+--lens-fill: linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,.2));
+
   --s-text: #1d1d1f; --s-dim: #6e6e73; --s-accent: var(--accent, #0071e3); --s-glow: rgba(0, 113, 227, .5);
   --scrim: rgba(12, 14, 22, .32);
   --pg: rgba(251, 251, 253, .62); --pg-r: rgba(251, 251, 253, .22);
@@ -235,6 +257,7 @@ const links = [
   visibility: hidden; pointer-events: none;
 }
 .nav__sheet--dark {
+  --lens-fill: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.07));
   --s-text: #f5f5f7; --s-dim: #a1a1a6; --s-accent: #2997ff; --s-glow: rgba(41, 151, 255, .55);
   --scrim: rgba(0, 0, 0, .46);
   --pg: rgba(30, 30, 34, .58); --pg-r: rgba(30, 30, 34, .22);
@@ -258,6 +281,7 @@ const links = [
   max-height: calc(100dvh - 5.2rem); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: .15rem; padding: .6rem;
   border-radius: 2rem; color: var(--s-text);
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none;
   background: var(--pg);
   -webkit-backdrop-filter: saturate(190%) blur(28px); backdrop-filter: saturate(190%) blur(28px);
   /* độ dày kính: viền trên sáng, đáy có ánh màu hội tụ (caustic), bóng đổ mềm bên ngoài */
@@ -291,15 +315,48 @@ const links = [
 }
 
 /* GIỌT KÍNH: một khối kính duy nhất trượt giữa các mục, GSAP co giãn như chất lỏng */
-.nav__blob {
-  position: absolute; left: .6rem; right: .6rem; top: 0; height: 3.75rem; z-index: 0;
-  border-radius: 1.45rem; pointer-events: none; opacity: 0;
-  background: linear-gradient(180deg, var(--blob-a), var(--blob-b));
+/* ===== VIÊN KÍNH LỎNG kiểu iOS 26 ===== */
+.nav__list { position: relative; }
+
+/* Danh sách mục: bị khoét một lỗ đúng chỗ viên kính (JS cập nhật --h0/--h1) để chữ gốc không lặp với chữ phóng đại */
+.nav__rows {
+  --h0: -1px; --h1: -1px;
+  display: flex; flex-direction: column; gap: .15rem; margin: 0 -.6rem; padding: 0 .6rem;
+  -webkit-mask-image: linear-gradient(180deg, #000 var(--h0), transparent var(--h0), transparent var(--h1), #000 var(--h1));
+          mask-image: linear-gradient(180deg, #000 var(--h0), transparent var(--h0), transparent var(--h1), #000 var(--h1));
+}
+
+.nav__blob { position: absolute; left: 0; right: 0; top: 0; height: 4.1rem; z-index: 2; opacity: 0; pointer-events: none; --k: 0; }
+
+/* Thân kính: nền trong + bản sao các mục (phóng đại bằng JS). Trên Chromium có thêm bộ lọc bẻ cong mép */
+.nav__bglass { position: absolute; inset: 0; overflow: hidden; border-radius: 1.45rem; background: var(--lens-fill); isolation: isolate; }
+.nav__mag { position: absolute; left: 0; top: 0; width: 100%; display: flex; flex-direction: column; gap: .15rem; transform-origin: 0 0; }
+.nav__sheet.edge-fx .nav__bglass { filter: url(#nav-lens); }
+
+/* Lớp ánh sáng nằm NGOÀI bộ lọc nên không bị bẻ cong: viền, độ dày, caustic, bóng đổ. --k = độ phồng (0..1) */
+.nav__bfx {
+  position: absolute; inset: 0; border-radius: 1.45rem;
   box-shadow:
-    inset 0 0 0 1px var(--ring), inset 0 1.5px 0 var(--edge2),
-    inset 0 -12px 18px -12px rgba(255, 255, 255, .7),
-    inset 0 -16px 22px -18px var(--s-glow),
-    0 16px 26px -18px rgba(0, 0, 0, .5);
+    inset 0 0 0 1px var(--ring),
+    inset 2px 3px 4px -2px rgba(255, 255, 255, .95),
+    inset -2px -3px 5px -3px rgba(255, 255, 255, .6),
+    inset 1px 0 0 rgba(255, 70, 110, .2), inset -1px 0 0 rgba(70, 150, 255, .25),
+    inset 0 -16px 22px -16px var(--s-glow),
+    inset 0 0 18px rgba(255, 255, 255, .18),
+    0 calc(10px + var(--k, 0) * 14px) calc(18px + var(--k, 0) * 12px) -14px rgba(0, 0, 0, calc(.3 + var(--k, 0) * .22));
+}
+.nav__bfx::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.4px; pointer-events: none;
+  background: conic-gradient(from 270deg, transparent 0deg, var(--prim1) 45deg, transparent 100deg,
+    transparent 180deg, var(--prim2) 225deg, transparent 280deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.nav__bfx::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(calc(180deg + var(--sh, 0deg)),
+    rgba(255, 255, 255, calc(.26 + var(--k, 0) * .3)) 0, rgba(255, 255, 255, 0) 48%);
 }
 
 .nav__item, .nav__cta2 { position: relative; z-index: 1; -webkit-tap-highlight-color: transparent; }
@@ -308,11 +365,21 @@ const links = [
 .nav__item {
   display: flex; align-items: center; gap: 1rem; min-height: 4.1rem; padding: .5rem 1rem .5rem 1.15rem;
   border-radius: 1.45rem; color: var(--s-text); transform-origin: 0 50%; touch-action: none;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none;
 }
 .nav__txt { display: flex; align-items: baseline; gap: .9rem; min-width: 0; line-height: 1.15; }
 .nav__txt small { width: 1.4rem; font-size: .7rem; font-weight: 600; letter-spacing: .14em; color: var(--s-dim); transition: color .3s; }
 .nav__txt b { display: block; overflow: hidden; padding: .1em 0; font-size: 1.55rem; font-weight: 650; letter-spacing: -.03em; }
 .nav__txt .ch { display: inline-block; white-space: pre; will-change: transform; }
+/* trước: .nav__txt .ch {...}   sau: */
+.nav__txt :global(.ch) { display: inline-block; white-space: pre; will-change: transform; }
+
+/* trước: .nav__rip {...}   sau: */
+:global(.nav__rip) {
+  position: absolute; z-index: 3; width: 240px; height: 240px; margin: -120px 0 0 -120px; border-radius: 50%;
+  pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, transparent 36%, var(--light) 45%, rgba(255,255,255,.12) 52%, transparent 60%);
+}
 .nav__item[aria-current='true'] .nav__txt small { color: var(--s-accent); }
 
 /* gợn sóng kính tại điểm chạm */
@@ -321,6 +388,13 @@ const links = [
   pointer-events: none; opacity: 0;
   background: radial-gradient(circle, transparent 36%, var(--light) 45%, rgba(255,255,255,.12) 52%, transparent 60%);
 }
+
+:global(.nav__rip) {
+  position: absolute; z-index: 3; width: 240px; height: 240px; margin: -120px 0 0 -120px; border-radius: 50%;
+  pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, transparent 36%, var(--light) 45%, rgba(255,255,255,.12) 52%, transparent 60%);
+}
+
 /* thanh nắm kéo để đóng */
 .nav__grab { position: relative; z-index: 1; width: 100%; height: 1.6rem; display: grid; place-items: center; touch-action: none; cursor: grab; }
 .nav__grab::before { content: ''; width: 2.8rem; height: .3rem; border-radius: 9px; background: var(--s-dim); opacity: .45; }
@@ -530,13 +604,24 @@ import gsap from 'gsap';
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeLens(active));  // đo lại khi font tải xong
   update();
 
-/* ----- HÀM 4: menu điện thoại (GSAP) ----- */
+/* ----- HÀM 4: menu điện thoại (GSAP) + VIÊN KÍNH LỎNG kiểu iOS 26 ----- */
+const list = panel.querySelector('.nav__list');
+const rowsEl = panel.querySelector('.nav__rows');
 const blob = panel.querySelector('.nav__blob');
+const mag = panel.querySelector('.nav__mag');
 const grab = panel.querySelector('.nav__grab');
+const lfilt = document.getElementById('nav-lens');
+const limg = document.getElementById('nav-lens-map');
+const dR = document.getElementById('nav-lens-r');
+const dG = document.getElementById('nav-lens-g');
+const dB = document.getElementById('nav-lens-b');
+let lastS = 0;
 const kids = [...sheet.querySelectorAll('.nav__item, .nav__cta2')];
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const mobileMQ = window.matchMedia('(max-width: 860px)');
-let isOpen = false, blobRow = null, tl = null, touching = false;
+const FORCE_EDGE = false;   // thử đổi thành true trên iPhone để xem Safari có vẽ được khúc xạ mép không
+const edgeFx = (canRefract || FORCE_EDGE) && !!lfilt && !!limg;
+let isOpen = false, tl = null, touching = false;
 
 // Tách tiêu đề thành từng chữ cái để trồi lên lần lượt
 const chars = [];
@@ -551,55 +636,173 @@ sheet.querySelectorAll('.nav__txt b').forEach((b) => {
   });
 });
 
-const rowAt = (e) => document.elementFromPoint(e.clientX, e.clientY)?.closest('.nav__item') || null;
+// Bản sao các mục nằm trong viên kính (để phóng đại). Tạo SAU khi tách chữ, bỏ href/aria cho khỏi trùng.
+const magRows = sheetItems.map((r) => {
+  const c = r.cloneNode(true);
+  c.removeAttribute('href'); c.removeAttribute('aria-label'); c.removeAttribute('style');
+  mag.appendChild(c);
+  return c;
+});
+// Mục đang xem (aria-current) đổi ở HÀM 3 thì bản sao đổi theo
+const syncCur = () => sheetItems.forEach((r, i) => {
+  if (r.getAttribute('aria-current') === 'true') magRows[i].setAttribute('aria-current', 'true');
+  else magRows[i].removeAttribute('aria-current');
+});
+const mo = new MutationObserver(syncCur);
+sheetItems.forEach((r) => mo.observe(r, { attributes: true, attributeFilter: ['aria-current'] }));
+syncCur();
 
-// Giọt kính trượt tới một mục: kéo giãn rồi rung như chất lỏng
-function placeBlob(row, instant) {
-  if (!row) { blobRow = null; gsap.to(blob, { opacity: 0, duration: .25 }); return; }
-  const first = !blobRow || instant;
-  blobRow = row;
-  gsap.killTweensOf(blob);
-  if (first || reduce) { gsap.set(blob, { y: row.offsetTop, height: row.offsetHeight, opacity: 1, scaleX: 1, scaleY: 1 }); return; }
-  navigator.vibrate?.(6);
-  gsap.timeline()
-    .to(blob, { scaleX: .94, scaleY: 1.2, duration: .14, ease: 'power2.out' })
-    .to(blob, { y: row.offsetTop, height: row.offsetHeight, duration: .75, ease: 'elastic.out(1,.55)' }, .04)
-    .to(blob, { scaleX: 1, scaleY: 1, duration: .6, ease: 'elastic.out(1,.4)' }, .14);
+// Tìm mục dưới ngón tay bằng toạ độ, không phụ thuộc hit-test nên mask hay viên kính không làm sai
+const rowAt = (e) => sheetItems.find((r) => {
+  const b = r.getBoundingClientRect();
+  return e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom;
+}) || null;
+
+// Đi tới một mục: đóng menu rồi cuộn (cùng đường với khi bấm link)
+function activate(row) {
+  const href = row.getAttribute('href');
+  setMenu(false);
+  // chờ touchend của trình duyệt xong để Lenis không hủy animation
+  setTimeout(() => { window.__lenis?.start(); goTo(href); }, 120);
 }
-const restBlob = (instant) => placeBlob(sheetItems.find((a) => a.getAttribute('aria-current') === 'true') || null, instant);
+const hasCur = () => sheetItems.find((a) => a.getAttribute('aria-current') === 'true') || null;
 
-// Phóng đại kiểu dock: mục gần ngón tay phình lên, nhích sang phải
-function magnify(y) {
-  sheetItems.forEach((r) => {
-    let s = 1, x = 0;
-    if (y != null) {
-      const b = r.getBoundingClientRect();
-      const k = Math.max(0, 1 - Math.abs(y - (b.top + b.height / 2)) / 130);
-      s = 1 + .045 * k; x = 7 * k;
+/* ===== VIÊN KÍNH =====
+   L.y  : vị trí đỉnh viên kính (toạ độ trong .nav__list), L.ty: đích của lò xo, L.vy: vận tốc
+   L.k  : độ phồng 0..1 (nhấn giữ = 1). Phồng thì viên kính to ra + chữ bên trong được phóng đại */
+const L = { y: 0, ty: 0, vy: 0, k: 0, w: 0, h: 66, on: false };
+const PRESS = { sx: .04, sy: .3, m: .2 };   // độ phồng ngang, dọc, và độ phóng đại chữ khi nhấn giữ
+let shown = false, hotIdx = -1;
+
+function syncLens() {
+  const k = Math.max(-.05, Math.min(1.12, L.k));
+  const v = Math.abs(L.vy);
+  const stretch = Math.min(.34, v / 1700);
+  const sx = 1 + k * PRESS.sx - stretch * .45;
+  const sy = 1 + k * PRESS.sy + stretch;
+  const m = 1 + k * PRESS.m;
+  const w = L.w, h = L.h, cy = L.y + h / 2;
+  blob.style.transform = `translate(0px, ${L.y}px) scale(${sx}, ${sy})`;
+  blob.style.setProperty('--k', k.toFixed(3));
+  blob.style.setProperty('--sh', `${Math.max(-28, Math.min(28, L.vy / 22)).toFixed(1)}deg`);
+  mag.style.transform = `translate(${w / 2}px, ${h / 2}px) scale(${m / sx}, ${m / sy}) translate(${-w / 2}px, ${-cy}px)`;
+  const half = (h * sy) / 2 - 3;
+  rowsEl.style.setProperty('--h0', `${cy - half}px`);
+  rowsEl.style.setProperty('--h1', `${cy + half}px`);
+  // khúc xạ + tán sắc sống: nhấn giữ hoặc kéo nhanh thì bẻ mạnh hơn
+  if (edgeFx && dR) {
+    const s = 34 + k * 34 + Math.min(46, v * .035);
+    if (Math.abs(s - lastS) > .6) {
+      lastS = s;
+      dR.setAttribute('scale', s.toFixed(1));
+      dG.setAttribute('scale', (s * 1.13).toFixed(1));
+      dB.setAttribute('scale', (s * 1.26).toFixed(1));
     }
-    gsap.to(r, { scale: s, x, duration: .45, ease: 'power3.out', overwrite: 'auto' });
-  });
+  }
+}
+function showLens(row) {
+  L.on = true; L.ty = row.offsetTop;
+  if (!shown) { L.y = L.ty; L.vy = 0; shown = true; blob.style.opacity = '1'; }
+  syncLens();
+}
+function hideLens() {
+  gsap.killTweensOf(L);
+  L.on = false; L.k = 0; L.vy = 0; shown = false;
+  blob.style.opacity = '0';
+  sheet.classList.remove('edge-fx');   // thêm dòng này
+  rowsEl.style.setProperty('--h0', '-1px'); rowsEl.style.setProperty('--h1', '-1px');
+}
+function restLens(instant) {
+  const cur = hasCur();
+  if (!cur) { hideLens(); return; }
+  showLens(cur);
+  if (instant) { L.y = L.ty; L.vy = 0; syncLens(); }
+}
+
+// Giọt kính rơi từ mép trên tấm kính xuống mục hiện tại, kéo giãn rồi nảy
+function dropLens() {
+  const cur = hasCur();
+  if (!cur) return;
+  gsap.killTweensOf(L);
+  L.on = true; shown = true;
+  L.ty = cur.offsetTop;
+  L.y = -L.h * 1.1; L.vy = 700; L.k = 1;
+  blob.style.opacity = '1';
+  syncLens();
+  press(false);
+}
+
+// Nhấn giữ = phồng lên (lò xo), thả = xẹp về
+function press(on, done) {
+  gsap.to(L, { k: on ? 1 : 0, duration: on ? .6 : .8, ease: on ? 'elastic.out(1,.55)' : 'elastic.out(1,.65)', overwrite: 'auto', onUpdate: syncLens, onComplete: done });
+}
+// Lò xo bám theo đích (mỗi khung hình, chỉ chạy khi viên kính đang hiện)
+gsap.ticker.add(() => {
+  if (!L.on) return;
+  const dt = Math.min(.034, gsap.ticker.deltaRatio(60) / 60);
+  const dy = L.ty - L.y;
+  if (Math.abs(dy) < .04 && Math.abs(L.vy) < .04) {
+    if (dy !== 0 || L.vy !== 0) { L.y = L.ty; L.vy = 0; syncLens(); }
+    return;
+  }
+  L.vy += (dy * 320 - L.vy * 15) * dt;
+  L.y += L.vy * dt;
+  syncLens();
+});
+
+// Đo kích thước viên kính (và vẽ bản đồ khúc xạ mép nếu được hỗ trợ)
+function buildLensMap() {
+  if (!edgeFx || !L.w || !L.h) return;
+  const r = Math.min(parseFloat(getComputedStyle(sheetItems[0]).borderTopLeftRadius) || 23, L.h / 2);
+  lfilt.setAttribute('width', L.w); lfilt.setAttribute('height', L.h);
+  limg.setAttribute('width', L.w); limg.setAttribute('height', L.h);
+  limg.setAttribute('href', drawMap(L.w, L.h, r, Math.min(r, 20)));
+  sheet.classList.add('edge-fx');
+}
+function measureLens() {
+  L.w = Math.round(list.offsetWidth);
+  L.h = Math.round(sheetItems[0].offsetHeight);
+  blob.style.height = `${L.h}px`;
+  buildLensMap();
+}
+new ResizeObserver(() => { if (isOpen) { measureLens(); syncLens(); } }).observe(list);
+
+// Ngón tay kéo: viên kính bám theo, vượt khỏi danh sách thì có lực cản như cao su
+const pitch = () => (sheetItems[1] ? sheetItems[1].offsetTop - sheetItems[0].offsetTop : L.h);
+function follow(e) {
+  const lr = list.getBoundingClientRect();
+  const y = e.clientY - lr.top - L.h / 2;
+  const lo = sheetItems[0].offsetTop, hi = sheetItems[sheetItems.length - 1].offsetTop;
+  L.ty = y < lo ? lo - Math.pow(lo - y, .7) : y > hi ? hi + Math.pow(y - hi, .7) : y;
+  const idx = Math.max(0, Math.min(sheetItems.length - 1, Math.round((L.ty - lo) / pitch())));
+  if (idx !== hotIdx) { hotIdx = idx; navigator.vibrate?.(5); }   // đi qua mục khác thì rung nhẹ (Android)
 }
 
 // Gợn sóng kính tại điểm chạm
 function ripple(e) {
   const r = panel.getBoundingClientRect();
-  const el = document.createElement('span');
-  el.className = 'nav__rip';
-  el.style.left = `${e.clientX - r.left + panel.scrollLeft}px`;
-  el.style.top = `${e.clientY - r.top + panel.scrollTop}px`;
-  panel.appendChild(el);
-  gsap.fromTo(el, { scale: .1, opacity: 1 }, { scale: 1.25, opacity: 0, duration: 1, ease: 'expo.out', onComplete: () => el.remove() });
+  [0, .14].forEach((delay) => {
+    const el = document.createElement('span');
+    el.className = 'nav__rip';
+    el.style.left = `${e.clientX - r.left + panel.scrollLeft}px`;
+    el.style.top = `${e.clientY - r.top + panel.scrollTop}px`;
+    panel.appendChild(el);
+    gsap.fromTo(el, { scale: .1, opacity: delay ? .6 : 1 },
+      { scale: 1.35, opacity: 0, duration: 1.1, delay, ease: 'expo.out', onComplete: () => el.remove() });
+  });
 }
 
-// Ngón tay: điểm sáng + viền sáng + nghiêng 3D + giọt kính + phóng đại
+// Chặn hành vi giữ lâu của trình duyệt (xem trước link, menu ngữ cảnh, kéo link, bôi chọn chữ)
+panel.addEventListener('contextmenu', (e) => e.preventDefault());
+panel.addEventListener('dragstart', (e) => e.preventDefault());
+sheetItems.forEach((a) => { a.draggable = false; });
+
 let downRow = null, slid = false;
 panel.addEventListener('pointerdown', (e) => {
   touching = true; downRow = rowAt(e); ripple(e);
-  if (downRow) { placeBlob(downRow); gsap.to(blob, { scaleX: .96, scaleY: .94, duration: .15 }); }
+  if (downRow) { hotIdx = sheetItems.indexOf(downRow); showLens(downRow); press(true); }
 });
 panel.addEventListener('pointermove', (e) => {
-  touching = true;
   const r = panel.getBoundingClientRect();
   const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
   panel.style.setProperty('--mx', `${e.clientX - r.left}px`);
@@ -609,31 +812,39 @@ panel.addEventListener('pointermove', (e) => {
   if (a < 0) a += 360;
   panel.style.setProperty('--ang', `${a.toFixed(1)}deg`);
   gsap.to(panel, { rotationY: (px - .5) * 8, rotationX: -(py - .5) * 6, transformPerspective: 900, duration: .5, ease: 'power3.out', overwrite: 'auto' });
-  const row = rowAt(e);
-  if (row && row !== blobRow) placeBlob(row);
-  magnify(e.clientY);
+  if (touching && downRow) follow(e);
+  else if (!touching && e.pointerType === 'mouse') { const row = rowAt(e); if (row) showLens(row); }   // chuột: rê qua thì kính trượt theo, chưa phồng
 });
-const release = () => gsap.to(blob, { scaleX: 1, scaleY: 1, duration: .6, ease: 'elastic.out(1,.45)' });
-function rest() {
-  touching = false; panel.style.setProperty('--lit', '0');
+function rest(row) {
+  touching = false; hotIdx = -1;
+  panel.style.setProperty('--lit', '0');
   gsap.to(panel, { rotationX: 0, rotationY: 0, duration: .8, ease: 'elastic.out(1,.5)', overwrite: 'auto' });
-  magnify(null); restBlob();
+  const target = row || hasCur();
+  if (target) { L.ty = target.offsetTop; press(false); }
+  else press(false, hideLens);                                // không có mục nào đang xem thì kính xẹp rồi ẩn
 }
 panel.addEventListener('pointerup', (e) => {
-  release();
-  const r = rowAt(e);
-  // Trượt sang mục khác rồi thả: đi tới mục đó (và chặn click gốc của mục lúc đầu chạm)
-  if (e.pointerType === 'touch' && r && downRow && r !== downRow) {
-    r.click(); slid = true; setTimeout(() => (slid = false), 80);
-  }
+  const was = downRow;
   downRow = null;
-  if (e.pointerType === 'touch') rest();
+  if (!was) { rest(null); return; }          // không bắt đầu từ một mục (vd bấm nút Liên hệ): để click thường lo
+  // Mục đích đến = mục mà viên kính đang nằm; thả quá xa khỏi danh sách thì huỷ
+  const lr = list.getBoundingClientRect();
+  const inside = e.clientY > lr.top - 40 && e.clientY < lr.bottom + 40;
+  const row = inside ? (sheetItems[hotIdx] || was) : null;
+  rest(row);
+  if (row) {
+    slid = true; setTimeout(() => (slid = false), 500);   // chặn click thật (nếu có) để khỏi bấm đúp
+    activate(row);
+  }
 });
-panel.addEventListener('click', (e) => { if (slid) { e.preventDefault(); e.stopPropagation(); } }, true);
-panel.addEventListener('pointercancel', () => { release(); rest(); });
-panel.addEventListener('pointerleave', rest);
+// Chặn click THẬT do trình duyệt tự sinh ra sau khi mình đã xử lý ở pointerup (bàn phím Enter vẫn chạy bình thường)
+panel.addEventListener('click', (e) => {
+  if (slid && e.isTrusted && e.target.closest('.nav__item')) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+panel.addEventListener('pointercancel', () => { downRow = null; rest(); });
+panel.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !touching) rest(); });
 
-// Khi không chạm: viền sáng tự xoay chậm cho kính "sống"
+// Khi không chạm: viền sáng của tấm kính tự xoay chậm cho "sống"
 let spin = 315, fr = 0;
 gsap.ticker.add(() => {
   if (!isOpen || touching || (++fr & 1)) return;
@@ -716,7 +927,7 @@ function setMenu(open) {
   if (reduce) {
     sheet.classList.toggle('is-open', open);
     gsap.set(scrim, { opacity: open ? 1 : 0 });
-    if (open) restBlob(true);
+    if (open) { measureLens(); restLens(true); } else hideLens();
     return;
   }
 
@@ -726,26 +937,28 @@ function setMenu(open) {
 
   if (open) {
     sheet.classList.add('is-open');
+    measureLens(); hideLens();
     // màn thấp (xoay ngang) thì cho cuộn dọc, còn lại khoá cử chỉ để trượt/chọn mượt
     panel.style.touchAction = panel.scrollHeight > panel.clientHeight + 1 ? 'pan-y' : 'none';
-    gsap.set(blob, { opacity: 0 }); blobRow = null;
     tl = gsap.timeline({ onComplete: () => gsap.set(panel, { clearProps: 'clipPath' }) }); // bỏ clip để bóng đổ không bị cắt
     tl.fromTo(panel, { clipPath: from.clip, y: -12, scaleX: .9, scaleY: .88, transformOrigin: from.origin },
                      { clipPath: full, duration: .85, ease: 'expo.out' }, 0)
       .to(panel, { y: 0, scaleX: 1, scaleY: 1, duration: 1.15, ease: 'elastic.out(1,.55)' }, 0)
       .fromTo(bar, { scaleY: .9, scaleX: 1.015 }, { scaleY: 1, scaleX: 1, duration: 1.1, ease: 'elastic.out(1,.4)' }, 0)
       .fromTo(scrim, { opacity: 0 }, { opacity: 1, duration: .45 }, 0)
-      .fromTo(kids, { y: 30, opacity: 0, scale: .9 },
-                    { y: 0, opacity: 1, scale: 1, duration: .8, ease: 'back.out(1.7)', stagger: .06 }, .1)
+      .fromTo(kids, { y: 30, opacity: 0, scale: .9, filter: 'blur(10px)' },
+              { y: 0, opacity: 1, scale: 1, filter: 'blur(0px)', clearProps: 'filter', duration: .8, ease: 'back.out(1.7)', stagger: .06 }, .1)
       .fromTo(chars, { yPercent: 130, opacity: 0 },
                      { yPercent: 0, opacity: 1, duration: .75, ease: 'expo.out', stagger: .016 }, .22)
-      .add(() => restBlob(true), .3);
+      // viên kính hiện ra đang phồng rồi xẹp xuống như giọt nước
+      .add(dropLens, .35)
   } else {
+    press(false);
     tl = gsap.timeline({ onComplete: () => {
       sheet.classList.remove('is-open');
       gsap.set([panel, ...kids, ...chars], { clearProps: 'all' });
       panel.style.setProperty('--lit', '0');
-      touching = false;
+      hideLens(); touching = false;
     } });
     tl.to(kids, { opacity: 0, y: -8, duration: .18, stagger: { each: .02, from: 'end' } }, 0)
       .to(blob, { opacity: 0, duration: .15 }, 0)
@@ -771,7 +984,7 @@ window.matchMedia('(min-width: 861px)').addEventListener('change', (e) => { if (
       return true;
     }
     if (!t) return false;
-    if (window.__lenis) window.__lenis.scrollTo(t, { offset: -72, duration: 1.2 });
+if (window.__lenis) window.__lenis.scrollTo(t, { offset: -72, duration: 1.2, force: true });
     else t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return true;
   }
