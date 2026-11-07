@@ -2,9 +2,8 @@
    LIQUID-TRANSITION.JS - Chuyển tiếp KÍNH LỎNG giữa các section (bản 4: nhiều kiểu)
 
    Không màu, không gradient: chỉ là khối kính lỏng trong suốt trào qua màn hình.
-   NĂM KIỂU, chạy xen kẽ ngẫu nhiên (không lặp lại kiểu vừa rồi):
+   BỐN KIỂU, chạy xen kẽ ngẫu nhiên (không lặp lại kiểu vừa rồi):
      wave      Sóng dọc: bờ gợn quét từ dưới lên (hoặc từ trên xuống khi cuộn lên)
-     drip      Rèm giọt: các lưỡi chất lỏng dài thò ra trước như nước chảy xuống kính
      sweep     Quét ngang: dải kính trượt từ trái sang phải (phải sang trái khi cuộn lên)
      diagonal  Quét chéo: dải kính nghiêng, góc và chiều ngẫu nhiên mỗi lần
      ripple    Gợn tròn: vòng kính toả ra từ một điểm (cuộn xuống), hoặc co vào (cuộn lên)
@@ -16,11 +15,22 @@
      - Phủ kín màn hình trong giây lát, giữa lúc đó hiện số + tên + dòng phụ của section sắp tới
      - Chữ tự đổi tối/sáng theo nền trang; viền kính tự chỉnh theo nền sáng/tối
 
+   THÔNG MINH KHI CUỘN NHANH / SECTION NGẮN (mặc định bật, smart: true)
+     - Đo tốc độ cuộn (px/s) lúc băng qua ranh giới, ước tính "thời gian ở lại" section sắp tới
+       = chiều cao section / tốc độ. Nguyên tắc: bản chuyển tiếp phải nằm gọn giữa hai lần đổi
+       section ở nhịp cuộn hiện tại. Đủ chỗ -> bản đầy đủ (kèm chữ); chỉ đủ chỗ cho bản ngắn ->
+       bản nhanh (<1 giây, không chữ); không đủ (lướt vèo) -> bỏ qua. Cuộn đều thì mọi ranh giới
+       cùng một kiểu, không có chuyện cái có cái không
+     - Section thấp hơn minSection (mặc định 0.6 màn hình) không có chuyển tiếp riêng: gộp vào
+       section lớn kề bên. Ép từng section:  data-lt="on" (luôn tính)  /  data-lt="off" (bỏ qua)
+     - Đang chạy mà người dùng vụt tốc độ lớn trước khi kính phủ kín -> rút lui êm (mờ dần)
+       thay vì chạy lỡ dở; nghỉ gap ms sau mỗi lần để không nhấp nháy khi lướt qua một loạt section
+
    CHỌN KIỂU (tuỳ chọn style):
-     style: 'random'                     // mặc định: xen kẽ ngẫu nhiên cả 5 kiểu
+     style: 'random'                     // mặc định: xen kẽ ngẫu nhiên cả 4 kiểu
      style: 'ripple'                     // luôn dùng một kiểu
      style: ['wave', 'ripple', 'sweep']  // chỉ xoay vòng trong danh sách này
-     lt.play(1, 'drip')                  // chạy thử tay: (chiều, kiểu)
+     lt.play(1, 'ripple')                // chạy thử tay: (chiều, kiểu)
 
    CHỮ TỪNG SECTION TỰ SỬA - ưu tiên từ trên xuống:
      1. src/data/transition-text.json  (khoá = id section, hoặc số thứ tự "1","2"...)
@@ -45,10 +55,9 @@ const BW = 0.075;                    // bề rộng vát cong của mép kính
 const RW0 = 1.7;                     // bề dày tối thiểu của vòng (kiểu gợn tròn)
 const RO0 = -0.12;                   // bán kính ngoài lúc bắt đầu
 
-const ALL_STYLES = ['wave', 'drip', 'sweep', 'diagonal', 'ripple'];
+const ALL_STYLES = ['wave', 'sweep', 'diagonal', 'ripple'];
 
 /* ----- Công thức hình dạng: CHUNG ở JS (cắt lớp backdrop) và GLSL (vẽ viền) ----- */
-const frac = (x) => x - Math.floor(x);
 const wobF = (v, t, seed) =>
   0.050 * Math.sin(v * 5.0 + t * 3.0 + seed * 6.0) +
   0.025 * Math.sin(v * 11.0 - t * 4.0 + 1.3) +
@@ -56,19 +65,8 @@ const wobF = (v, t, seed) =>
 const wobT = (v, t, seed) =>
   0.045 * Math.sin(v * 4.0 - t * 2.4 + seed * 3.0) +
   0.030 * Math.sin(v * 9.0 + t * 3.1);
-function tongue(v, ph, seed) {                       // các "lưỡi" chất lỏng thò ra
-  let s = 0;
-  for (let j = 0; j < 5; j++) {
-    const c = frac(0.13 + 0.211 * j + (seed + ph) * 0.83);
-    const w = 0.05 + 0.035 * frac(j * 0.37 + seed);
-    const h = 0.12 + 0.18 * frac(j * 0.61 + seed * 1.7);
-    const d = (v - c) / w;
-    s += Math.exp(-d * d * d * d) * h;          // siêu-gauss: lưỡi rộng, đầu tròn như giọt
-  }
-  return s;
-}
-const offF = (v, t, seed, drip) => wobF(v, t, seed) + drip * tongue(v, 0.0, seed);
-const offT = (v, t, seed, drip) => wobT(v, t, seed) - drip * 0.5 * tongue(v, 0.31, seed);
+const offF = wobF;
+const offT = wobT;
 const woR = (th, t, seed) =>
   0.040 * Math.sin(3 * th + t * 2.0 + seed * 6.0) +
   0.025 * Math.sin(5 * th - t * 3.0 + 1.3) +
@@ -91,7 +89,6 @@ const FRAG = /* glsl */`
   uniform float uBg;      // 0 = trang nền tối, 1 = trang nền sáng
   uniform float uMode;    // 0 = dải, 1 = vòng
   uniform float uTheta;   // góc trục chuyển động của dải
-  uniform float uDrip;    // độ dài lưỡi chất lỏng (0 = không)
   uniform float uRev;     // vòng co vào thay vì toả ra
   uniform vec2  uC0;      // tâm vòng (đơn vị chiều cao màn hình)
   uniform float uRW;      // bề dày vòng
@@ -114,20 +111,8 @@ const FRAG = /* glsl */`
     return 0.045 * sin(v * 4.0 - uT * 2.4 + uSeed * 3.0)
          + 0.030 * sin(v * 9.0 + uT * 3.1);
   }
-  float tongue(float v, float ph) {
-    float s = 0.0;
-    for (int j = 0; j < 5; j++) {
-      float fj = float(j);
-      float c = fract(0.13 + 0.211 * fj + (uSeed + ph) * 0.83);
-      float w = 0.05 + 0.035 * fract(fj * 0.37 + uSeed);
-      float h = 0.12 + 0.18 * fract(fj * 0.61 + uSeed * 1.7);
-      float d = (v - c) / w;
-      s += exp(-d * d * d * d) * h;
-    }
-    return s;
-  }
-  float offF(float v) { return wobF(v) + uDrip * tongue(v, 0.0); }
-  float offT(float v) { return wobT(v) - uDrip * 0.5 * tongue(v, 0.31); }
+  float offF(float v) { return wobF(v); }
+  float offT(float v) { return wobT(v); }
 
   /* ----- Kiểu dải: trục chuyển động xoay theo uTheta ----- */
   float bandD(vec2 uv) {
@@ -150,7 +135,7 @@ const FRAG = /* glsl */`
     float D = min(a * inversesqrt(1.0 + sa * sa), b * inversesqrt(1.0 + sb * sb));
 
     // Giọt dẫn đầu phía trước bờ sóng
-    float fade = smoothstep(0.0, 0.06, uP) * (1.0 - 0.6 * uDrip);
+    float fade = smoothstep(0.0, 0.06, uP);
     for (int i = 0; i < 4; i++) {
       float fi = float(i);
       vec2 c = vec2(f * La + 0.07 + 0.06 * fi + 0.01 * sin(uT * 4.0 + fi),
@@ -269,7 +254,14 @@ export function initLiquidTransition(options = {}) {
     style: styleOpt = 'random',    // 'random' | tên một kiểu | mảng tên kiểu
     duration = 2.0,
     armDelay = 1500,               // chờ preloader xong rồi mới bật (ms)
-    cooldown = 900,                // nghỉ tối thiểu giữa hai lần chạy (ms)
+    cooldown = 900,                // nghỉ tối thiểu giữa hai lần bắt đầu (ms)
+    smart = true,                  // xử lý thông minh khi cuộn nhanh / section ngắn
+    minSection = 0.6,              // section thấp hơn mức này (x chiều cao màn hình) bị gộp, không có chuyển tiếp riêng
+    fullDwell = null,              // thời gian ở lại (s) tối thiểu để chạy bản đầy đủ; null = tự tính: duration x 1.1 + gap
+    quickDwell = null,             // dưới mức này: bỏ qua; giữa hai mức: bản nhanh; null = tự tính: quickDuration + gap
+    quickDuration = 0.85,          // thời lượng bản nhanh (s), không hiện chữ
+    abortSpeed = 3500,             // px/s: vụt nhanh hơn mức này trước khi kính phủ kín -> rút lui êm
+    gap = 300,                     // nghỉ (ms) sau khi một lần chạy kết thúc, tránh nhấp nháy khi lướt qua nhiều section
     look = 0.2,                    // kích hoạt sớm: nhìn trước theo hướng cuộn (tỉ lệ chiều cao màn hình)
     labels = true,                 // hiện chữ giữa lúc phủ kín
     showNumber = true,             // hiện "03 / 07"
@@ -362,7 +354,7 @@ export function initLiquidTransition(options = {}) {
   const uniforms = {
     uRes: { value: new THREE.Vector2(1, 1) },
     uT: { value: 0 }, uP: { value: 0 }, uDir: { value: 1 }, uSeed: { value: 0.3 }, uBg: { value: 0 },
-    uMode: { value: 0 }, uTheta: { value: Math.PI / 2 }, uDrip: { value: 0 }, uRev: { value: 0 },
+    uMode: { value: 0 }, uTheta: { value: Math.PI / 2 }, uRev: { value: 0 },
     uC0: { value: new THREE.Vector2(0.8, 0.5) }, uRW: { value: RW0 }, uRO1: { value: 3.0 },
   };
   const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: VERT, fragmentShader: FRAG, depthTest: false, depthWrite: false });
@@ -384,7 +376,13 @@ export function initLiquidTransition(options = {}) {
   function refresh() {
     let els = Array.from(document.querySelectorAll(selector));
     els = els.filter((el) => !els.some((o) => o !== el && o.contains(el)));      // chỉ lấy tầng ngoài cùng
-    els = els.filter((el) => el.offsetHeight > 80);
+    const vh = window.innerHeight;
+    els = els.filter((el) => {
+      const h = el.offsetHeight, m = el.dataset.lt;             // data-lt="off": bỏ qua, "on": luôn tính
+      if (m === 'off') return false;
+      if (m === 'on') return h > 0;
+      return h > 80 && (!smart || h >= minSection * vh);
+    });
     els.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
     sections = els;
   }
@@ -463,10 +461,9 @@ export function initLiquidTransition(options = {}) {
   let cur = null;
   function configure(name, d, vw, vh) {
     const asp = vw / vh;
-    const c = { name, mode: 0, theta: Math.PI / 2, drip: 0, rev: false, dur: duration, vw, vh, asp };
-    if (name === 'drip') c.drip = 1.0;
-    else if (name === 'sweep') c.theta = 0;
-    else if (name === 'diagonal') { c.theta = (Math.random() < 0.5 ? 1 : -1) * (0.55 + Math.random() * 0.45); c.drip = 0.25; }
+    const c = { name, mode: 0, theta: Math.PI / 2, rev: false, quick: false, dur: duration, vw, vh, asp };
+    if (name === 'sweep') c.theta = 0;
+    else if (name === 'diagonal') { c.theta = (Math.random() < 0.5 ? 1 : -1) * (0.55 + Math.random() * 0.45); }
     else if (name === 'ripple') {
       c.mode = 1;
       c.rev = d < 0;
@@ -488,7 +485,7 @@ export function initLiquidTransition(options = {}) {
 
   /* ----- Đường cắt lớp kính theo đúng hình khối (cùng công thức với shader) ----- */
   function bandPolygon(pe, t) {
-    const { vw, asp, theta, drip } = cur;
+    const { asp, theta } = cur;
     const ax = [Math.cos(theta), Math.sin(theta)], cr = [-ax[1], ax[0]];
     const La = Math.abs(ax[0]) * asp + Math.abs(ax[1]);
     const Lc = Math.abs(cr[0]) * asp + Math.abs(cr[1]);
@@ -504,11 +501,11 @@ export function initLiquidTransition(options = {}) {
     const N = 56, pts = [];
     for (let i = 0; i <= N; i++) {
       const v = -0.03 + (1.06 * i) / N;
-      pts.push(pt(clamp(f + offF(v, t, seed, drip), -0.15, 1.15), v));
+      pts.push(pt(clamp(f + offF(v, t, seed), -0.15, 1.15), v));
     }
     for (let i = N; i >= 0; i--) {
       const v = -0.03 + (1.06 * i) / N;
-      pts.push(pt(clamp(f - W + offT(v, t, seed, drip), -0.15, 1.15), v));
+      pts.push(pt(clamp(f - W + offT(v, t, seed), -0.15, 1.15), v));
     }
     return 'polygon(' + pts.join(',') + ')';
   }
@@ -531,7 +528,7 @@ export function initLiquidTransition(options = {}) {
 
   /* ----- Chạy hiệu ứng ----- */
   const state = { p: 0 };
-  let playing = false, lastPlay = 0, destroyed = false;
+  let playing = false, aborting = false, lastPlay = 0, lastEnd = 0, destroyed = false;
   let dir = 1, t0 = 0, seed = 0.3, labelSet = false, prev = -1;
 
   function setLabel() {
@@ -550,6 +547,7 @@ export function initLiquidTransition(options = {}) {
   function render() {
     const p = state.p;
     const t = (performance.now() - t0) / 1000;
+    if (smart && !cur.quick && !aborting && p < cur.pIn - 0.14 && curVel() > abortSpeed) { abort(); return; }
     const pe = cur.rev ? 1 - p : p;
     uniforms.uT.value = t;
     uniforms.uP.value = pe;
@@ -562,7 +560,7 @@ export function initLiquidTransition(options = {}) {
       turb.setAttribute('baseFrequency', '0.006 ' + (0.011 + 0.002 * Math.sin(t * 1.5)).toFixed(5));
     }
 
-    if (labels) {
+    if (labels && !cur.quick) {
       if (!labelSet && p >= cur.pIn - 0.12) { labelSet = true; setLabel(); }
       const o = sstep(cur.pIn - 0.1, cur.pIn, p) * (1 - sstep(cur.pOut, cur.pOut + 0.1, p));
       label.style.opacity = o.toFixed(3);
@@ -576,7 +574,24 @@ export function initLiquidTransition(options = {}) {
     renderer.render(scene, camera);
   }
 
-  function play(d = 1, styleName) {
+  /* Kết thúc (hoặc rút lui xong): trả mọi lớp về trạng thái nghỉ */
+  function finish() {
+    glass.style.visibility = cv.style.visibility = label.style.visibility = 'hidden';
+    glass.style.opacity = cv.style.opacity = '';
+    label.style.opacity = '0';
+    renderer.clear();
+    playing = false;
+    lastEnd = performance.now();
+  }
+  /* Người dùng vụt quá nhanh khi kính chưa phủ kín: mờ dần rồi biến mất, không chạy lỡ dở */
+  function abort() {
+    if (!playing || aborting) return;
+    aborting = true;
+    gsap.killTweensOf(state);
+    gsap.to([glass, cv], { opacity: 0, duration: 0.18, ease: 'power1.out', onComplete() { aborting = false; finish(); } });
+  }
+
+  function play(d = 1, styleName, quick = false) {
     if (playing || destroyed) return;
     playing = true;
     lastPlay = performance.now();
@@ -584,13 +599,14 @@ export function initLiquidTransition(options = {}) {
     seed = Math.random();
     const vw = window.innerWidth, vh = window.innerHeight;
     cur = configure(ALL_STYLES.includes(styleName) ? styleName : pickStyle(), dir, vw, vh);
+    cur.quick = quick;
+    if (quick) cur.dur = quickDuration;
 
     uniforms.uDir.value = dir;
     uniforms.uSeed.value = seed;
     uniforms.uBg.value = sstep(0.35, 0.65, pageLum());
     uniforms.uMode.value = cur.mode;
     uniforms.uTheta.value = cur.theta;
-    uniforms.uDrip.value = cur.drip;
     uniforms.uRev.value = cur.rev ? 1 : 0;
     if (cur.mode === 1) {
       uniforms.uC0.value.set(cur.c0[0], cur.c0[1]);
@@ -604,41 +620,46 @@ export function initLiquidTransition(options = {}) {
     gsap.to(state, {
       p: 1, duration: cur.dur, ease: 'none',
       onUpdate: render,
-      onComplete() {
-        glass.style.visibility = cv.style.visibility = label.style.visibility = 'hidden';
-        label.style.opacity = '0';
-        renderer.clear();
-        playing = false;
-      },
+      onComplete: finish,
     });
   }
 
-    /* ---------- TẮT TẠM khi bấm "Tôi muốn web như này" ----------
-     viewer.js bắn sự kiện 'corespark:inquiry' rồi tự cuộn xuống #contact.
-     Trong lúc đó không phát kính lỏng (mọi kiểu: wave, drip, sweep, diagonal, ripple).
-     4 giây là đủ cho: viewer thu về thẻ (~0.5s) + cuộn Lenis (1.4s).
-     Hết thời gian này, cuộn tay bình thường vẫn có hiệu ứng như cũ. */
-  const MUTE_MS = 4000;
-  let muteUntil = 0;
-  const onInquiry = () => { muteUntil = performance.now() + MUTE_MS; };
-  window.addEventListener('corespark:inquiry', onInquiry);
-
   /* ----- Lắng nghe cuộn: nhìn trước theo hướng cuộn để kính phủ kín đúng lúc section đổi ----- */
   let armed = false, raf = 0, lastY = window.scrollY, dirS = 1;
+  let vel = 0, velFast = 0, lastT = 0;                        // tốc độ cuộn (px/s): vel = mượt (để quyết định), velFast = nhạy (để rút lui)
+  const curVel = () => (performance.now() - lastT > 140 ? 0 : velFast);   // dừng cuộn quá 140ms: coi như 0
+
+  /* Quyết định theo "thời gian ở lại": section đích cao h, đang cuộn v px/s -> ở lại h/v giây */
+  function decide(idx) {
+    if (!smart) return 'full';
+    const dwell = sections[idx].offsetHeight / Math.max(vel, 250);
+    if (dwell >= (fullDwell ?? duration * 1.1 + gap / 1000)) return 'full';        // vừa khít giữa hai lần đổi section
+    if (dwell >= (quickDwell ?? quickDuration + gap / 1000)) return 'quick';
+    return null;                                              // lướt vèo qua: không chuyển tiếp
+  }
+
   function check() {
     raf = 0;
     if (!armed || destroyed) return;
+    const now = performance.now();
     const y = window.scrollY, dy = y - lastY;
     if (Math.abs(dy) < 0.5) return;
-    lastY = y;
+    const dt = Math.min(Math.max(now - lastT, 8), 64);        // giới hạn dt để cú vụt đầu tiên không bị đánh giá thấp
+    const vi = (Math.abs(dy) / dt) * 1000;
+    const fresh = now - lastT > 140;
+    vel = fresh ? vi : vel + (vi - vel) * (1 - Math.exp(-dt / 120));          // làm mượt ~120ms: không bị lừa bởi từng cú lăn chuột
+    velFast = fresh ? vi : velFast + (vi - velFast) * (1 - Math.exp(-dt / 35));
+    lastT = now; lastY = y;
     const d = dy > 0 ? 1 : -1;
     const line = window.innerHeight * (0.5 + d * look);
-    if (d !== dirS) { dirS = d; prev = idxAt(line); return; }   // đổi chiều cuộn: đặt lại mốc, không kích hoạt
+    if (d !== dirS) { dirS = d; const k = idxAt(line); if (k >= 0) prev = k; return; }   // đổi chiều: đặt lại mốc, không kích hoạt
     const idx = idxAt(line);
-    if (idx < 0) return;
-    /* đang tắt tạm (vừa bấm "Tôi muốn web như này") thì chỉ cập nhật mốc, không phát hiệu ứng */
-    const muted = performance.now() < muteUntil;
-    if (prev >= 0 && idx !== prev && !muted && enabled() && performance.now() - lastPlay > cooldown) play(d);    prev = idx;
+    if (idx < 0) return;                                      // đang ở section ngắn bị gộp: giữ mốc cũ
+    if (prev >= 0 && idx !== prev && !playing && enabled() && now - lastPlay > cooldown && now - lastEnd > gap) {
+      const mode = decide(idx);
+      if (mode) play(d, undefined, mode === 'quick');
+    }
+    prev = idx;
   }
   const onScroll = () => { if (!raf) raf = requestAnimationFrame(check); };
 
@@ -655,6 +676,9 @@ export function initLiquidTransition(options = {}) {
 
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', refresh);
+  let roT = 0;                                                // nội dung đổi chiều cao: cập nhật danh sách section
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { clearTimeout(roT); roT = window.setTimeout(refresh, 150); }) : null;
+  ro?.observe(document.body);
 
   return {
     play,
@@ -662,11 +686,10 @@ export function initLiquidTransition(options = {}) {
     setTexts(next) { texts = { ...texts, ...(next || {}) }; },
     destroy() {
       destroyed = true;
-      clearTimeout(armTimer);
+      clearTimeout(armTimer); clearTimeout(roT); ro?.disconnect();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', resize);
       window.removeEventListener('resize', refresh);
-            window.removeEventListener('corespark:inquiry', onInquiry);
       gsap.killTweensOf(state);
       renderer.dispose();
       svg?.remove(); glass.remove(); cv.remove(); label.remove();

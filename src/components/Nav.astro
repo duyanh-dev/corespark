@@ -9,14 +9,18 @@
    - Viền sáng (specular) xoay theo con trỏ, như ánh sáng đang soi vào mép kính
    - "Thấu kính" trượt theo con trỏ và tự nằm dưới mục đang xem (scrollspy)
    - Tự đổi sang tông tối khi đi ngang qua section có class "dark"
-   - Điện thoại/tablet (<=860px): hamburger + menu toàn màn hình, chữ hiện lần lượt
+   - Điện thoại/tablet (<=860px): hamburger mở ra TẤM KÍNH LỎNG nổi dưới viên thuốc (kiểu iOS 26):
+     tấm kính khúc xạ + viền sáng + vệt sáng quét qua, các mục là thẻ kính nổi khối có icon, hiện
+     lần lượt như lò xo; mục đang xem được tô sáng; tự đổi tông sáng/tối theo trang phía sau
    ========================================================= */
 const links = [
-  { href: '#spark',    t: 'Câu chuyện' },
-  { href: '#process',  t: 'Quy trình' },
-  { href: '#studio',   t: 'Studio' },
-  { href: '#showcase', t: 'Demo' },
+  { href: '#spark',    t: 'Câu chuyện', k: 'spark' },
+  { href: '#process',  t: 'Quy trình',  k: 'process' },
+  { href: '#studio',   t: 'Studio',     k: 'studio' },
+  { href: '#showcase', t: 'Demo',       k: 'demo' },
 ];
+// Icon nét mảnh 24x24 cho thẻ trong menu điện thoại (chỉ là dữ liệu đường vẽ)
+
 ---
 
 <!-- Bộ lọc khúc xạ (để ngoài luồng hiển thị). Kích thước + bản đồ do JS điền, xem HÀM 0 -->
@@ -30,6 +34,13 @@ const links = [
       <!-- 3) bẻ cong hình nền theo bản đồ -->
       <feDisplacementMap in="soft" in2="map" scale="36" xChannelSelector="R" yChannelSelector="G" result="bent" />
       <!-- 4) màu rực hơn một chút như kính thật -->
+      <feColorMatrix in="bent" type="saturate" values="1.7" />
+    </filter>
+    <!-- Bộ lọc cho TẤM KÍNH của menu điện thoại: cùng cách làm, bản đồ vẽ theo kích thước tấm kính (xem HÀM 0b) -->
+    <filter id="nav-panel-glass" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="100" height="100" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" edgeMode="duplicate" result="soft" />
+      <feImage id="nav-panel-map" x="0" y="0" width="100" height="100" preserveAspectRatio="none" result="map" />
+      <feDisplacementMap in="soft" in2="map" scale="40" xChannelSelector="R" yChannelSelector="G" result="bent" />
       <feColorMatrix in="bent" type="saturate" values="1.7" />
     </filter>
   </defs>
@@ -56,10 +67,25 @@ const links = [
   </div>
 </header>
 
-<!-- Menu toàn màn hình: để NGOÀI <header> vì backdrop-filter của header sẽ làm hỏng position: fixed của phần tử con -->
+<!-- Menu điện thoại: để NGOÀI <header> vì backdrop-filter của header sẽ làm hỏng position: fixed của phần tử con.
+     Khung .nav__sheet cố ý KHÔNG có opacity/filter: hai thứ đó biến nó thành "gốc nền" và làm tấm kính bên trong
+     không còn thấy trang phía sau. Hiệu ứng mờ/hiện đặt riêng trên scrim và panel. -->
 <div class="nav__sheet" id="nav-sheet" aria-hidden="true" inert>
-  {links.map((l, i) => <a href={l.href} style={`--i:${i}`}>{l.t}</a>)}
-  <a href="#contact" class="nav__sheet-cta" style={`--i:${links.length}`}>Liên hệ</a>
+  <div class="nav__scrim" aria-hidden="true"></div>
+  <nav class="nav__panel" aria-label="Menu">
+  <span class="nav__blob" aria-hidden="true"></span>
+  {links.map((l, i) => (
+    <a href={l.href} class="nav__item" style={`--i:${i}`}>
+      <span class="nav__txt"><small>{String(i + 1).padStart(2, '0')}</small><b>{l.t}</b></span>
+      <svg class="nav__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+    </a>
+  ))}
+  <a href="#contact" class="nav__cta2" style={`--i:${links.length}`}>
+    <span>Liên hệ</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+  </a>
+  <span class="nav__grab" aria-hidden="true"></span>
+</nav>
 </div>
 
 <!-- ============ CSS riêng của Nav ============ -->
@@ -109,7 +135,7 @@ const links = [
     box-shadow: inset 0 0 0 1px var(--edge), inset 0 1px 0 var(--hi), inset 0 -1px 0 rgba(255, 255, 255, .25), var(--shadow);
     color: var(--text);
     transition: background .5s, box-shadow .5s, color .4s, --ang .35s ease-out;
-    animation: drop .9s cubic-bezier(.2, .9, .3, 1) both;
+    animation: drop .9s cubic-bezier(.2, .9, .3, 1) backwards;
   }
   .is-scrolled .nav__bar {
     box-shadow: inset 0 0 0 1px var(--edge), inset 0 1px 0 var(--hi), inset 0 -1px 0 rgba(255, 255, 255, .25), 0 16px 44px -16px rgba(0, 0, 0, .36);
@@ -188,50 +214,157 @@ const links = [
   /* Vòng focus rõ ràng cho bàn phím */
   .nav a:focus-visible, .nav button:focus-visible, .nav__sheet a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  /* --- Menu toàn màn hình: ẩn bằng visibility để không nhận focus khi đóng --- */
+  /* --- Menu điện thoại: TẤM KÍNH LỎNG nổi dưới viên thuốc (kiểu iOS 26) ---
+     .nav__sheet  khung (không opacity/filter, xem ghi chú ở markup)
+       .nav__scrim  lớp tối + mờ nhẹ toàn màn hình, chạm để đóng
+       .nav__panel  tấm kính: khúc xạ, viền sáng, vệt sáng quét qua khi mở
+         .nav__item  thẻ kính nổi khối: icon + số + tên (mục đang xem được tô sáng)
+         .nav__cta2  nút kính màu nhấn
+     Các biến --s-* là bảng màu của riêng menu; .nav__sheet--dark (JS bật) đổi sang tông tối. */
   .nav__sheet {
-    position: fixed; inset: 0; z-index: 55;
-    display: none; flex-direction: column; justify-content: center; padding: 5rem var(--gutter) 2.5rem;
-    background: rgba(251, 251, 253, .86);
-    -webkit-backdrop-filter: saturate(180%) blur(30px); backdrop-filter: saturate(180%) blur(30px);
-    opacity: 0; visibility: hidden; pointer-events: none;
-    transition: opacity .4s, visibility 0s .4s;
-  }
-  .nav__sheet.is-open { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity .4s, visibility 0s; }
+  --s-text: #1d1d1f; --s-dim: #6e6e73; --s-accent: var(--accent, #0071e3); --s-glow: rgba(0, 113, 227, .5);
+  --scrim: rgba(12, 14, 22, .32);
+  --pg: rgba(251, 251, 253, .62); --pg-r: rgba(251, 251, 253, .22);
+  --pedge: rgba(255, 255, 255, .6); --phi: rgba(255, 255, 255, .95);
+  --prim1: #fff; --prim2: rgba(255, 255, 255, .7);
+  --light: rgba(255, 255, 255, .55);
+  --blob-a: rgba(255, 255, 255, .85); --blob-b: rgba(255, 255, 255, .3);
+  --ring: rgba(255, 255, 255, .55); --edge2: rgba(255, 255, 255, .95);
+  --bead: rgba(255, 255, 255, .5);
+  position: fixed; inset: 0; z-index: 55; display: none;
+  visibility: hidden; pointer-events: none;
+}
+.nav__sheet--dark {
+  --s-text: #f5f5f7; --s-dim: #a1a1a6; --s-accent: #2997ff; --s-glow: rgba(41, 151, 255, .55);
+  --scrim: rgba(0, 0, 0, .46);
+  --pg: rgba(30, 30, 34, .58); --pg-r: rgba(30, 30, 34, .22);
+  --pedge: rgba(255, 255, 255, .16); --phi: rgba(255, 255, 255, .32);
+  --prim1: rgba(255, 255, 255, .85); --prim2: rgba(255, 255, 255, .4);
+  --light: rgba(255, 255, 255, .22);
+  --blob-a: rgba(255, 255, 255, .28); --blob-b: rgba(255, 255, 255, .07);
+  --ring: rgba(255, 255, 255, .2); --edge2: rgba(255, 255, 255, .38);
+  --bead: rgba(255, 255, 255, .16);
+}
+.nav__sheet.is-open { visibility: visible; pointer-events: auto; }
 
-  /* Mỗi mục hiện lần lượt (so le theo --i), lúc đóng thì mất ngay, không trễ */
-  .nav__sheet a {
-    padding: .9rem 0; font-size: clamp(1.9rem, 8.5vw, 2.7rem); font-weight: 650; letter-spacing: -.03em;
-    border-bottom: 1px solid var(--line);
-    opacity: 0; transform: translateY(16px); transition: opacity .3s, transform .3s;
-  }
-  .nav__sheet.is-open a {
-    opacity: 1; transform: none;
-    transition: opacity .6s, transform .7s cubic-bezier(.2, .9, .3, 1);
-    transition-delay: calc(var(--i) * .06s + .08s);
-  }
-  .nav__sheet .nav__sheet-cta {
-    margin-top: 1.8rem; border: 0; text-align: center; font-size: 1.1rem; font-weight: 600; letter-spacing: 0;
-    padding: 1rem; border-radius: 999px; background: var(--accent); color: var(--on-accent);
-  }
+/* chuyển động do GSAP lo, CSS chỉ đặt trạng thái gốc */
+.nav__scrim {
+  position: absolute; inset: 0; background: var(--scrim); opacity: 0;
+  -webkit-backdrop-filter: blur(6px) saturate(1.25); backdrop-filter: blur(6px) saturate(1.25);
+}
+
+.nav__panel {
+  position: absolute; top: 4.3rem; right: .6rem; width: min(calc(100% - 1.2rem), 440px);
+  max-height: calc(100dvh - 5.2rem); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: .15rem; padding: .6rem;
+  border-radius: 2rem; color: var(--s-text);
+  background: var(--pg);
+  -webkit-backdrop-filter: saturate(190%) blur(28px); backdrop-filter: saturate(190%) blur(28px);
+  /* độ dày kính: viền trên sáng, đáy có ánh màu hội tụ (caustic), bóng đổ mềm bên ngoài */
+  box-shadow:
+    inset 0 0 0 1px var(--pedge),
+    inset 0 2px 1px -1px var(--phi),
+    inset 0 -2px 6px -2px rgba(255, 255, 255, .4),
+    inset 0 26px 40px -30px rgba(255, 255, 255, .55),
+    inset 0 -34px 46px -34px var(--s-glow),
+    0 40px 80px -28px rgba(0, 0, 0, .55), 0 10px 24px -14px rgba(0, 0, 0, .3);
+}
+.nav__sheet.has-refract .nav__panel {
+  background: var(--pg-r);
+  -webkit-backdrop-filter: url(#nav-panel-glass); backdrop-filter: url(#nav-panel-glass);
+}
+/* viền sáng xoay theo ngón tay */
+.nav__panel::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.4px; pointer-events: none;
+  background: conic-gradient(from calc(var(--ang) - 45deg),
+    transparent 0deg, var(--prim1) 45deg, transparent 100deg,
+    transparent 180deg, var(--prim2) 225deg, transparent 280deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* điểm sáng bám theo ngón tay (thay cho vệt quét) */
+.nav__panel::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2;
+  background: radial-gradient(180px circle at var(--mx, 85%) var(--my, 0%), var(--light), transparent 65%);
+  opacity: var(--lit, 0); transition: opacity .35s;
+}
+
+/* GIỌT KÍNH: một khối kính duy nhất trượt giữa các mục, GSAP co giãn như chất lỏng */
+.nav__blob {
+  position: absolute; left: .6rem; right: .6rem; top: 0; height: 3.75rem; z-index: 0;
+  border-radius: 1.45rem; pointer-events: none; opacity: 0;
+  background: linear-gradient(180deg, var(--blob-a), var(--blob-b));
+  box-shadow:
+    inset 0 0 0 1px var(--ring), inset 0 1.5px 0 var(--edge2),
+    inset 0 -12px 18px -12px rgba(255, 255, 255, .7),
+    inset 0 -16px 22px -18px var(--s-glow),
+    0 16px 26px -18px rgba(0, 0, 0, .5);
+}
+
+.nav__item, .nav__cta2 { position: relative; z-index: 1; -webkit-tap-highlight-color: transparent; }
+
+
+.nav__item {
+  display: flex; align-items: center; gap: 1rem; min-height: 4.1rem; padding: .5rem 1rem .5rem 1.15rem;
+  border-radius: 1.45rem; color: var(--s-text); transform-origin: 0 50%; touch-action: none;
+}
+.nav__txt { display: flex; align-items: baseline; gap: .9rem; min-width: 0; line-height: 1.15; }
+.nav__txt small { width: 1.4rem; font-size: .7rem; font-weight: 600; letter-spacing: .14em; color: var(--s-dim); transition: color .3s; }
+.nav__txt b { display: block; overflow: hidden; padding: .1em 0; font-size: 1.55rem; font-weight: 650; letter-spacing: -.03em; }
+.nav__txt .ch { display: inline-block; white-space: pre; will-change: transform; }
+.nav__item[aria-current='true'] .nav__txt small { color: var(--s-accent); }
+
+/* gợn sóng kính tại điểm chạm */
+.nav__rip {
+  position: absolute; z-index: 3; width: 240px; height: 240px; margin: -120px 0 0 -120px; border-radius: 50%;
+  pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, transparent 36%, var(--light) 45%, rgba(255,255,255,.12) 52%, transparent 60%);
+}
+/* thanh nắm kéo để đóng */
+.nav__grab { position: relative; z-index: 1; width: 100%; height: 1.6rem; display: grid; place-items: center; touch-action: none; cursor: grab; }
+.nav__grab::before { content: ''; width: 2.8rem; height: .3rem; border-radius: 9px; background: var(--s-dim); opacity: .45; }
+.nav__chev { margin-left: auto; flex: none; width: 1.1rem; height: 1.1rem; fill: none; stroke: var(--s-dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: .7; transition: stroke .3s, opacity .3s; }
+
+/* mục đang xem: bi đổ màu nhấn */
+.nav__item[aria-current='true'] .nav__ico {
+  background:
+    radial-gradient(120% 120% at 30% 16%, rgba(255, 255, 255, .8) 0, rgba(255, 255, 255, .12) 30%, transparent 54%),
+    radial-gradient(90% 70% at 62% 108%, rgba(255, 255, 255, .45), transparent 70%),
+    var(--s-accent);
+}
+.nav__item[aria-current='true'] .nav__ico svg { stroke: #fff; }
+.nav__item[aria-current='true'] .nav__chev { stroke: var(--s-accent); opacity: 1; }
+
+.nav__cta2 {
+  display: flex; align-items: center; justify-content: center; gap: .5rem; min-height: 3.4rem; margin-top: .45rem;
+  border-radius: 1.45rem; font-size: 1.05rem; font-weight: 620; letter-spacing: -.01em; color: var(--on-accent, #fff);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, 0) 55%), var(--s-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), inset 0 0 0 1px rgba(255, 255, 255, .18),
+              inset 0 -10px 16px -10px rgba(255, 255, 255, .4), 0 16px 28px -14px var(--s-glow);
+}
+.nav__cta2 svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
   /* Tablet và điện thoại: ẩn menu ngang, hiện hamburger */
   @media (max-width: 860px) {
+    .nav__bar { touch-action: none; }
     .nav { padding-top: .6rem; }
     .nav__bar { grid-template-columns: 1fr auto; width: calc(100% - 1.2rem); height: 2.9rem; padding-left: 1rem; }
     .nav__links { display: none; }
     .nav__burger { display: block; }
-    .nav__sheet { display: flex; }
+    .nav__sheet { display: block; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .nav__bar { animation: none; transition: none; }
-    .nav__lens, .nav__spark, .nav__cta, .nav__burger span, .nav__sheet, .nav__sheet a { transition-duration: .01s; transition-delay: 0s !important; }
+    .nav__lens, .nav__spark, .nav__cta, .nav__burger span { transition-duration: .01s; transition-delay: 0s !important; }
   }
 </style>
 
 <!-- ============ JS riêng của Nav ============ -->
 <script>
+import gsap from 'gsap';
+
   const root = document.querySelector('.nav');
   const bar = root.querySelector('.nav__bar');
   const burger = root.querySelector('.nav__burger');
@@ -240,6 +373,9 @@ const links = [
   const lens = root.querySelector('.nav__lens');
   const items = Array.from(linksWrap.querySelectorAll('a'));
   const targets = items.map((a) => document.querySelector(a.getAttribute('href')));
+  const panel = sheet.querySelector('.nav__panel');
+  const scrim = sheet.querySelector('.nav__scrim');
+  const sheetItems = Array.from(sheet.querySelectorAll('.nav__item'));
 
   /* ----- HÀM 0: KHÚC XẠ LIQUID GLASS -----
      Vẽ "bản đồ dịch chuyển" cho viên thuốc: mỗi điểm ảnh mã hoá hướng + độ lệch (R = ngang, G = dọc, 128 = đứng yên).
@@ -251,20 +387,20 @@ const links = [
   // Chỉ bật khi trình duyệt cho dùng url() trong backdrop-filter (Chromium). Safari/Firefox dùng kính mờ thường.
   const canRefract = !!filt && !!window.chrome && typeof CSS !== 'undefined' && CSS.supports('backdrop-filter', 'url(#nav-glass)');
 
-  function buildMap() {
-    const w = Math.round(bar.offsetWidth), h = Math.round(bar.offsetHeight);
-    if (!w || !h) return;
+  // Vẽ bản đồ dịch chuyển cho hình chữ nhật bo góc w×h (bán kính r, vùng khúc xạ dày bz), trả về data URL.
+  // Dùng chung cho viên thuốc (r = h/2) và tấm kính của menu điện thoại.
+  function drawMap(w, h, r, bz) {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     const cx = c.getContext('2d');
     const img = cx.createImageData(w, h);
     const d = img.data;
-    const r = h / 2, bz = Math.min(r, BEZEL);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        // điểm gần nhất trên "xương sống" của viên thuốc (đoạn thẳng ngang giữa), rồi tính pháp tuyến ra ngoài
+        // điểm gần nhất trên "xương sống" (hình chữ nhật thu nhỏ r mỗi phía), rồi tính pháp tuyến ra ngoài
         const px = Math.min(Math.max(x + 0.5, r), w - r);
-        const dx = x + 0.5 - px, dy = y + 0.5 - h / 2;
+        const py = Math.min(Math.max(y + 0.5, r), h - r);
+        const dx = x + 0.5 - px, dy = y + 0.5 - py;
         const dist = Math.hypot(dx, dy);
         const depth = r - dist;                       // khoảng cách từ mép vào trong
         let vx = 0, vy = 0;
@@ -277,11 +413,17 @@ const links = [
       }
     }
     cx.putImageData(img, 0, 0);
+    return c.toDataURL('image/png');
+  }
 
+  function buildMap() {
+    const w = Math.round(bar.offsetWidth), h = Math.round(bar.offsetHeight);
+    if (!w || !h) return;
+    const r = h / 2;
     // Cập nhật vùng lọc + ảnh + độ mạnh theo kích thước thật
     filt.setAttribute('width', w); filt.setAttribute('height', h);
     fimg.setAttribute('width', w); fimg.setAttribute('height', h);
-    fimg.setAttribute('href', c.toDataURL('image/png'));
+    fimg.setAttribute('href', drawMap(w, h, r, Math.min(r, BEZEL)));
     filt.querySelector('feDisplacementMap').setAttribute('scale', String(MAXD * 2));
     root.classList.add('has-refract');
   }
@@ -290,6 +432,28 @@ const links = [
     // Vẽ lại bản đồ khi viên thuốc đổi kích thước (xoay màn hình, đổi cỡ cửa sổ), gộp theo khung hình
     new ResizeObserver(() => { cancelAnimationFrame(pending); pending = requestAnimationFrame(buildMap); }).observe(bar);
     buildMap();
+  }
+
+  /* ----- HÀM 0b: khúc xạ cho TẤM KÍNH của menu điện thoại -----
+     Chỉ bật trên Chromium và máy đủ khoẻ (>= 6 nhân): bộ lọc chạy trên cả tấm kính nên tốn hơn viên thuốc.
+     Máy yếu / trình duyệt khác tự dùng kính mờ thường, vẫn đủ viền sáng + thẻ nổi khối. */
+  const pfilt = document.getElementById('nav-panel-glass');
+  const pimg = document.getElementById('nav-panel-map');
+  const PBEZEL = 22, PMAXD = 20;
+  const canPanelRefract = canRefract && !!pfilt && !!pimg && (navigator.hardwareConcurrency || 4) >= 6;
+  function buildPanelMap() {
+    const w = Math.round(panel.offsetWidth), h = Math.round(panel.offsetHeight);
+    if (!w || !h) return;                                                  // đang ẩn (màn rộng): bỏ qua
+    const r = Math.min(parseFloat(getComputedStyle(panel).borderTopLeftRadius) || 32, h / 2, w / 2);
+    pfilt.setAttribute('width', w); pfilt.setAttribute('height', h);
+    pimg.setAttribute('width', w); pimg.setAttribute('height', h);
+    pimg.setAttribute('href', drawMap(w, h, r, Math.min(r, PBEZEL)));
+    pfilt.querySelector('feDisplacementMap').setAttribute('scale', String(PMAXD * 2));
+    sheet.classList.add('has-refract');
+  }
+  if (canPanelRefract) {
+    let pp = 0;
+    new ResizeObserver(() => { cancelAnimationFrame(pp); pp = requestAnimationFrame(buildPanelMap); }).observe(panel);
   }
 
   /* ----- HÀM 1: viền sáng xoay theo con trỏ (ánh sáng "soi" từ phía con trỏ) ----- */
@@ -320,6 +484,17 @@ const links = [
   items.forEach((a) => a.addEventListener('focus', () => placeLens(a)));
   linksWrap.addEventListener('focusout', () => placeLens(active));
 
+  /* Điểm có y này đang nằm trong section ".dark" không? (dùng cho cả viên thuốc lẫn tấm kính menu) */
+  const isDarkAt = (py) => Array.from(document.querySelectorAll('.dark')).some((s) => {
+    const r = s.getBoundingClientRect();
+    return r.top <= py && r.bottom >= py;
+  });
+  /* Tấm kính menu đổi tông theo phần trang nằm ngay sau nó (trang bị khoá cuộn lúc mở nên đo một lần là đủ) */
+  function syncSheetTone() {
+    const br = bar.getBoundingClientRect();
+    sheet.classList.toggle('nav__sheet--dark', isDarkAt(br.bottom + 12 + panel.offsetHeight / 2));
+  }
+
   /* ----- HÀM 3: mỗi khung hình cuộn: đổi tông, đổ bóng, mục đang xem ----- */
   let ticking = false;
   function update() {
@@ -333,11 +508,7 @@ const links = [
     // 3b. Tông sáng/tối: lấy điểm giữa viên thuốc, nằm trong section ".dark" thì bật tông tối
     const br = bar.getBoundingClientRect();
     const py = br.top + br.height / 2;
-    const onDark = Array.from(document.querySelectorAll('.dark')).some((s) => {
-      const r = s.getBoundingClientRect();
-      return r.top <= py && r.bottom >= py;
-    });
-    root.classList.toggle('nav--dark', onDark);
+    root.classList.toggle('nav--dark', isDarkAt(py));
 
     // 3c. Scrollspy: mục nào đang chạm vạch 40% chiều cao màn hình thì là mục hiện tại
     let next = null;
@@ -349,6 +520,8 @@ const links = [
     if (next !== active) {
       active = next;
       items.forEach((a) => (a === active ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current')));
+      const cur = active && active.getAttribute('href');                       // đồng bộ sang thẻ trong menu điện thoại
+      sheetItems.forEach((a) => (a.getAttribute('href') === cur ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current')));
       if (!linksWrap.matches(':hover')) placeLens(active);
     }
   }
@@ -357,22 +530,237 @@ const links = [
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeLens(active));  // đo lại khi font tải xong
   update();
 
-  /* ----- HÀM 4: mở / đóng menu điện thoại (khoá cuộn trang khi đang mở) ----- */
-  function setMenu(open) {
-    sheet.classList.toggle('is-open', open);
-    burger.classList.toggle('is-open', open);
-    burger.setAttribute('aria-expanded', String(open));
-    burger.setAttribute('aria-label', open ? 'Đóng menu' : 'Mở menu');
-    sheet.setAttribute('aria-hidden', String(!open));
-    sheet.inert = !open;
-    if (open) window.__lenis?.stop(); else window.__lenis?.start();
-    document.documentElement.style.overflow = open ? 'hidden' : '';
-  }
-  burger.addEventListener('click', () => setMenu(!sheet.classList.contains('is-open')));
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && sheet.classList.contains('is-open')) { setMenu(false); burger.focus(); }
+/* ----- HÀM 4: menu điện thoại (GSAP) ----- */
+const blob = panel.querySelector('.nav__blob');
+const grab = panel.querySelector('.nav__grab');
+const kids = [...sheet.querySelectorAll('.nav__item, .nav__cta2')];
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const mobileMQ = window.matchMedia('(max-width: 860px)');
+let isOpen = false, blobRow = null, tl = null, touching = false;
+
+// Tách tiêu đề thành từng chữ cái để trồi lên lần lượt
+const chars = [];
+sheet.querySelectorAll('.nav__txt b').forEach((b) => {
+  const t = b.textContent;
+  b.closest('.nav__item').setAttribute('aria-label', t);
+  b.textContent = '';
+  [...t].forEach((c) => {
+    const s = document.createElement('span');
+    s.className = 'ch'; s.setAttribute('aria-hidden', 'true'); s.textContent = c;
+    b.appendChild(s); chars.push(s);
   });
-  window.matchMedia('(min-width: 861px)').addEventListener('change', (e) => { if (e.matches) setMenu(false); }); // phóng to màn hình thì tự đóng
+});
+
+const rowAt = (e) => document.elementFromPoint(e.clientX, e.clientY)?.closest('.nav__item') || null;
+
+// Giọt kính trượt tới một mục: kéo giãn rồi rung như chất lỏng
+function placeBlob(row, instant) {
+  if (!row) { blobRow = null; gsap.to(blob, { opacity: 0, duration: .25 }); return; }
+  const first = !blobRow || instant;
+  blobRow = row;
+  gsap.killTweensOf(blob);
+  if (first || reduce) { gsap.set(blob, { y: row.offsetTop, height: row.offsetHeight, opacity: 1, scaleX: 1, scaleY: 1 }); return; }
+  navigator.vibrate?.(6);
+  gsap.timeline()
+    .to(blob, { scaleX: .94, scaleY: 1.2, duration: .14, ease: 'power2.out' })
+    .to(blob, { y: row.offsetTop, height: row.offsetHeight, duration: .75, ease: 'elastic.out(1,.55)' }, .04)
+    .to(blob, { scaleX: 1, scaleY: 1, duration: .6, ease: 'elastic.out(1,.4)' }, .14);
+}
+const restBlob = (instant) => placeBlob(sheetItems.find((a) => a.getAttribute('aria-current') === 'true') || null, instant);
+
+// Phóng đại kiểu dock: mục gần ngón tay phình lên, nhích sang phải
+function magnify(y) {
+  sheetItems.forEach((r) => {
+    let s = 1, x = 0;
+    if (y != null) {
+      const b = r.getBoundingClientRect();
+      const k = Math.max(0, 1 - Math.abs(y - (b.top + b.height / 2)) / 130);
+      s = 1 + .045 * k; x = 7 * k;
+    }
+    gsap.to(r, { scale: s, x, duration: .45, ease: 'power3.out', overwrite: 'auto' });
+  });
+}
+
+// Gợn sóng kính tại điểm chạm
+function ripple(e) {
+  const r = panel.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'nav__rip';
+  el.style.left = `${e.clientX - r.left + panel.scrollLeft}px`;
+  el.style.top = `${e.clientY - r.top + panel.scrollTop}px`;
+  panel.appendChild(el);
+  gsap.fromTo(el, { scale: .1, opacity: 1 }, { scale: 1.25, opacity: 0, duration: 1, ease: 'expo.out', onComplete: () => el.remove() });
+}
+
+// Ngón tay: điểm sáng + viền sáng + nghiêng 3D + giọt kính + phóng đại
+let downRow = null, slid = false;
+panel.addEventListener('pointerdown', (e) => {
+  touching = true; downRow = rowAt(e); ripple(e);
+  if (downRow) { placeBlob(downRow); gsap.to(blob, { scaleX: .96, scaleY: .94, duration: .15 }); }
+});
+panel.addEventListener('pointermove', (e) => {
+  touching = true;
+  const r = panel.getBoundingClientRect();
+  const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+  panel.style.setProperty('--mx', `${e.clientX - r.left}px`);
+  panel.style.setProperty('--my', `${e.clientY - r.top}px`);
+  panel.style.setProperty('--lit', '1');
+  let a = (Math.atan2(px - .5, -(py - .5)) * 180) / Math.PI;
+  if (a < 0) a += 360;
+  panel.style.setProperty('--ang', `${a.toFixed(1)}deg`);
+  gsap.to(panel, { rotationY: (px - .5) * 8, rotationX: -(py - .5) * 6, transformPerspective: 900, duration: .5, ease: 'power3.out', overwrite: 'auto' });
+  const row = rowAt(e);
+  if (row && row !== blobRow) placeBlob(row);
+  magnify(e.clientY);
+});
+const release = () => gsap.to(blob, { scaleX: 1, scaleY: 1, duration: .6, ease: 'elastic.out(1,.45)' });
+function rest() {
+  touching = false; panel.style.setProperty('--lit', '0');
+  gsap.to(panel, { rotationX: 0, rotationY: 0, duration: .8, ease: 'elastic.out(1,.5)', overwrite: 'auto' });
+  magnify(null); restBlob();
+}
+panel.addEventListener('pointerup', (e) => {
+  release();
+  const r = rowAt(e);
+  // Trượt sang mục khác rồi thả: đi tới mục đó (và chặn click gốc của mục lúc đầu chạm)
+  if (e.pointerType === 'touch' && r && downRow && r !== downRow) {
+    r.click(); slid = true; setTimeout(() => (slid = false), 80);
+  }
+  downRow = null;
+  if (e.pointerType === 'touch') rest();
+});
+panel.addEventListener('click', (e) => { if (slid) { e.preventDefault(); e.stopPropagation(); } }, true);
+panel.addEventListener('pointercancel', () => { release(); rest(); });
+panel.addEventListener('pointerleave', rest);
+
+// Khi không chạm: viền sáng tự xoay chậm cho kính "sống"
+let spin = 315, fr = 0;
+gsap.ticker.add(() => {
+  if (!isOpen || touching || (++fr & 1)) return;
+  spin = (spin + .7) % 360;
+  panel.style.setProperty('--ang', `${spin.toFixed(1)}deg`);
+});
+
+// Kéo thanh nắm ở đáy lên để đóng (kéo xuống thì có lực cản như cao su)
+let gid = null, g0 = 0, gdy = 0;
+grab.addEventListener('pointerdown', (e) => { gid = e.pointerId; g0 = e.clientY; gdy = 0; grab.setPointerCapture(gid); gsap.killTweensOf(panel, 'y,scaleY'); });
+grab.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== gid) return;
+  gdy = e.clientY - g0;
+  const y = gdy < 0 ? gdy : Math.pow(gdy, .72);
+  gsap.set(panel, { y, scaleY: 1 + Math.min(0, gdy) / 900 });
+  gsap.set(scrim, { opacity: 1 + Math.min(0, gdy) / 320 });
+});
+const grabEnd = () => {
+  if (gid == null) return;
+  gid = null;
+  if (gdy < -70) setMenu(false);
+  else {
+    gsap.to(panel, { y: 0, scaleY: 1, duration: .9, ease: 'elastic.out(1,.5)' });
+    gsap.to(scrim, { opacity: 1, duration: .3 });
+  }
+};
+grab.addEventListener('pointerup', grabEnd);
+grab.addEventListener('pointercancel', grabEnd);
+
+// Kéo viên thuốc Nav: xuống để mở, lên để đóng. Thanh bị kéo giãn rồi bật lại.
+let bid = null, b0 = 0, bOn = false, bdy = 0, barDragged = false;
+bar.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch' || !mobileMQ.matches) return;
+  bid = e.pointerId; b0 = e.clientY; bOn = false; bdy = 0;
+});
+bar.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== bid) return;
+  const dy = e.clientY - b0;
+  if (!bOn && Math.abs(dy) > 8) { bOn = true; bar.setPointerCapture(bid); }
+  if (!bOn) return;
+  bdy = isOpen ? Math.min(0, dy) : Math.max(0, dy);
+  gsap.set(bar, { y: Math.sign(bdy) * Math.pow(Math.abs(bdy), .78), scaleY: 1 + Math.min(Math.abs(bdy), 90) / 380, scaleX: 1 - Math.min(Math.abs(bdy), 90) / 1500 });
+});
+const barEnd = () => {
+  if (bid == null) return;
+  bid = null;
+  if (bOn) { barDragged = true; setTimeout(() => (barDragged = false), 60); }
+  gsap.to(bar, { y: 0, scaleX: 1, scaleY: 1, duration: .9, ease: 'elastic.out(1,.4)' });
+  if (bOn && Math.abs(bdy) > 40) setMenu(!isOpen);
+  bOn = false;
+};
+bar.addEventListener('pointerup', barEnd);
+bar.addEventListener('pointercancel', barEnd);
+bar.addEventListener('click', (e) => { if (barDragged) { e.preventDefault(); e.stopPropagation(); } }, true);
+
+// Điểm xuất phát để tấm kính "mọc ra" từ nút hamburger
+function burgerClip() {
+  const b = burger.getBoundingClientRect();
+  const pl = panel.offsetLeft, pw = panel.offsetWidth, ph = panel.offsetHeight;
+  const h = b.height * .9;
+  return {
+    clip: `inset(0px ${Math.max(0, pl + pw - b.right)}px ${Math.max(0, ph - h)}px ${Math.max(0, b.left - pl)}px round ${h / 2}px)`,
+    origin: `${b.left + b.width / 2 - pl}px 0px`,
+  };
+}
+
+function setMenu(open) {
+  if (open === isOpen) return;
+  isOpen = open;
+  if (open) syncSheetTone();
+  burger.classList.toggle('is-open', open);
+  burger.setAttribute('aria-expanded', String(open));
+  burger.setAttribute('aria-label', open ? 'Đóng menu' : 'Mở menu');
+  sheet.setAttribute('aria-hidden', String(!open));
+  sheet.inert = !open;
+  if (open) window.__lenis?.stop(); else window.__lenis?.start();
+  document.documentElement.style.overflow = open ? 'hidden' : '';
+
+  if (tl) tl.kill();
+  if (reduce) {
+    sheet.classList.toggle('is-open', open);
+    gsap.set(scrim, { opacity: open ? 1 : 0 });
+    if (open) restBlob(true);
+    return;
+  }
+
+  const R = parseFloat(getComputedStyle(panel).borderTopLeftRadius) || 32;
+  const full = `inset(0px 0px 0px 0px round ${R}px)`;
+  const from = burgerClip();
+
+  if (open) {
+    sheet.classList.add('is-open');
+    // màn thấp (xoay ngang) thì cho cuộn dọc, còn lại khoá cử chỉ để trượt/chọn mượt
+    panel.style.touchAction = panel.scrollHeight > panel.clientHeight + 1 ? 'pan-y' : 'none';
+    gsap.set(blob, { opacity: 0 }); blobRow = null;
+    tl = gsap.timeline({ onComplete: () => gsap.set(panel, { clearProps: 'clipPath' }) }); // bỏ clip để bóng đổ không bị cắt
+    tl.fromTo(panel, { clipPath: from.clip, y: -12, scaleX: .9, scaleY: .88, transformOrigin: from.origin },
+                     { clipPath: full, duration: .85, ease: 'expo.out' }, 0)
+      .to(panel, { y: 0, scaleX: 1, scaleY: 1, duration: 1.15, ease: 'elastic.out(1,.55)' }, 0)
+      .fromTo(bar, { scaleY: .9, scaleX: 1.015 }, { scaleY: 1, scaleX: 1, duration: 1.1, ease: 'elastic.out(1,.4)' }, 0)
+      .fromTo(scrim, { opacity: 0 }, { opacity: 1, duration: .45 }, 0)
+      .fromTo(kids, { y: 30, opacity: 0, scale: .9 },
+                    { y: 0, opacity: 1, scale: 1, duration: .8, ease: 'back.out(1.7)', stagger: .06 }, .1)
+      .fromTo(chars, { yPercent: 130, opacity: 0 },
+                     { yPercent: 0, opacity: 1, duration: .75, ease: 'expo.out', stagger: .016 }, .22)
+      .add(() => restBlob(true), .3);
+  } else {
+    tl = gsap.timeline({ onComplete: () => {
+      sheet.classList.remove('is-open');
+      gsap.set([panel, ...kids, ...chars], { clearProps: 'all' });
+      panel.style.setProperty('--lit', '0');
+      touching = false;
+    } });
+    tl.to(kids, { opacity: 0, y: -8, duration: .18, stagger: { each: .02, from: 'end' } }, 0)
+      .to(blob, { opacity: 0, duration: .15 }, 0)
+      .to(panel, { rotationX: 0, rotationY: 0, duration: .2 }, 0)
+      .fromTo(panel, { clipPath: full, transformOrigin: from.origin },
+                     { clipPath: from.clip, y: -10, scaleX: .94, scaleY: 1, duration: .5, ease: 'power3.inOut' }, .05)
+      .to(scrim, { opacity: 0, duration: .35 }, .1);
+  }
+}
+burger.addEventListener('click', () => setMenu(!isOpen));
+scrim.addEventListener('click', () => setMenu(false));
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && isOpen) { setMenu(false); burger.focus(); }
+});
+window.matchMedia('(min-width: 861px)').addEventListener('change', (e) => { if (e.matches) setMenu(false); });
 
   /* ----- HÀM 5: bấm link nội bộ thì cuộn mượt (dùng Lenis nếu có), chừa chỗ cho viên thuốc ----- */
   function goTo(href) {
