@@ -55,6 +55,24 @@ const links = [
   <feBlend in="r" in2="g" mode="screen" result="rg" />
   <feBlend in="rg" in2="b" mode="screen" />
 </filter>
+
+<filter id="nav-lens-lite" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="100" height="66" color-interpolation-filters="sRGB">
+  <feImage id="nav-lens-map-lite" x="0" y="0" width="100" height="66" preserveAspectRatio="none" result="map" />
+  <feDisplacementMap in="SourceGraphic" in2="map" scale="44" xChannelSelector="R" yChannelSelector="G" />
+</filter>
+
+<filter id="nav-dlens" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="100" height="40" color-interpolation-filters="sRGB">
+  <feImage id="nav-dlens-map" x="0" y="0" width="100" height="40" preserveAspectRatio="none" result="map" />
+  <feDisplacementMap id="nav-dlens-r" in="SourceGraphic" in2="map" scale="30" xChannelSelector="R" yChannelSelector="G" result="dr" />
+  <feColorMatrix in="dr" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r" />
+  <feDisplacementMap id="nav-dlens-g" in="SourceGraphic" in2="map" scale="34" xChannelSelector="R" yChannelSelector="G" result="dg" />
+  <feColorMatrix in="dg" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g" />
+  <feDisplacementMap id="nav-dlens-b" in="SourceGraphic" in2="map" scale="38" xChannelSelector="R" yChannelSelector="G" result="db" />
+  <feColorMatrix in="db" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b" />
+  <feBlend in="r" in2="g" mode="screen" result="rg" />
+  <feBlend in="rg" in2="b" mode="screen" result="rgb" />
+  <feColorMatrix in="rgb" type="saturate" values="1.5" />
+</filter>
   </defs>
 </svg>
 
@@ -67,9 +85,14 @@ const links = [
 
     <!-- Menu ngang (desktop) + thấu kính trượt -->
     <nav class="nav__links" aria-label="Điều hướng chính">
-      <span class="nav__lens" aria-hidden="true"></span>
-      {links.map((l) => <a href={l.href}>{l.t}</a>)}
-    </nav>
+  <div class="nav__lrows">
+    {links.map((l) => <a href={l.href}>{l.t}</a>)}
+  </div>
+  <span class="nav__lens" aria-hidden="true">
+    <span class="nav__lglass"><span class="nav__lmag" inert></span></span>
+    <span class="nav__lfx"></span>
+  </span>
+</nav>
 
     <div class="nav__right">
       <a href="#contact" class="nav__cta">Liên hệ</a>
@@ -331,7 +354,10 @@ const links = [
 /* Thân kính: nền trong + bản sao các mục (phóng đại bằng JS). Trên Chromium có thêm bộ lọc bẻ cong mép */
 .nav__bglass { position: absolute; inset: 0; overflow: hidden; border-radius: 1.45rem; background: var(--lens-fill); isolation: isolate; }
 .nav__mag { position: absolute; left: 0; top: 0; width: 100%; display: flex; flex-direction: column; gap: .15rem; transform-origin: 0 0; }
+
 .nav__sheet.edge-fx .nav__bglass { filter: url(#nav-lens); }
+.nav__sheet.edge-lite .nav__bglass { filter: url(#nav-lens-lite); }
+
 
 /* Lớp ánh sáng nằm NGOÀI bộ lọc nên không bị bẻ cong: viền, độ dày, caustic, bóng đổ. --k = độ phồng (0..1) */
 .nav__bfx {
@@ -340,7 +366,8 @@ const links = [
     inset 0 0 0 1px var(--ring),
     inset 2px 3px 4px -2px rgba(255, 255, 255, .95),
     inset -2px -3px 5px -3px rgba(255, 255, 255, .6),
-    inset 1px 0 0 rgba(255, 70, 110, .2), inset -1px 0 0 rgba(70, 150, 255, .25),
+        inset 2px 0 3px -1px rgba(255, 60, 110, .38), inset -2px 0 3px -1px rgba(60, 140, 255, .42),
+    inset 0 2px 3px -1px rgba(255, 220, 90, .22), inset 0 -2px 3px -1px rgba(90, 255, 200, .22),
     inset 0 -16px 22px -16px var(--s-glow),
     inset 0 0 18px rgba(255, 255, 255, .18),
     0 calc(10px + var(--k, 0) * 14px) calc(18px + var(--k, 0) * 12px) -14px rgba(0, 0, 0, calc(.3 + var(--k, 0) * .22));
@@ -615,6 +642,10 @@ const limg = document.getElementById('nav-lens-map');
 const dR = document.getElementById('nav-lens-r');
 const dG = document.getElementById('nav-lens-g');
 const dB = document.getElementById('nav-lens-b');
+const liteFilt = document.getElementById('nav-lens-lite');
+const liteImg = document.getElementById('nav-lens-map-lite');
+const XLINK = 'http://www.w3.org/1999/xlink';
+const setHref = (el, url) => { el.setAttribute('href', url); el.setAttributeNS(XLINK, 'xlink:href', url); };
 let lastS = 0;
 const kids = [...sheet.querySelectorAll('.nav__item, .nav__cta2')];
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -690,7 +721,7 @@ function syncLens() {
   rowsEl.style.setProperty('--h0', `${cy - half}px`);
   rowsEl.style.setProperty('--h1', `${cy + half}px`);
   // khúc xạ + tán sắc sống: nhấn giữ hoặc kéo nhanh thì bẻ mạnh hơn
-  if (edgeFx && dR) {
+  if (canRefract && dR) {
     const s = 34 + k * 34 + Math.min(46, v * .035);
     if (Math.abs(s - lastS) > .6) {
       lastS = s;
@@ -709,7 +740,7 @@ function hideLens() {
   gsap.killTweensOf(L);
   L.on = false; L.k = 0; L.vy = 0; shown = false;
   blob.style.opacity = '0';
-  sheet.classList.remove('edge-fx');   // thêm dòng này
+  sheet.classList.remove('edge-fx', 'edge-lite');
   rowsEl.style.setProperty('--h0', '-1px'); rowsEl.style.setProperty('--h1', '-1px');
 }
 function restLens(instant) {
@@ -754,10 +785,14 @@ gsap.ticker.add(() => {
 function buildLensMap() {
   if (!edgeFx || !L.w || !L.h) return;
   const r = Math.min(parseFloat(getComputedStyle(sheetItems[0]).borderTopLeftRadius) || 23, L.h / 2);
-  lfilt.setAttribute('width', L.w); lfilt.setAttribute('height', L.h);
-  limg.setAttribute('width', L.w); limg.setAttribute('height', L.h);
-  limg.setAttribute('href', drawMap(L.w, L.h, r, Math.min(r, 20)));
-  sheet.classList.add('edge-fx');
+  const url = drawMap(L.w, L.h, r, Math.min(r, 20));
+  const f = canRefract ? lfilt : liteFilt;
+  const im = canRefract ? limg : liteImg;
+  f.setAttribute('width', L.w); f.setAttribute('height', L.h);
+  im.setAttribute('width', L.w); im.setAttribute('height', L.h);
+  setHref(im, url);
+  sheet.classList.toggle('edge-fx', canRefract);
+  sheet.classList.toggle('edge-lite', !canRefract);
 }
 function measureLens() {
   L.w = Math.round(list.offsetWidth);
